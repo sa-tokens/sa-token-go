@@ -34,38 +34,39 @@
 
 ```bash
 # 只导入框架集成包（自动包含 core + stputil）
-go get github.com/click33/sa-token-go/integrations/gin@v0.1.3    # Gin框架
+go get github.com/click33/sa-token-go/integrations/gin@v0.1.4    # Gin框架
 # 或
-go get github.com/click33/sa-token-go/integrations/echo@v0.1.3   # Echo框架
+go get github.com/click33/sa-token-go/integrations/echo@v0.1.4   # Echo框架
 # 或
-go get github.com/click33/sa-token-go/integrations/fiber@v0.1.3  # Fiber框架
+go get github.com/click33/sa-token-go/integrations/fiber@v0.1.4  # Fiber框架
 # 或
-go get github.com/click33/sa-token-go/integrations/chi@v0.1.3    # Chi框架
+go get github.com/click33/sa-token-go/integrations/chi@v0.1.4    # Chi框架
 # 或
-go get github.com/click33/sa-token-go/integrations/gf@v0.1.3     # GoFrame框架
+go get github.com/click33/sa-token-go/integrations/gf@v0.1.4     # GoFrame框架
 
 # 存储模块（选一个）
-go get github.com/click33/sa-token-go/storage/memory@v0.1.3  # 内存存储（开发）
-go get github.com/click33/sa-token-go/storage/redis@v0.1.3   # Redis存储（生产）
+go get github.com/click33/sa-token-go/storage/memory@v0.1.4  # 内存存储（开发）
+go get github.com/click33/sa-token-go/storage/redis@v0.1.4   # Redis存储（生产）
 ```
 
 #### 方式二：分开导入
 
 ```bash
 # 核心模块
-go get github.com/click33/sa-token-go/core@v0.1.3
-go get github.com/click33/sa-token-go/stputil@v0.1.3
+go get github.com/click33/sa-token-go/core@v0.1.4
+go get github.com/click33/sa-token-go/stputil@v0.1.4
 
 # 存储模块（选一个）
-go get github.com/click33/sa-token-go/storage/memory@v0.1.3  # 内存存储（开发）
-go get github.com/click33/sa-token-go/storage/redis@v0.1.3   # Redis存储（生产）
+go get github.com/click33/sa-token-go/storage/memory@v0.1.4  # 内存存储（开发）
+go get github.com/click33/sa-token-go/storage/redis@v0.1.4   # Redis存储（生产）
 
 # 框架集成（可选）
-go get github.com/click33/sa-token-go/integrations/gin@v0.1.3    # Gin框架
-go get github.com/click33/sa-token-go/integrations/echo@v0.1.3   # Echo框架
-go get github.com/click33/sa-token-go/integrations/fiber@v0.1.3  # Fiber框架
-go get github.com/click33/sa-token-go/integrations/chi@v0.1.3    # Chi框架
-go get github.com/click33/sa-token-go/integrations/gf@v0.1.3     # GoFrame框架
+go get github.com/click33/sa-token-go/integrations/gin@v0.1.4    # Gin框架
+go get github.com/click33/sa-token-go/integrations/echo@v0.1.4   # Echo框架
+go get github.com/click33/sa-token-go/integrations/fiber@v0.1.4  # Fiber框架
+go get github.com/click33/sa-token-go/integrations/chi@v0.1.4    # Chi框架
+go get github.com/click33/sa-token-go/integrations/gf@v0.1.4     # GoFrame框架
+go get github.com/click33/sa-token-go/integrations/kratos@v0.1.4 # kratos框架
 ```
 
 ### ⚡ 超简洁使用（一行初始化）
@@ -102,7 +103,7 @@ func init() {
  ___/ / /_/ /   / / / /_/ / ,< /  __/ / / /_____/ /_/ / /_/ /
 /____/\__,_/   /_/  \____/_/|_|\___/_/ /_/      \____/\____/ 
                                                              
-:: Sa-Token-Go ::                                    (v0.1.3)
+:: Sa-Token-Go ::                                    (v0.1.4)
 :: Go Version ::                                     go1.21.0
 :: GOOS/GOARCH ::                                    linux/amd64
 
@@ -516,6 +517,12 @@ stputil.SetManager(manager)
 
 [→ 查看事件监听完整文档](docs/guide/listener_zh.md)
 
+## 🏗️ 架构讨论
+
+下面通过架构图来更直观地理解 sa-token-go 的设计思路和组件关系：
+
+<img src="docs/IMG_3976.JPG" alt="sa-token-go 架构图" width="200px" height="300px" />
+
 ## 📦 项目结构
 
 ```
@@ -620,9 +627,19 @@ Apache License 2.0
 
 参考 [sa-token](https://github.com/dromara/sa-token) 设计
 
+### 贡献者
+
+特别感谢以下贡献者的宝贵贡献：
+
+- [@qprodn](https://github.com/qprodn)
+- [@Zany2](https://github.com/Zany2)
+- [@zyw](https://github.com/zyw)
+- [@nuanxinqing123](https://github.com/nuanxinqing123)
+- [@vera-byte](https://github.com/vera-byte)
+- [@MoLing-Dong](https://github.com/MoLing-Dong)
+
 ## 📞 支持
 
-- 📧 邮箱: <support@sa-token-go.dev>
 - 💬 问题反馈: [GitHub Issues](https://github.com/click33/sa-token-go/issues)
 - 📖 文档: [docs/](docs/)
 

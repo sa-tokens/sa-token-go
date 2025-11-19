@@ -19,6 +19,9 @@ const (
 	// EventKickout fired when a user is forcibly logged out | 用户被踢下线事件
 	EventKickout Event = "kickout"
 
+	// EventReplace fired when a user is replaced by a new login | 用户被顶下线事件
+	EventReplace Event = "replace"
+
 	// EventDisable fired when an account is disabled | 账号被禁用事件
 	EventDisable Event = "disable"
 

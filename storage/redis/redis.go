@@ -106,10 +106,19 @@ func (s *Storage) Set(key string, value any, expiration time.Duration) error {
 	return s.client.Set(ctx, s.getKey(key), value, expiration).Err()
 }
 
-// SetKeepTTL Sets value without modifying TTL | 设置键值但不改变TTL
+// SetKeepTTL Sets value without modifying TTL | 设置键值但保持原有TTL不变
 func (s *Storage) SetKeepTTL(key string, value any) error {
 	ctx, cancel := s.withTimeout()
 	defer cancel()
+
+	// 先检查键是否存在，不存在则返回错误（与Memory实现保持一致）
+	exists, err := s.client.Exists(ctx, s.getKey(key)).Result()
+	if err != nil {
+		return err
+	}
+	if exists == 0 {
+		return fmt.Errorf("key not found: %s", key)
+	}
 
 	// Use SET key value KeepTTL | 使用 SET key value KeepTTL
 	return s.client.SetArgs(ctx, s.getKey(key), value, redis.SetArgs{

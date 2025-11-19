@@ -71,7 +71,7 @@ func (s *Storage) Set(key string, value any, expiration time.Duration) error {
 	return nil
 }
 
-// SetKeepTTL Sets value without modifying TTL | 设置键值但不改变TTL
+// SetKeepTTL Sets value without modifying TTL | 设置键值但保持原有TTL不变
 func (s *Storage) SetKeepTTL(key string, value any) error {
 	now := time.Now().Unix()
 
@@ -80,6 +80,7 @@ func (s *Storage) SetKeepTTL(key string, value any) error {
 
 	item, exists := s.data[key]
 	if !exists {
+		// 键不存在，返回错误（与Redis保持一致）
 		return ErrKeyNotFound
 	}
 

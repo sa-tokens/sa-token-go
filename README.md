@@ -34,37 +34,38 @@ A lightweight, high-performance Go authentication and authorization framework, i
 
 ```bash
 # Import only the framework integration (includes core + stputil automatically)
-go get github.com/click33/sa-token-go/integrations/gin@v0.1.3    # Gin framework
+go get github.com/click33/sa-token-go/integrations/gin@v0.1.4    # Gin framework
 # or
-go get github.com/click33/sa-token-go/integrations/echo@v0.1.3   # Echo framework
+go get github.com/click33/sa-token-go/integrations/echo@v0.1.4   # Echo framework
 # or
-go get github.com/click33/sa-token-go/integrations/fiber@v0.1.3  # Fiber framework
+go get github.com/click33/sa-token-go/integrations/fiber@v0.1.4  # Fiber framework
 # or
-go get github.com/click33/sa-token-go/integrations/chi@v0.1.3    # Chi framework
+go get github.com/click33/sa-token-go/integrations/chi@v0.1.4    # Chi framework
 # or
-go get github.com/click33/sa-token-go/integrations/gf@v0.1.3     # GoFrame framework
+go get github.com/click33/sa-token-go/integrations/gf@v0.1.4     # GoFrame framework
 
 # Storage module (choose one)
-go get github.com/click33/sa-token-go/storage/memory@v0.1.3  # Memory storage (dev)
-go get github.com/click33/sa-token-go/storage/redis@v0.1.3   # Redis storage (prod)
+go get github.com/click33/sa-token-go/storage/memory@v0.1.4  # Memory storage (dev)
+go get github.com/click33/sa-token-go/storage/redis@v0.1.4   # Redis storage (prod)
 ```
 
 #### Option 2: Separate Import
 
 ```bash
 # Core modules
-go get github.com/click33/sa-token-go/core@v0.1.3
-go get github.com/click33/sa-token-go/stputil@v0.1.3
+go get github.com/click33/sa-token-go/core@v0.1.4
+go get github.com/click33/sa-token-go/stputil@v0.1.4
 
 # Storage module (choose one)
-go get github.com/click33/sa-token-go/storage/memory@v0.1.3  # Memory storage (dev)
-go get github.com/click33/sa-token-go/storage/redis@v0.1.3   # Redis storage (prod)
+go get github.com/click33/sa-token-go/storage/memory@v0.1.4  # Memory storage (dev)
+go get github.com/click33/sa-token-go/storage/redis@v0.1.4   # Redis storage (prod)
 
 # Framework integration (optional)
-go get github.com/click33/sa-token-go/integrations/gin@v0.1.3    # Gin framework
-go get github.com/click33/sa-token-go/integrations/echo@v0.1.3   # Echo framework
-go get github.com/click33/sa-token-go/integrations/fiber@v0.1.3  # Fiber framework
-go get github.com/click33/sa-token-go/integrations/chi@v0.1.3    # Chi framework
+go get github.com/click33/sa-token-go/integrations/gin@v0.1.4    # Gin framework
+go get github.com/click33/sa-token-go/integrations/echo@v0.1.4   # Echo framework
+go get github.com/click33/sa-token-go/integrations/fiber@v0.1.4  # Fiber framework
+go get github.com/click33/sa-token-go/integrations/chi@v0.1.4    # Chi framework
+go get github.com/click33/sa-token-go/integrations/kratos@v0.1.4 # kratos framework
 ```
 
 ### ⚡ Minimal Usage (One-line Initialization)
@@ -101,7 +102,7 @@ func init() {
  ___/ / /_/ /   / / / /_/ / ,< /  __/ / / /_____/ /_/ / /_/ /
 /____/\__,_/   /_/  \____/_/|_|\___/_/ /_/      \____/\____/ 
                                                              
-:: Sa-Token-Go ::                                    (v0.1.3)
+:: Sa-Token-Go ::                                    (v0.1.4)
 :: Go Version ::                                     go1.21.0
 :: GOOS/GOARCH ::                                    linux/amd64
 
@@ -617,6 +618,17 @@ This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENS
 
 - Inspired by [sa-token](https://github.com/dromara/sa-token) - A powerful Java authentication framework
 - Built with ❤️ using Go
+
+### Contributors
+
+Special thanks to the following contributors for their valuable contributions:
+
+- [@qprodn](https://github.com/qprodn)
+- [@Zany2](https://github.com/Zany2)
+- [@zyw](https://github.com/zyw)
+- [@nuanxinqing123](https://github.com/nuanxinqing123)
+- [@vera-byte](https://github.com/vera-byte)
+- [@MoLing-Dong](https://github.com/MoLing-Dong)
 
 ## 📞 Support
 

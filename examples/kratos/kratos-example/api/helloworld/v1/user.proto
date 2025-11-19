@@ -1,0 +1,46 @@
+syntax = "proto3";
+
+package helloworld.v1;
+
+import "google/api/annotations.proto";
+
+option go_package = "kratos-example/api/helloworld/v1;v1";
+
+// 用户服务
+service User {
+  // 用户登录
+  rpc Login (LoginRequest) returns (LoginReply) {
+    option (google.api.http) = {
+      post: "/api/login"
+      body: "*"
+    };
+  }
+
+
+  // 获取用户信息（需要登录）
+  rpc GetUserInfo (GetUserInfoRequest) returns (GetUserInfoReply) {
+    option (google.api.http) = {
+      get: "/api/user/info"
+    };
+  }
+
+}
+
+// 登录请求
+message LoginRequest {
+  string loginId = 1;
+}
+
+// 登录响应
+message LoginReply {
+  string token = 1;
+}
+
+
+// 获取用户信息请求
+message GetUserInfoRequest {}
+
+// 获取用户信息响应
+message GetUserInfoReply {
+}
+

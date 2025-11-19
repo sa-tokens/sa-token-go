@@ -1,12 +1,14 @@
-go 1.24.1
+go 1.25.3
 
 use (
 	./core
+	./examples/kratos/kratos-example
 	./integrations/chi
 	./integrations/echo
 	./integrations/fiber
 	./integrations/gf
 	./integrations/gin
+	./integrations/kratos
 	./storage/memory
 	./storage/redis
 	./stputil
