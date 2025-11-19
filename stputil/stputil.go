@@ -77,6 +77,11 @@ func CheckLogin(tokenValue string) error {
 	return GetManager().CheckLogin(tokenValue)
 }
 
+// CheckLoginWithState checks the login status (returns error to determine the reason if not logged in) | 检查登录状态（未登录时根据错误确定原因）
+func CheckLoginWithState(tokenValue string) (bool, error) {
+	return GetManager().CheckLoginWithState(tokenValue)
+}
+
 // GetLoginID gets the login ID from token | 从Token获取登录ID
 func GetLoginID(tokenValue string) (string, error) {
 	return GetManager().GetLoginID(tokenValue)
