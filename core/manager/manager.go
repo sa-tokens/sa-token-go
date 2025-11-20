@@ -631,6 +631,42 @@ func (m *Manager) SetPermissions(loginID string, permissions []string) error {
 	return sess.Set(SessionKeyPermissions, permissions, m.getExpiration())
 }
 
+// RemovePermissions removes specified permissions for user | 删除用户指定权限
+func (m *Manager) RemovePermissions(loginID string, permissions []string) error {
+	sess, err := m.GetSession(loginID)
+	if err != nil {
+		return err
+	}
+
+	// Load existing permissions | 加载已有权限
+	existing, ok := sess.Get(SessionKeyPermissions)
+	if !ok {
+		return nil // No permissions to remove | 没有权限可删除
+	}
+
+	existingPerms := m.toStringSlice(existing)
+	if len(existingPerms) == 0 {
+		return nil
+	}
+
+	// Build a set for fast lookup of permissions to remove | 构建待删除权限集合
+	removeSet := make(map[string]struct{}, len(permissions))
+	for _, p := range permissions {
+		removeSet[p] = struct{}{}
+	}
+
+	// Filter out permissions to be removed | 过滤掉需要删除的权限
+	newPerms := make([]string, 0, len(existingPerms))
+	for _, p := range existingPerms {
+		if _, shouldRemove := removeSet[p]; !shouldRemove {
+			newPerms = append(newPerms, p)
+		}
+	}
+
+	// Save updated permissions | 保存更新后的权限列表
+	return sess.Set(SessionKeyPermissions, newPerms, m.getExpiration())
+}
+
 // GetPermissions Gets permission list | 获取权限列表
 func (m *Manager) GetPermissions(loginID string) ([]string, error) {
 	sess, err := m.GetSession(loginID)
@@ -728,6 +764,42 @@ func (m *Manager) SetRoles(loginID string, roles []string) error {
 		roles = removeDuplicateStrings(roles)
 	}
 	return sess.Set(SessionKeyRoles, roles, m.getExpiration())
+}
+
+// RemoveRoles removes specified roles for user | 删除用户指定角色
+func (m *Manager) RemoveRoles(loginID string, roles []string) error {
+	sess, err := m.GetSession(loginID)
+	if err != nil {
+		return err
+	}
+
+	// Load existing roles | 加载已有角色
+	existing, ok := sess.Get(SessionKeyRoles)
+	if !ok {
+		return nil // No roles to remove | 没有角色可删除
+	}
+
+	existingRoles := m.toStringSlice(existing)
+	if len(existingRoles) == 0 {
+		return nil
+	}
+
+	// Build lookup set for roles to remove | 构建待删除角色集合
+	removeSet := make(map[string]struct{}, len(roles))
+	for _, r := range roles {
+		removeSet[r] = struct{}{}
+	}
+
+	// Filter existing roles | 过滤掉需要删除的角色
+	newRoles := make([]string, 0, len(existingRoles))
+	for _, r := range existingRoles {
+		if _, remove := removeSet[r]; !remove {
+			newRoles = append(newRoles, r)
+		}
+	}
+
+	// Save updated roles | 保存更新后的角色列表
+	return sess.Set(SessionKeyRoles, newRoles, m.getExpiration())
 }
 
 // GetRoles Gets role list | 获取角色列表
