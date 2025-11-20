@@ -623,6 +623,11 @@ func (m *Manager) SetPermissions(loginID string, permissions []string) error {
 	if err != nil {
 		return err
 	}
+	permissionsFromSession, b := sess.Get(SessionKeyPermissions)
+	if b {
+		permissions = append(permissions, m.toStringSlice(permissionsFromSession)...)
+		permissions = removeDuplicateStrings(permissions)
+	}
 	return sess.Set(SessionKeyPermissions, permissions, m.getExpiration())
 }
 
@@ -716,6 +721,11 @@ func (m *Manager) SetRoles(loginID string, roles []string) error {
 	sess, err := m.GetSession(loginID)
 	if err != nil {
 		return err
+	}
+	rolesFromSession, b := sess.Get(SessionKeyRoles)
+	if b {
+		roles = append(roles, m.toStringSlice(rolesFromSession)...)
+		roles = removeDuplicateStrings(roles)
 	}
 	return sess.Set(SessionKeyRoles, roles, m.getExpiration())
 }
@@ -1013,6 +1023,20 @@ func (m *Manager) toStringSlice(v any) []string {
 	default:
 		return []string{}
 	}
+}
+
+// removeDuplicateStrings removes duplicate elements from []string | 去重字符串切片
+func removeDuplicateStrings(list []string) []string {
+	seen := make(map[string]struct{}, len(list))
+	result := make([]string, 0, len(list))
+
+	for _, v := range list {
+		if _, exists := seen[v]; !exists {
+			seen[v] = struct{}{}
+			result = append(result, v)
+		}
+	}
+	return result
 }
 
 // ============ Event Management | 事件管理 ============
