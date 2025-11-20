@@ -155,6 +155,11 @@ func SetPermissions(loginID interface{}, permissions []string) error {
 	return GetManager().SetPermissions(toString(loginID), permissions)
 }
 
+// RemovePermissions removes specified permissions for a login ID | 删除用户指定权限
+func RemovePermissions(loginID interface{}, permissions []string) error {
+	return GetManager().RemovePermissions(toString(loginID), permissions)
+}
+
 // GetPermissions gets permission list | 获取权限列表
 func GetPermissions(loginID interface{}) ([]string, error) {
 	return GetManager().GetPermissions(toString(loginID))
@@ -180,6 +185,11 @@ func HasPermissionsOr(loginID interface{}, permissions []string) bool {
 // SetRoles sets roles for a login ID | 设置用户角色
 func SetRoles(loginID interface{}, roles []string) error {
 	return GetManager().SetRoles(toString(loginID), roles)
+}
+
+// RemoveRoles removes specified roles for a login ID | 删除用户指定角色
+func RemoveRoles(loginID interface{}, roles []string) error {
+	return GetManager().RemoveRoles(toString(loginID), roles)
 }
 
 // GetRoles gets role list | 获取角色列表

@@ -77,7 +77,6 @@ func (s *Session) SetMulti(values map[string]any, ttl ...time.Duration) error {
 	}
 
 	if len(ttl) > 0 && ttl[0] > 0 {
-		fmt.Println("ttl:", ttl[0])
 		return s.saveWithTTL(ttl[0])
 	}
 
@@ -226,7 +225,6 @@ func (s *Session) saveWithTTL(ttl time.Duration) error {
 	}
 
 	key := s.getStorageKey()
-	fmt.Println(ttl)
 	return s.storage.Set(key, string(data), ttl)
 }
 
