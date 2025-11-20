@@ -462,7 +462,7 @@ func (m *Manager) CheckLoginWithState(tokenValue string) (bool, error) {
 		if now-info.ActiveTime > m.config.ActiveTimeout {
 			// Force logout and clean up token data | 强制登出并清理 Token 相关数据
 			_ = m.removeTokenChain(tokenValue, false, info, listener.EventKickout)
-			return false, ErrTokenReplaced
+			return false, ErrTokenKickout
 		}
 	}
 
