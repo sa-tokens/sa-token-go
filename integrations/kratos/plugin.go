@@ -233,8 +233,8 @@ func (rb *RuleBuilder) CheckNotDisabled() *RuleBuilder {
 }
 
 // CustomCheck 自定义检查
-func (rb *RuleBuilder) CustomCheck(name string, fn func(ctx context.Context, manager *core.Manager, loginID string) error) *RuleBuilder {
-	rb.checkers = append(rb.checkers, &CustomChecker{name: name, fn: fn})
+func (rb *RuleBuilder) CustomCheck(fn func(ctx context.Context, manager *core.Manager, loginID string) error) *RuleBuilder {
+	rb.checkers = append(rb.checkers, &CustomChecker{fn: fn})
 	return rb
 }
 
