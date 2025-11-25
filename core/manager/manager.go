@@ -1,8 +1,9 @@
 package manager
 
 import (
-	"encoding/json"
 	"fmt"
+	"github.com/click33/sa-token-go/core/codec"
+	"github.com/click33/sa-token-go/core/serror"
 	"strings"
 	"time"
 
@@ -47,19 +48,9 @@ const (
 type TokenState string
 
 const (
-	TokenStateKickout  TokenState = "KICK_OUT"
-	TokenStateReplaced TokenState = "BE_REPLACED"
-)
-
-// Error variables | 错误变量
-var (
-	ErrAccountDisabled    = fmt.Errorf("account is disabled")
-	ErrNotLogin           = fmt.Errorf("not login")
-	ErrTokenNotFound      = fmt.Errorf("token not found")
-	ErrInvalidTokenData   = fmt.Errorf("invalid token data")
-	ErrLoginLimitExceeded = fmt.Errorf("login count exceeds the maximum limit")
-	ErrTokenKickout       = fmt.Errorf("token has been kicked out")
-	ErrTokenReplaced      = fmt.Errorf("token has been replaced")
+	TokenStateLogout   TokenState = "LOGOUT"      // Logout state | 主动登出
+	TokenStateKickout  TokenState = "KICK_OUT"    // Kickout state | 被踢下线
+	TokenStateReplaced TokenState = "BE_REPLACED" // Replaced state | 被顶下线
 )
 
 // TokenInfo Token information | Token信息
@@ -73,10 +64,10 @@ type TokenInfo struct {
 
 // Manager Authentication manager | 认证管理器
 type Manager struct {
+	prefix         string
 	storage        adapter.Storage
 	config         *config.Config
 	generator      *token.Generator
-	prefix         string
 	nonceManager   *security.NonceManager
 	refreshManager *security.RefreshTokenManager
 	oauth2Server   *oauth2.OAuth2Server
@@ -164,7 +155,7 @@ func assertString(v any) (string, bool) {
 func (m *Manager) Login(loginID string, device ...string) (string, error) {
 	// Check if account is disabled | 检查账号是否被封禁
 	if m.IsDisable(loginID) {
-		return "", ErrAccountDisabled
+		return "", serror.ErrAccountDisabled
 	}
 
 	deviceType := getDevice(device)
@@ -194,39 +185,39 @@ func (m *Manager) Login(loginID string, device ...string) (string, error) {
 		if len(tokens) >= m.config.MaxLoginCount {
 			// Reached maximum concurrent login count | 已达到最大并发登录数
 			// You may change to "kick out earliest token" if desired | 如需也可改为“踢掉最早 Token”
-			return "", ErrLoginLimitExceeded
+			return "", serror.ErrLoginLimitExceeded
 		}
 	}
 
 	// Generate token | 生成Token
 	tokenValue, err := m.generator.Generate(loginID, deviceType)
 	if err != nil {
-		return "", fmt.Errorf("failed to generate token: %w", err)
+		return "", fmt.Errorf("%w: %v", serror.ErrTokenGenerateFailed, err)
 	}
 
 	nowTime := time.Now().Unix()
 	expiration := m.getExpiration()
 
-	// Prepare TokenInfo object and serialize to JSON | 准备Token信息对象并序列化为JSON
-	tokenInfoStr, err := json.Marshal(TokenInfo{
+	// Prepare TokenInfo object and serialize to JSON | 准备Token信息对象并序列化
+	tokenInfo, err := codec.DefaultSerializer.Marshal(TokenInfo{
 		LoginID:    loginID,
 		Device:     deviceType,
 		CreateTime: nowTime,
 		ActiveTime: nowTime,
 	})
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal tokenInfo: %w", err)
+		return "", fmt.Errorf("%w: %v", serror.ErrCommonMarshal, err)
 	}
 
 	// Save token-tokenInfo mapping | 保存 TokenKey-TokenInfo 映射
 	tokenKey := m.getTokenKey(tokenValue)
-	if err = m.storage.Set(tokenKey, string(tokenInfoStr), expiration); err != nil {
-		return "", fmt.Errorf("failed to save token: %w", err)
+	if err = m.storage.Set(tokenKey, tokenInfo, expiration); err != nil {
+		return "", fmt.Errorf("%w: %v", serror.ErrCommonStoreFailed, err)
 	}
 
 	// Save account-token mapping | 保存 AccountKey-Token 映射
 	if err = m.storage.Set(accountKey, tokenValue, expiration); err != nil {
-		return "", fmt.Errorf("failed to save account mapping: %w", err)
+		return "", fmt.Errorf("%w: %v", serror.ErrCommonStoreFailed, err)
 	}
 
 	// Create session | 创建Session
@@ -241,7 +232,7 @@ func (m *Manager) Login(loginID string, device ...string) (string, error) {
 			expiration,
 		)
 	if err != nil {
-		return "", fmt.Errorf("failed to save session: %w", err)
+		return "", err
 	}
 
 	// Trigger login event | 触发登录事件
@@ -264,12 +255,12 @@ func (m *Manager) LoginByToken(loginID string, tokenValue string, device ...stri
 		return err
 	}
 	if info == nil {
-		return ErrInvalidTokenData
+		return serror.ErrInvalidTokenData
 	}
 
 	// Check if the account is disabled | 检查账号是否被封禁
 	if m.IsDisable(info.LoginID) {
-		return ErrAccountDisabled
+		return serror.ErrAccountDisabled
 	}
 
 	now := time.Now().Unix()
@@ -279,7 +270,7 @@ func (m *Manager) LoginByToken(loginID string, tokenValue string, device ...stri
 	info.ActiveTime = now
 
 	// Write back updated TokenInfo (保留原TTL)
-	if data, err := json.Marshal(info); err == nil {
+	if data, err := codec.DefaultSerializer.Marshal(info); err == nil {
 		_ = m.storage.SetKeepTTL(m.getTokenKey(tokenValue), data)
 	}
 
@@ -302,7 +293,8 @@ func (m *Manager) Logout(loginID string, device ...string) error {
 
 	tokenValue, err := m.storage.Get(accountKey)
 	if err != nil || tokenValue == nil {
-		return nil // Already logged out | 已经登出
+		// Already logged out | 已经登出
+		return nil
 	}
 
 	// Assert token value type | 类型断言为字符串
@@ -360,7 +352,8 @@ func (m *Manager) replace(loginID string, device string) error {
 	accountKey := m.getAccountKey(loginID, device)
 	tokenValue, err := m.storage.Get(accountKey)
 	if err != nil || tokenValue == nil {
-		return nil // No active login to replace | 无活跃登录，无需处理
+		// No active login to replace | 无活跃登录，无需处理
+		return nil
 	}
 
 	tokenStr, ok := assertString(tokenValue)
@@ -436,10 +429,10 @@ func (m *Manager) IsLogin(tokenValue string) bool {
 	return true
 }
 
-// CheckLogin Checks login status (throws error if not logged in) | 检查登录（未登录抛出错误）
+// CheckLogin Checks login status (throws serror if not logged in) | 检查登录（未登录抛出错误）
 func (m *Manager) CheckLogin(tokenValue string) error {
 	if !m.IsLogin(tokenValue) {
-		return ErrNotLogin
+		return serror.ErrNotLogin
 	}
 	return nil
 }
@@ -462,7 +455,7 @@ func (m *Manager) CheckLoginWithState(tokenValue string) (bool, error) {
 		if now-info.ActiveTime > m.config.ActiveTimeout {
 			// Force logout and clean up token data | 强制登出并清理 Token 相关数据
 			_ = m.removeTokenChain(tokenValue, false, info, listener.EventKickout)
-			return false, ErrTokenKickout
+			return false, serror.ErrTokenKickout
 		}
 	}
 
@@ -492,7 +485,7 @@ func (m *Manager) CheckLoginWithState(tokenValue string) (bool, error) {
 // GetLoginID Gets login ID from token | 根据Token获取登录ID
 func (m *Manager) GetLoginID(tokenValue string) (string, error) {
 	if !m.IsLogin(tokenValue) {
-		return "", ErrNotLogin
+		return "", serror.ErrNotLogin
 	}
 
 	info, err := m.getTokenInfo(tokenValue)
@@ -500,7 +493,7 @@ func (m *Manager) GetLoginID(tokenValue string) (string, error) {
 		return "", err
 	}
 	if info == nil {
-		return "", ErrInvalidTokenData
+		return "", serror.ErrInvalidTokenData
 	}
 
 	return info.LoginID, nil
@@ -513,24 +506,24 @@ func (m *Manager) GetLoginIDNotCheck(tokenValue string) (string, error) {
 		return "", err
 	}
 	if info == nil {
-		return "", ErrInvalidTokenData
+		return "", serror.ErrInvalidTokenData
 	}
 	return info.LoginID, err
 }
 
-// GetTokenValue Gets token by login ID | 根据登录ID获取Token
+// GetTokenValue Gets token by login ID and device | 根据登录ID以及设备获取Token
 func (m *Manager) GetTokenValue(loginID string, device ...string) (string, error) {
 	deviceType := getDevice(device)
 	accountKey := m.getAccountKey(loginID, deviceType)
 
 	tokenValue, err := m.storage.Get(accountKey)
 	if err != nil || tokenValue == nil {
-		return "", fmt.Errorf("token not found for login id: %s", loginID)
+		return "", serror.ErrTokenNotFound
 	}
 
 	tokenStr, ok := assertString(tokenValue)
 	if !ok {
-		return "", fmt.Errorf("invalid token value type")
+		return "", serror.ErrTokenNotFound
 	}
 
 	return tokenStr, nil
@@ -550,7 +543,7 @@ func (m *Manager) Disable(loginID string, duration time.Duration) error {
 	if err == nil && len(tokens) > 0 {
 		for _, tokenValue := range tokens {
 			// Force kick out each active token | 强制踢出所有活跃的Token
-			_ = m.removeTokenChain(tokenValue, true, nil, listener.EventLogout)
+			_ = m.removeTokenChain(tokenValue, true, nil, listener.EventKickout)
 		}
 	}
 
@@ -609,6 +602,15 @@ func (m *Manager) GetSessionByToken(tokenValue string) (*session.Session, error)
 // DeleteSession Deletes session | 删除Session
 func (m *Manager) DeleteSession(loginID string) error {
 	sess, err := m.GetSession(loginID)
+	if err != nil {
+		return err
+	}
+	return sess.Destroy()
+}
+
+// DeleteSessionByToken Deletes session by token | 根据Token删除Session
+func (m *Manager) DeleteSessionByToken(tokenValue string) error {
+	sess, err := m.GetSessionByToken(tokenValue)
 	if err != nil {
 		return err
 	}
@@ -929,35 +931,33 @@ func (m *Manager) getLoginIDByToken(tokenValue string) (string, error) {
 func (m *Manager) getTokenInfo(tokenValue string, checkState ...bool) (*TokenInfo, error) {
 	tokenKey := m.getTokenKey(tokenValue)
 	data, err := m.storage.Get(tokenKey)
-	if err != nil || data == nil {
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", serror.ErrCommonGetFailed, err)
+	}
+	if data == nil {
+		return nil, serror.ErrTokenNotFound
+	}
+
+	raw, err := codec.UnifyToBytes(data)
+	if err != nil {
 		return nil, err
 	}
 
-	// Convert storage value to string | 将存储值统一转换为字符串
-	var str string
-	switch v := data.(type) {
-	case []byte:
-		str = string(v)
-	case string:
-		str = v
-	default:
-		return nil, ErrInvalidTokenData
-	}
-
 	// Check for special token states (if enabled) | 检查是否为特殊状态（当启用检查时）
+	str := string(raw)
 	if len(checkState) == 0 || checkState[0] {
 		switch str {
 		case string(TokenStateKickout):
-			return nil, ErrTokenKickout // 被踢下线
+			return nil, serror.ErrTokenKickout // 被踢下线
 		case string(TokenStateReplaced):
-			return nil, ErrTokenReplaced // 被顶下线
+			return nil, serror.ErrTokenReplaced // 被顶下线
 		}
 	}
 
-	// Parse TokenInfo from JSON | 从JSON解析Token信息
+	// Parse TokenInfo | 解析Token信息
 	var info TokenInfo
-	if err := json.Unmarshal([]byte(str), &info); err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrInvalidTokenData, err)
+	if err = codec.DefaultSerializer.Unmarshal(raw, &info); err != nil {
+		return nil, fmt.Errorf("%w: %v", serror.ErrInvalidTokenData, err)
 	}
 
 	return &info, nil
@@ -981,24 +981,21 @@ func (m *Manager) renewToken(tokenValue string, info *TokenInfo) {
 
 	// Update ActiveTime and keep original TTL | 更新 ActiveTime，保持原 TTL 不变
 	info.ActiveTime = time.Now().Unix()
-	if tokenInfo, err := json.Marshal(info); err == nil {
+	if tokenInfo, err := codec.DefaultSerializer.Marshal(info); err == nil {
 		_ = m.storage.SetKeepTTL(tokenKey, tokenInfo)
 	}
 
 	// Extend TTL for token and its accountKey | 为 Token 与对应 accountKey 延长 TTL
 	exp := m.getExpiration()
-	if exp > 0 {
-		// Renew token TTL | 续期 Token TTL
-		_ = m.storage.Expire(tokenKey, exp)
 
-		// Renew accountKey TTL | 续期账号映射 TTL
-		accountKey := m.getAccountKey(info.LoginID, info.Device)
-		_ = m.storage.Expire(accountKey, exp)
-
-		// Renew session TTL | 续期 Session TTL
-		if sess, err := m.GetSession(info.LoginID); err == nil && sess != nil {
-			_ = sess.Renew(exp)
-		}
+	// Renew token TTL | 续期 Token TTL
+	_ = m.storage.Expire(tokenKey, exp)
+	// Renew accountKey TTL | 续期账号映射 TTL
+	accountKey := m.getAccountKey(info.LoginID, info.Device)
+	_ = m.storage.Expire(accountKey, exp)
+	// Renew session TTL | 续期 Session TTL
+	if sess, err := m.GetSession(info.LoginID); err == nil && sess != nil {
+		_ = sess.Renew(exp)
 	}
 
 	// Set minimal renewal interval marker | 设置最小续期间隔标记（限流续期频率）
@@ -1025,7 +1022,7 @@ func (m *Manager) removeTokenChain(tokenValue string, destroySession bool, info 
 			return err
 		}
 		if info == nil {
-			return ErrInvalidTokenData
+			return serror.ErrInvalidTokenData
 		}
 	}
 
@@ -1058,10 +1055,10 @@ func (m *Manager) removeTokenChain(tokenValue string, destroySession bool, info 
 
 	// Default Unknown event type | 未知事件类型（默认删除）
 	default:
-		_ = m.storage.Delete(tokenKey)
-		_ = m.storage.Delete(accountKey)
-		_ = m.storage.Delete(renewKey)
-		if destroySession {
+		_ = m.storage.Delete(tokenKey)   // Delete token-info mapping | 删除Token信息映射
+		_ = m.storage.Delete(accountKey) // Delete account-token mapping | 删除账号映射
+		_ = m.storage.Delete(renewKey)   // Delete renew key | 删除续期标记
+		if destroySession {              // Optionally destroy session | 可选销毁Session
 			_ = m.DeleteSession(info.LoginID)
 		}
 	}

@@ -2,7 +2,8 @@
 package pool
 
 import (
-	"fmt"
+	"github.com/click33/sa-token-go/core/log"
+	"github.com/click33/sa-token-go/core/serror"
 	"sync"
 	"time"
 
@@ -118,7 +119,7 @@ func (m *RenewPoolManager) initPool() error {
 // Submit submits a renewal task | 提交续期任务
 func (m *RenewPoolManager) Submit(task func()) error {
 	if !m.started {
-		return fmt.Errorf("RenewPool not started")
+		return serror.ErrRenewPoolNotStarted
 	}
 	return m.pool.Submit(task)
 }
@@ -191,7 +192,7 @@ func (m *RenewPoolManager) Stats() (running, capacity int, usage float64) {
 // PrintStatus prints current pool status | 打印池状态
 func (m *RenewPoolManager) PrintStatus() {
 	r, c, u := m.Stats()
-	fmt.Printf("RenewPool Running: %d, Capacity: %d, Usage: %.1f%%\n", r, c, u*100)
+	log.GlobalLogger.Infof("RenewPool Running: %d, Capacity: %d, Usage: %.1f%%", r, c, u*100)
 }
 
 // RenewPoolBuilder builder for RenewPoolManager | RenewPoolManager 构造器

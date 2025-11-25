@@ -1,8 +1,9 @@
 package session
 
 import (
-	"encoding/json"
 	"fmt"
+	"github.com/click33/sa-token-go/core/codec"
+	"github.com/click33/sa-token-go/core/serror"
 	"sync"
 	"time"
 
@@ -12,12 +13,6 @@ import (
 // Constants for session keys | Session键常量
 const (
 	SessionKeyPrefix = "session:" // Storage key prefix | 存储键前缀
-)
-
-// Error variables | 错误变量
-var (
-	ErrSessionNotFound    = fmt.Errorf("session not found")
-	ErrInvalidSessionData = fmt.Errorf("invalid session data")
 )
 
 // Session Session object for storing user data | 会话对象，用于存储用户数据
@@ -46,7 +41,7 @@ func NewSession(id string, storage adapter.Storage, prefix string) *Session {
 // Set Sets value | 设置值
 func (s *Session) Set(key string, value any, ttl ...time.Duration) error {
 	if key == "" {
-		return fmt.Errorf("key cannot be empty")
+		return serror.ErrSessionIDEmpty
 	}
 
 	s.mu.Lock()
@@ -71,7 +66,7 @@ func (s *Session) SetMulti(values map[string]any, ttl ...time.Duration) error {
 
 	for key, value := range values {
 		if key == "" {
-			return fmt.Errorf("key cannot be empty")
+			return serror.ErrSessionKeyEmpty
 		}
 		s.Data[key] = value
 	}
@@ -208,20 +203,20 @@ func (s *Session) Renew(ttl time.Duration) error {
 
 // save Saves session to storage | 保存到存储
 func (s *Session) save() error {
-	data, err := json.Marshal(s)
+	data, err := codec.DefaultSerializer.Marshal(s)
 	if err != nil {
-		return fmt.Errorf("failed to marshal session: %w", err)
+		return fmt.Errorf("%w: %v", serror.ErrCommonMarshal, err)
 	}
 
 	key := s.getStorageKey()
-	return s.storage.Set(key, string(data), 0)
+	return s.storage.Set(key, data, 0)
 }
 
 // saveWithTTL saves session with TTL | 带 TTL 保存 Session
 func (s *Session) saveWithTTL(ttl time.Duration) error {
-	data, err := json.Marshal(s)
+	data, err := codec.DefaultSerializer.Marshal(s)
 	if err != nil {
-		return fmt.Errorf("failed to marshal session: %w", err)
+		return fmt.Errorf("%w: %v", serror.ErrCommonMarshal, err)
 	}
 
 	key := s.getStorageKey()
@@ -238,7 +233,7 @@ func (s *Session) getStorageKey() string {
 // Load Loads session from storage | 从存储加载
 func Load(id string, storage adapter.Storage, prefix string) (*Session, error) {
 	if id == "" {
-		return nil, fmt.Errorf("session id cannot be empty")
+		return nil, serror.ErrSessionIDEmpty
 	}
 
 	key := prefix + SessionKeyPrefix + id
@@ -247,28 +242,17 @@ func Load(id string, storage adapter.Storage, prefix string) (*Session, error) {
 		return nil, err
 	}
 	if data == nil {
-		return nil, ErrSessionNotFound
+		return nil, serror.ErrSessionNotFound
 	}
 
-	var (
-		raw     []byte
-		session Session
-	)
-
-	// Support both string and []byte | 同时兼容 string 和 []byte
-	switch v := data.(type) {
-	case string:
-		raw = []byte(v)
-
-	case []byte:
-		raw = v
-
-	default:
-		return nil, ErrInvalidSessionData
+	raw, err := codec.UnifyToBytes(data)
+	if err != nil {
+		return nil, err
 	}
 
-	if err := json.Unmarshal(raw, &session); err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrInvalidSessionData, err)
+	var session Session
+	if err = codec.DefaultSerializer.Unmarshal(raw, &session); err != nil {
+		return nil, fmt.Errorf("%w: %v", serror.ErrCommonUnmarshal, err)
 	}
 
 	session.storage = storage
