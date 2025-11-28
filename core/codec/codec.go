@@ -2,17 +2,10 @@
 package codec
 
 import (
-	"encoding/json"
 	"github.com/click33/sa-token-go/core/serror"
-	"github.com/vmihailenco/msgpack/v5"
+	"sync"
+	"sync/atomic"
 )
-
-// Serializer defines interface for encoding/decoding TokenInfo | TokenInfo 编解码接口
-type Serializer interface {
-	Marshal(v any) ([]byte, error)      // Encode to bytes | 编码
-	Unmarshal(data []byte, v any) error // Decode to struct | 解码
-	Name() string                       // Serializer name | 序列化器名称（例如 json/msgpack）
-}
 
 // Built-in serializer names | 内置序列化器名称
 const (
@@ -20,35 +13,80 @@ const (
 	SerializerMsgPack = "msgpack"
 )
 
-// -------------------- JSON Serializer --------------------
-
-type JSONSerializer struct{}
-
-func (s *JSONSerializer) Marshal(v any) ([]byte, error) {
-	return json.Marshal(v)
+// serializerHolder wraps Adapter to ensure atomic.Value type consistency | 包装 Adapter 以确保 atomic.Value 类型一致性
+type serializerHolder struct {
+	s Adapter
 }
 
-func (s *JSONSerializer) Unmarshal(data []byte, v any) error {
-	return json.Unmarshal(data, v)
+// serializerValue stores the global serializer using atomic.Value | 使用 atomic.Value 存储全局序列化器
+var (
+	serializerValue atomic.Value // stores serializerHolder | 存储 serializerHolder
+	serializerMu    sync.Mutex   // used only for SetDefaultSerializer write lock | 仅用于写入加锁
+)
+
+func init() {
+	// Initialize default JSON serializer | 初始化默认 JSON 序列化器
+	serializerValue.Store(serializerHolder{s: &JSONSerializer{}})
 }
 
-func (s *JSONSerializer) Name() string { return SerializerJSON }
+// SetDefaultSerializer sets the global serializer | 设置全局默认序列化器
+func SetDefaultSerializer(s Adapter) {
+	if s == nil {
+		return
+	}
 
-// -------------------- MsgPack Serializer --------------------
-
-type MsgPackSerializer struct{}
-
-func (s *MsgPackSerializer) Marshal(v any) ([]byte, error) {
-	return msgpack.Marshal(v)
+	// lock ensures write ordering | 加锁确保写入顺序一致
+	serializerMu.Lock()
+	serializerValue.Store(serializerHolder{s: s})
+	serializerMu.Unlock()
 }
 
-func (s *MsgPackSerializer) Unmarshal(data []byte, v any) error {
-	return msgpack.Unmarshal(data, v)
+// GetDefaultSerializer returns the global serializer | 获取全局默认序列化器
+func GetDefaultSerializer() Adapter {
+	return serializerValue.Load().(serializerHolder).s
 }
 
-func (s *MsgPackSerializer) Name() string { return SerializerMsgPack }
+// Encode encodes a value using the global serializer | 使用全局序列化器编码数据
+func Encode(v any) ([]byte, error) {
+	return GetDefaultSerializer().Encode(v)
+}
 
-// UnifyToBytes converts storage return (string or []byte) into []byte safely.
+// Decode decodes bytes using the global serializer | 使用全局序列化器解码数据到目标对象
+func Decode(data []byte, v any) error {
+	return GetDefaultSerializer().Decode(data, v)
+}
+
+// NewSerializer creates a serializer by name | 根据名称创建对应的序列化器
+func NewSerializer(name string) Adapter {
+	switch name {
+	case SerializerJSON, "":
+		return &JSONSerializer{}
+	case SerializerMsgPack:
+		return &MsgPackSerializer{}
+	default:
+		return &JSONSerializer{}
+	}
+}
+
+// NewSerializerMust returns serializer or panic if not found | 根据名称创建序列化器，未找到则 panic
+func NewSerializerMust(name string) Adapter {
+	switch name {
+	case SerializerJSON, "":
+		return &JSONSerializer{}
+	case SerializerMsgPack:
+		return &MsgPackSerializer{}
+	}
+	panic("unknown serializer: " + name)
+}
+
+// NewSerializerMustWithJson returns JSON serializer if name not found | 根据名称创建序列化器，未找到则返回 JSON 序列化器
+func NewSerializerMustWithJson(name string) Adapter {
+	return NewSerializer(name)
+}
+
+// -------------------- Helper Functions --------------------
+
+// UnifyToBytes converts string or []byte to []byte safely | 将 string 或 []byte 安全转换为 []byte
 func UnifyToBytes(data any) ([]byte, error) {
 	if data == nil {
 		return nil, serror.ErrInvalidTokenData
@@ -62,21 +100,4 @@ func UnifyToBytes(data any) ([]byte, error) {
 	default:
 		return nil, serror.ErrInvalidTokenData
 	}
-}
-
-// NewSerializer 根据名称创建对应的序列化器
-func NewSerializer(name string) Serializer {
-	switch name {
-	case SerializerJSON, "":
-		return &JSONSerializer{}
-	case SerializerMsgPack:
-		return &MsgPackSerializer{}
-	default:
-		return &JSONSerializer{}
-	}
-}
-
-// NewSerializerMust 根据名称创建对应的序列化器,出现错误直接panic
-func NewSerializerMust(name string) Serializer {
-	return NewSerializer(name)
 }

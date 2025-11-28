@@ -5,9 +5,6 @@ import "fmt"
 
 // Common Errors | Common 错误
 var (
-	ErrCommonStoreFailed = fmt.Errorf("failed to save data") // failed to save data | 保存数据失败
-	ErrCommonGetFailed   = fmt.Errorf("failed to get data")  // failed to get data | 获取数据失败
-
 	ErrCommonMarshal   = fmt.Errorf("failed to marshal data")   // failed to marshal data | 序列化数据失败
 	ErrCommonUnmarshal = fmt.Errorf("failed to unmarshal data") // failed to unmarshal data | 反序列化数据失败
 )
@@ -19,10 +16,9 @@ var (
 
 // Session Errors | Session 错误
 var (
-	ErrSessionNotFound    = fmt.Errorf("session not found")           // session not found | 会话不存在
-	ErrInvalidSessionData = fmt.Errorf("invalid session data")        // invalid session data | 会话数据无效
-	ErrSessionIDEmpty     = fmt.Errorf("session id cannot be empty")  // session id cannot be empty | Session ID 不能为空
-	ErrSessionKeyEmpty    = fmt.Errorf("session key cannot be empty") // session key cannot be empty | Session 键不能为空
+	ErrSessionNotFound = fmt.Errorf("session not found")           // session not found | 会话不存在
+	ErrSessionIDEmpty  = fmt.Errorf("session id cannot be empty")  // session id cannot be empty | Session ID 不能为空
+	ErrSessionKeyEmpty = fmt.Errorf("session key cannot be empty") // session key cannot be empty | Session 键不能为空
 )
 
 // Manager Errors | Manager 错误
@@ -35,6 +31,4 @@ var (
 	ErrNotLogin           = fmt.Errorf("not login")                             // not login | 未登录
 	ErrAccountDisabled    = fmt.Errorf("account is disabled")                   // account is disabled | 账号已被禁用
 	ErrLoginLimitExceeded = fmt.Errorf("login count exceeds the maximum limit") // login count exceeds the maximum limit | 超出最大登录数量限制
-
-	ErrTokenGenerateFailed = fmt.Errorf("failed to generate token") // failed to generate token | Token 生成失败
 )

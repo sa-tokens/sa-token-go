@@ -1,27 +1,51 @@
+// @Author daixk 2025/11/27 21:11:00
 package log
 
-// ILogger defines core logging methods | 核心日志输出接口
-type ILogger interface {
-	Print(v ...any)                 // Print general log | 普通日志打印
-	Printf(format string, v ...any) // Print formatted general log | 普通日志格式化打印
+import (
+	"sync/atomic"
+)
 
-	Debug(v ...any)                 // Print debug level log | 调试级别日志
-	Debugf(format string, v ...any) // Print formatted debug log | 调试级别格式化日志
-
-	Info(v ...any)                 // Print info level log | 信息级别日志
-	Infof(format string, v ...any) // Print formatted info log | 信息级别格式化日志
-
-	Warn(v ...any)                 // Print warning level log | 警告级别日志
-	Warnf(format string, v ...any) // Print formatted warning log | 警告级别格式化日志
-
-	Error(v ...any)                 // Print error level log | 错误级别日志
-	Errorf(format string, v ...any) // Print formatted error log | 错误级别格式化日志
+// loggerHolder wraps Adapter to ensure atomic.Value type consistency | 包装 Adapter 以确保 atomic.Value 类型一致性
+type loggerHolder struct {
+	l Adapter
 }
 
-// LoggerControl defines configuration and lifecycle control | 日志控制接口
-type LoggerControl interface {
-	SetLevel(level LogLevel) // Set minimum log level | 设置最小输出级别
-	SetPrefix(prefix string) // Set log prefix | 设置日志前缀
-	SetStdout(enable bool)   // Enable/disable console output | 设置是否输出到终端
-	Close()                  // Close current file handle | 关闭当前日志文件
+// using atomic.Value for lock-free fast read | 使用 atomic.Value 实现无锁快速读取
+var defaultLogger atomic.Value
+
+func init() {
+	// 初始化为 NopLogger，确保类型一致：loggerHolder
+	defaultLogger.Store(loggerHolder{l: &NopLogger{}})
 }
+
+// SetGlobalLogger sets global logger | 设置全局日志器
+func SetGlobalLogger(l Adapter) {
+	if l == nil {
+		return
+	}
+
+	// atomic 替换，但存的是结构体 loggerHolder，类型始终一致
+	defaultLogger.Store(loggerHolder{l: l})
+}
+
+// getLogger returns the logger | 获取当前日志器
+func getLogger() Adapter {
+	return defaultLogger.Load().(loggerHolder).l
+}
+
+// -------------------- Global Logging APIs --------------------
+
+func Print(v ...any)                 { getLogger().Print(v...) }
+func Printf(format string, v ...any) { getLogger().Printf(format, v...) }
+
+func Debug(v ...any)                 { getLogger().Debug(v...) }
+func Debugf(format string, v ...any) { getLogger().Debugf(format, v...) }
+
+func Info(v ...any)                 { getLogger().Info(v...) }
+func Infof(format string, v ...any) { getLogger().Infof(format, v...) }
+
+func Warn(v ...any)                 { getLogger().Warn(v...) }
+func Warnf(format string, v ...any) { getLogger().Warnf(format, v...) }
+
+func Error(v ...any)                 { getLogger().Error(v...) }
+func Errorf(format string, v ...any) { getLogger().Errorf(format, v...) }

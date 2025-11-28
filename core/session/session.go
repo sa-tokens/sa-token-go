@@ -203,7 +203,7 @@ func (s *Session) Renew(ttl time.Duration) error {
 
 // save Saves session to storage | 保存到存储
 func (s *Session) save() error {
-	data, err := codec.DefaultSerializer.Marshal(s)
+	data, err := codec.Encode(s)
 	if err != nil {
 		return fmt.Errorf("%w: %v", serror.ErrCommonMarshal, err)
 	}
@@ -214,7 +214,7 @@ func (s *Session) save() error {
 
 // saveWithTTL saves session with TTL | 带 TTL 保存 Session
 func (s *Session) saveWithTTL(ttl time.Duration) error {
-	data, err := codec.DefaultSerializer.Marshal(s)
+	data, err := codec.Encode(s)
 	if err != nil {
 		return fmt.Errorf("%w: %v", serror.ErrCommonMarshal, err)
 	}
@@ -251,7 +251,7 @@ func Load(id string, storage adapter.Storage, prefix string) (*Session, error) {
 	}
 
 	var session Session
-	if err = codec.DefaultSerializer.Unmarshal(raw, &session); err != nil {
+	if err = codec.Decode(raw, &session); err != nil {
 		return nil, fmt.Errorf("%w: %v", serror.ErrCommonUnmarshal, err)
 	}
 

@@ -192,14 +192,14 @@ func (m *Manager) Login(loginID string, device ...string) (string, error) {
 	// Generate token | 生成Token
 	tokenValue, err := m.generator.Generate(loginID, deviceType)
 	if err != nil {
-		return "", fmt.Errorf("%w: %v", serror.ErrTokenGenerateFailed, err)
+		return "", err
 	}
 
 	nowTime := time.Now().Unix()
 	expiration := m.getExpiration()
 
 	// Prepare TokenInfo object and serialize to JSON | 准备Token信息对象并序列化
-	tokenInfo, err := codec.DefaultSerializer.Marshal(TokenInfo{
+	tokenInfo, err := codec.Encode(TokenInfo{
 		LoginID:    loginID,
 		Device:     deviceType,
 		CreateTime: nowTime,
@@ -212,12 +212,12 @@ func (m *Manager) Login(loginID string, device ...string) (string, error) {
 	// Save token-tokenInfo mapping | 保存 TokenKey-TokenInfo 映射
 	tokenKey := m.getTokenKey(tokenValue)
 	if err = m.storage.Set(tokenKey, tokenInfo, expiration); err != nil {
-		return "", fmt.Errorf("%w: %v", serror.ErrCommonStoreFailed, err)
+		return "", err
 	}
 
 	// Save account-token mapping | 保存 AccountKey-Token 映射
 	if err = m.storage.Set(accountKey, tokenValue, expiration); err != nil {
-		return "", fmt.Errorf("%w: %v", serror.ErrCommonStoreFailed, err)
+		return "", err
 	}
 
 	// Create session | 创建Session
@@ -254,9 +254,6 @@ func (m *Manager) LoginByToken(loginID string, tokenValue string, device ...stri
 	if err != nil {
 		return err
 	}
-	if info == nil {
-		return serror.ErrInvalidTokenData
-	}
 
 	// Check if the account is disabled | 检查账号是否被封禁
 	if m.IsDisable(info.LoginID) {
@@ -270,8 +267,12 @@ func (m *Manager) LoginByToken(loginID string, tokenValue string, device ...stri
 	info.ActiveTime = now
 
 	// Write back updated TokenInfo (保留原TTL)
-	if data, err := codec.DefaultSerializer.Marshal(info); err == nil {
-		_ = m.storage.SetKeepTTL(m.getTokenKey(tokenValue), data)
+	data, err := codec.Encode(info)
+	if err != nil {
+		return fmt.Errorf("%w: %v", serror.ErrCommonMarshal, err)
+	}
+	if err = m.storage.SetKeepTTL(m.getTokenKey(tokenValue), data); err != nil {
+		return err
 	}
 
 	// Extend TTL for token, account, session | 延长Token、账号、Session的过期时间
@@ -492,9 +493,6 @@ func (m *Manager) GetLoginID(tokenValue string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if info == nil {
-		return "", serror.ErrInvalidTokenData
-	}
 
 	return info.LoginID, nil
 }
@@ -505,9 +503,7 @@ func (m *Manager) GetLoginIDNotCheck(tokenValue string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if info == nil {
-		return "", serror.ErrInvalidTokenData
-	}
+
 	return info.LoginID, err
 }
 
@@ -932,7 +928,7 @@ func (m *Manager) getTokenInfo(tokenValue string, checkState ...bool) (*TokenInf
 	tokenKey := m.getTokenKey(tokenValue)
 	data, err := m.storage.Get(tokenKey)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", serror.ErrCommonGetFailed, err)
+		return nil, err
 	}
 	if data == nil {
 		return nil, serror.ErrTokenNotFound
@@ -956,8 +952,8 @@ func (m *Manager) getTokenInfo(tokenValue string, checkState ...bool) (*TokenInf
 
 	// Parse TokenInfo | 解析Token信息
 	var info TokenInfo
-	if err = codec.DefaultSerializer.Unmarshal(raw, &info); err != nil {
-		return nil, fmt.Errorf("%w: %v", serror.ErrInvalidTokenData, err)
+	if err = codec.Decode(raw, &info); err != nil {
+		return nil, fmt.Errorf("%w: %v", serror.ErrCommonUnmarshal, err)
 	}
 
 	return &info, nil
@@ -965,7 +961,6 @@ func (m *Manager) getTokenInfo(tokenValue string, checkState ...bool) (*TokenInf
 
 // renewToken Renews token expiration asynchronously | 异步续期Token
 func (m *Manager) renewToken(tokenValue string, info *TokenInfo) {
-	tokenKey := m.getTokenKey(tokenValue)
 	if info == nil {
 		var err error
 		info, err = m.getTokenInfo(tokenValue)
@@ -974,24 +969,18 @@ func (m *Manager) renewToken(tokenValue string, info *TokenInfo) {
 		}
 	}
 
-	// Basic validation | 基本校验
-	if info == nil || info.LoginID == "" || info.Device == "" {
-		return
-	}
-
-	// Update ActiveTime and keep original TTL | 更新 ActiveTime，保持原 TTL 不变
-	info.ActiveTime = time.Now().Unix()
-	if tokenInfo, err := codec.DefaultSerializer.Marshal(info); err == nil {
-		_ = m.storage.SetKeepTTL(tokenKey, tokenInfo)
-	}
-
-	// Extend TTL for token and its accountKey | 为 Token 与对应 accountKey 延长 TTL
+	tokenKey := m.getTokenKey(tokenValue)
+	accountKey := m.getAccountKey(info.LoginID, info.Device)
 	exp := m.getExpiration()
 
+	// Update ActiveTime and keep original TTL | 更新 ActiveTime 保持原 TTL 不变
+	info.ActiveTime = time.Now().Unix()
+	if tokenInfo, err := codec.Encode(info); err == nil {
+		_ = m.storage.SetKeepTTL(tokenKey, tokenInfo)
+	}
 	// Renew token TTL | 续期 Token TTL
 	_ = m.storage.Expire(tokenKey, exp)
 	// Renew accountKey TTL | 续期账号映射 TTL
-	accountKey := m.getAccountKey(info.LoginID, info.Device)
 	_ = m.storage.Expire(accountKey, exp)
 	// Renew session TTL | 续期 Session TTL
 	if sess, err := m.GetSession(info.LoginID); err == nil && sess != nil {
@@ -1011,18 +1000,10 @@ func (m *Manager) renewToken(tokenValue string, info *TokenInfo) {
 // removeTokenChain Removes all related keys and triggers event | 删除Token相关的所有键并触发事件
 func (m *Manager) removeTokenChain(tokenValue string, destroySession bool, info *TokenInfo, event listener.Event) error {
 	if info == nil {
-		if tokenValue == "" {
-			return nil
-		}
-
-		// Get TokenInfo  | 获取Token信息
 		var err error
 		info, err = m.getTokenInfo(tokenValue, false)
 		if err != nil {
 			return err
-		}
-		if info == nil {
-			return serror.ErrInvalidTokenData
 		}
 	}
 
