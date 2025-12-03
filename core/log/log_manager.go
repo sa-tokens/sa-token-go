@@ -205,6 +205,10 @@ func (l *Logger) appendValue(buf *bytes.Buffer, v any) {
 
 // writerLoop processes all file IO | 异步写线程处理文件操作
 func (l *Logger) writerLoop() {
+	defer func() {
+		l.Flush()
+	}()
+
 	for {
 		select {
 		case b, ok := <-l.queue:
