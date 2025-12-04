@@ -34,38 +34,41 @@ A lightweight, high-performance Go authentication and authorization framework, i
 
 ```bash
 # Import only the framework integration (includes core + stputil automatically)
-go get github.com/click33/sa-token-go/integrations/gin@v0.1.4    # Gin framework
+go get github.com/click33/sa-token-go/integrations/gin@v0.1.5    # Gin framework
 # or
-go get github.com/click33/sa-token-go/integrations/echo@v0.1.4   # Echo framework
+go get github.com/click33/sa-token-go/integrations/echo@v0.1.5   # Echo framework
 # or
-go get github.com/click33/sa-token-go/integrations/fiber@v0.1.4  # Fiber framework
+go get github.com/click33/sa-token-go/integrations/fiber@v0.1.5  # Fiber framework
 # or
-go get github.com/click33/sa-token-go/integrations/chi@v0.1.4    # Chi framework
+go get github.com/click33/sa-token-go/integrations/chi@v0.1.5    # Chi framework
 # or
-go get github.com/click33/sa-token-go/integrations/gf@v0.1.4     # GoFrame framework
+go get github.com/click33/sa-token-go/integrations/gf@v0.1.5     # GoFrame framework
+# or
+go get github.com/click33/sa-token-go/integrations/kratos@v0.1.5 # Kratos framework
 
 # Storage module (choose one)
-go get github.com/click33/sa-token-go/storage/memory@v0.1.4  # Memory storage (dev)
-go get github.com/click33/sa-token-go/storage/redis@v0.1.4   # Redis storage (prod)
+go get github.com/click33/sa-token-go/storage/memory@v0.1.5  # Memory storage (dev)
+go get github.com/click33/sa-token-go/storage/redis@v0.1.5   # Redis storage (prod)
 ```
 
 #### Option 2: Separate Import
 
 ```bash
 # Core modules
-go get github.com/click33/sa-token-go/core@v0.1.4
-go get github.com/click33/sa-token-go/stputil@v0.1.4
+go get github.com/click33/sa-token-go/core@v0.1.5
+go get github.com/click33/sa-token-go/stputil@v0.1.5
 
 # Storage module (choose one)
-go get github.com/click33/sa-token-go/storage/memory@v0.1.4  # Memory storage (dev)
-go get github.com/click33/sa-token-go/storage/redis@v0.1.4   # Redis storage (prod)
+go get github.com/click33/sa-token-go/storage/memory@v0.1.5  # Memory storage (dev)
+go get github.com/click33/sa-token-go/storage/redis@v0.1.5   # Redis storage (prod)
 
 # Framework integration (optional)
-go get github.com/click33/sa-token-go/integrations/gin@v0.1.4    # Gin framework
-go get github.com/click33/sa-token-go/integrations/echo@v0.1.4   # Echo framework
-go get github.com/click33/sa-token-go/integrations/fiber@v0.1.4  # Fiber framework
-go get github.com/click33/sa-token-go/integrations/chi@v0.1.4    # Chi framework
-go get github.com/click33/sa-token-go/integrations/kratos@v0.1.4 # kratos framework
+go get github.com/click33/sa-token-go/integrations/gin@v0.1.5    # Gin framework
+go get github.com/click33/sa-token-go/integrations/echo@v0.1.5   # Echo framework
+go get github.com/click33/sa-token-go/integrations/fiber@v0.1.5  # Fiber framework
+go get github.com/click33/sa-token-go/integrations/chi@v0.1.5    # Chi framework
+go get github.com/click33/sa-token-go/integrations/gf@v0.1.5     # GoFrame framework
+go get github.com/click33/sa-token-go/integrations/kratos@v0.1.5 # Kratos framework
 ```
 
 ### ⚡ Minimal Usage (One-line Initialization)
@@ -102,7 +105,7 @@ func init() {
  ___/ / /_/ /   / / / /_/ / ,< /  __/ / / /_____/ /_/ / /_/ /
 /____/\__,_/   /_/  \____/_/|_|\___/_/ /_/      \____/\____/ 
                                                              
-:: Sa-Token-Go ::                                    (v0.1.4)
+:: Sa-Token-Go ::                                    (v0.1.5)
 :: Go Version ::                                     go1.21.0
 :: GOOS/GOARCH ::                                    linux/amd64
 
@@ -356,7 +359,7 @@ func main() {
 
 ### 🔌 Other Framework Integrations
 
-**Echo / Fiber / Chi** also support annotation decorators:
+**Echo / Fiber / Chi / Kratos** also support annotation decorators:
 
 ```go
 // Echo
@@ -370,6 +373,10 @@ app.Get("/user", safiber.CheckLogin(), handler)
 // Chi
 import sachi "github.com/click33/sa-token-go/integrations/chi"
 r.Get("/user", sachi.CheckLogin(), handler)
+
+// Kratos
+import sakratos "github.com/click33/sa-token-go/integrations/kratos"
+// Use Plugin.Server() as middleware
 ```
 
 ## 🎨 Advanced Features

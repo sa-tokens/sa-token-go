@@ -34,39 +34,41 @@
 
 ```bash
 # 只导入框架集成包（自动包含 core + stputil）
-go get github.com/click33/sa-token-go/integrations/gin@v0.1.4    # Gin框架
+go get github.com/click33/sa-token-go/integrations/gin@v0.1.5    # Gin框架
 # 或
-go get github.com/click33/sa-token-go/integrations/echo@v0.1.4   # Echo框架
+go get github.com/click33/sa-token-go/integrations/echo@v0.1.5   # Echo框架
 # 或
-go get github.com/click33/sa-token-go/integrations/fiber@v0.1.4  # Fiber框架
+go get github.com/click33/sa-token-go/integrations/fiber@v0.1.5  # Fiber框架
 # 或
-go get github.com/click33/sa-token-go/integrations/chi@v0.1.4    # Chi框架
+go get github.com/click33/sa-token-go/integrations/chi@v0.1.5    # Chi框架
 # 或
-go get github.com/click33/sa-token-go/integrations/gf@v0.1.4     # GoFrame框架
+go get github.com/click33/sa-token-go/integrations/gf@v0.1.5     # GoFrame框架
+# 或
+go get github.com/click33/sa-token-go/integrations/kratos@v0.1.5 # Kratos框架
 
 # 存储模块（选一个）
-go get github.com/click33/sa-token-go/storage/memory@v0.1.4  # 内存存储（开发）
-go get github.com/click33/sa-token-go/storage/redis@v0.1.4   # Redis存储（生产）
+go get github.com/click33/sa-token-go/storage/memory@v0.1.5  # 内存存储（开发）
+go get github.com/click33/sa-token-go/storage/redis@v0.1.5   # Redis存储（生产）
 ```
 
 #### 方式二：分开导入
 
 ```bash
 # 核心模块
-go get github.com/click33/sa-token-go/core@v0.1.4
-go get github.com/click33/sa-token-go/stputil@v0.1.4
+go get github.com/click33/sa-token-go/core@v0.1.5
+go get github.com/click33/sa-token-go/stputil@v0.1.5
 
 # 存储模块（选一个）
-go get github.com/click33/sa-token-go/storage/memory@v0.1.4  # 内存存储（开发）
-go get github.com/click33/sa-token-go/storage/redis@v0.1.4   # Redis存储（生产）
+go get github.com/click33/sa-token-go/storage/memory@v0.1.5  # 内存存储（开发）
+go get github.com/click33/sa-token-go/storage/redis@v0.1.5   # Redis存储（生产）
 
 # 框架集成（可选）
-go get github.com/click33/sa-token-go/integrations/gin@v0.1.4    # Gin框架
-go get github.com/click33/sa-token-go/integrations/echo@v0.1.4   # Echo框架
-go get github.com/click33/sa-token-go/integrations/fiber@v0.1.4  # Fiber框架
-go get github.com/click33/sa-token-go/integrations/chi@v0.1.4    # Chi框架
-go get github.com/click33/sa-token-go/integrations/gf@v0.1.4     # GoFrame框架
-go get github.com/click33/sa-token-go/integrations/kratos@v0.1.4 # kratos框架
+go get github.com/click33/sa-token-go/integrations/gin@v0.1.5    # Gin框架
+go get github.com/click33/sa-token-go/integrations/echo@v0.1.5   # Echo框架
+go get github.com/click33/sa-token-go/integrations/fiber@v0.1.5  # Fiber框架
+go get github.com/click33/sa-token-go/integrations/chi@v0.1.5    # Chi框架
+go get github.com/click33/sa-token-go/integrations/gf@v0.1.5     # GoFrame框架
+go get github.com/click33/sa-token-go/integrations/kratos@v0.1.5 # Kratos框架
 ```
 
 ### ⚡ 超简洁使用（一行初始化）
@@ -103,7 +105,7 @@ func init() {
  ___/ / /_/ /   / / / /_/ / ,< /  __/ / / /_____/ /_/ / /_/ /
 /____/\__,_/   /_/  \____/_/|_|\___/_/ /_/      \____/\____/ 
                                                              
-:: Sa-Token-Go ::                                    (v0.1.4)
+:: Sa-Token-Go ::                                    (v0.1.5)
 :: Go Version ::                                     go1.21.0
 :: GOOS/GOARCH ::                                    linux/amd64
 
@@ -357,7 +359,7 @@ func main() {
 
 ### 🔌 其他框架集成
 
-**Echo / Fiber / Chi** 同样支持注解装饰器：
+**Echo / Fiber / Chi / Kratos** 同样支持注解装饰器：
 
 ```go
 // Echo
@@ -371,6 +373,10 @@ app.Get("/user", safiber.CheckLogin(), handler)
 // Chi
 import sachi "github.com/click33/sa-token-go/integrations/chi"
 r.Get("/user", sachi.CheckLogin(), handler)
+
+// Kratos
+import sakratos "github.com/click33/sa-token-go/integrations/kratos"
+// 使用 Plugin.Server() 作为中间件
 ```
 
 ## 🎨 高级特性
