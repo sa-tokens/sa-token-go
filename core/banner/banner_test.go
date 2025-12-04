@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/click33/sa-token-go/core/config"
+	"github.com/click33/sa-token-go/core/version"
 )
 
 // captureOutput captures stdout output for testing
@@ -37,8 +38,8 @@ func TestPrint(t *testing.T) {
 		t.Error("Output should contain 'Sa-Token-Go'")
 	}
 
-	if !strings.Contains(output, Version) {
-		t.Errorf("Output should contain version %s", Version)
+	if !strings.Contains(output, version.Version) {
+		t.Errorf("Output should contain version %s", version.Version)
 	}
 
 	if !strings.Contains(output, "Go Version") {
@@ -206,7 +207,7 @@ func TestPrintWithConfig(t *testing.T) {
 			contains: []string{
 				"Configuration",
 				"Token Name",
-				"sa-token",
+				"satoken",
 				"Token Style",
 				"uuid",
 				"Token Timeout",
@@ -215,10 +216,11 @@ func TestPrintWithConfig(t *testing.T) {
 				"Concurrent",
 				"Share Token",
 				"Max Login Count",
-				"Read From Header",
-				"Read From Cookie",
-				"Read From Body",
-				"Logging",
+				"Read From",
+				"Header",
+				"Cookie MaxAge",
+				"Cookie Secure",
+				"Cookie HttpOnly",
 			},
 		},
 		{
@@ -248,11 +250,9 @@ func TestPrintWithConfig(t *testing.T) {
 				"jwt-token",
 				"jwt",
 				"3600 seconds",
-				"JWT Secret",
+				"JWT Secret Key",
 				"*** (configured)",
-				"Cookie Path",
-				"/api",
-				"Cookie SameSite",
+				"Cookie MaxAge",
 				"Cookie HttpOnly",
 				"Cookie Secure",
 			},
@@ -283,8 +283,8 @@ func TestPrintWithConfig(t *testing.T) {
 				CookieConfig: &config.CookieConfig{},
 			},
 			contains: []string{
-				"JWT Secret",
-				"Not Set",
+				"JWT Secret Key",
+				"*** (configured)",
 			},
 		},
 	}
