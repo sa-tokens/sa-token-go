@@ -1,132 +1,76 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"github.com/click33/sa-token-go/core/pool"
+	"strings"
 )
-
-// TokenStyle Token generation style | Token生成风格
-type TokenStyle string
-
-const (
-	// TokenStyleUUID UUID style | UUID风格
-	TokenStyleUUID TokenStyle = "uuid"
-	// TokenStyleSimple Simple random string | 简单随机字符串
-	TokenStyleSimple TokenStyle = "simple"
-	// TokenStyleRandom32 32-bit random string | 32位随机字符串
-	TokenStyleRandom32 TokenStyle = "random32"
-	// TokenStyleRandom64 64-bit random string | 64位随机字符串
-	TokenStyleRandom64 TokenStyle = "random64"
-	// TokenStyleRandom128 128-bit random string | 128位随机字符串
-	TokenStyleRandom128 TokenStyle = "random128"
-	// TokenStyleJWT JWT style | JWT风格
-	TokenStyleJWT TokenStyle = "jwt"
-	// TokenStyleHash SHA256 hash-based style | SHA256哈希风格
-	TokenStyleHash TokenStyle = "hash"
-	// TokenStyleTimestamp Timestamp-based style | 时间戳风格
-	TokenStyleTimestamp TokenStyle = "timestamp"
-	// TokenStyleTik Short ID style (like TikTok) | Tik风格短ID（类似抖音）
-	TokenStyleTik TokenStyle = "tik"
-)
-
-// SameSiteMode Cookie SameSite attribute values | Cookie的SameSite属性值
-type SameSiteMode string
-
-const (
-	// SameSiteStrict Strict mode | 严格模式
-	SameSiteStrict SameSiteMode = "Strict"
-	// SameSiteLax Lax mode | 宽松模式
-	SameSiteLax SameSiteMode = "Lax"
-	// SameSiteNone None mode | 无限制模式
-	SameSiteNone SameSiteMode = "None"
-)
-
-// Default configuration constants | 默认配置常量
-const (
-	DefaultTokenName     = "satoken"
-	DefaultTimeout       = 2592000 // 30 days in seconds | 30天（秒）
-	DefaultMaxLoginCount = 12      // Maximum concurrent logins | 最大并发登录数
-	DefaultCookiePath    = "/"
-	NoLimit              = -1 // No limit flag | 不限制标志
-)
-
-// IsValid checks if the TokenStyle is valid | 检查TokenStyle是否有效
-func (ts TokenStyle) IsValid() bool {
-	switch ts {
-	case TokenStyleUUID, TokenStyleSimple, TokenStyleRandom32,
-		TokenStyleRandom64, TokenStyleRandom128, TokenStyleJWT,
-		TokenStyleHash, TokenStyleTimestamp, TokenStyleTik:
-		return true
-	default:
-		return false
-	}
-}
 
 // Config Sa-Token configuration | Sa-Token配置
 type Config struct {
 	// TokenName Token name (also used as Cookie name) | Token名称（同时也是Cookie名称）
 	TokenName string
 
-	// Timeout Token expiration time in seconds, -1 for never expire | Token超时时间（单位：秒，-1代表永不过期）
+	// Timeout Token expiration time (in seconds); -1 means never expire | Token超时时间（单位：秒，-1代表永不过期）
 	Timeout int64
 
-	// MaxRefresh Threshold for triggering async token renewal (in seconds) | Token自动续期触发阈值（单位：秒，当剩余有效期低于该值时触发异步续期 -1或0代表不限制）
+	// MaxRefresh Threshold (in seconds) to trigger async token renewal; when remaining lifetime is below this, renewal is triggered; -1 means no limit | Token自动续期触发阈值（单位：秒，当剩余有效期低于该值时触发异步续期，-1代表不限制）
 	MaxRefresh int64
 
-	// RenewInterval Minimum interval between token renewals (ms) | Token最小续期间隔（单位：秒，同一个Token在此时间内只会续期一次 -1或0代表不限制）
+	// RenewInterval Minimum interval (in seconds) between two renewals for the same token; -1 means no limit | 同一Token两次续期的最小间隔时间（单位：秒，-1代表不限制）
 	RenewInterval int64
 
-	// ActiveTimeout Token minimum activity frequency in seconds. If Token is not accessed for this time, it will be frozen. -1 means no limit | Token最低活跃频率（单位：秒），如果Token超过此时间没有访问，则会被冻结。-1代表不限制，永不冻结
+	// ActiveTimeout Maximum inactivity duration (in seconds); if the Token is not accessed within this time, it will be frozen. -1 means no limit | Token最大不活跃时长（单位：秒），超过此时间未访问则被冻结，-1代表不限制
 	ActiveTimeout int64
 
-	// IsConcurrent Allow concurrent login for the same account (true=allow concurrent login, false=new login kicks out old login) | 是否允许同一账号并发登录（为true时允许一起登录，为false时新登录挤掉旧登录）
+	// IsConcurrent Allow concurrent login for the same account (true=allow, false=new login kicks old) | 是否允许同一账号并发登录（true=允许并发，false=新登录挤掉旧登录）
 	IsConcurrent bool
 
-	// IsShare Share the same Token for concurrent logins (true=share one Token, false=create new Token for each login) | 在多人登录同一账号时，是否共用一个Token（为true时所有登录共用一个Token，为false时每次登录新建一个Token）
+	// IsShare Share the same Token for concurrent logins (true=share one, false=create new for each login) | 并发登录是否共用同一个Token（true=共用一个，false=每次登录新建一个）
 	IsShare bool
 
-	// MaxLoginCount Maximum number of concurrent logins for the same account, -1 means no limit (only effective when IsConcurrent=true and IsShare=false) | 同一账号最大登录数量，-1代表不限（只有在IsConcurrent=true，IsShare=false时此配置才有效）
-	MaxLoginCount int
+	// MaxLoginCount Maximum concurrent login count for the same account; -1 means unlimited (only effective when IsConcurrent=true and IsShare=false) | 同一账号最大登录数量，-1代表不限（仅当IsConcurrent=true且IsShare=false时生效）
+	MaxLoginCount int64
 
-	// IsReadBody Try to read Token from request body (default: false) | 是否尝试从请求体里读取Token（默认：false）
+	// IsReadBody Try to read Token from the request body (default: false) | 是否尝试从请求体读取Token（默认：false）
 	IsReadBody bool
 
-	// IsReadHeader Try to read Token from HTTP Header (default: true, recommended) | 是否尝试从Header里读取Token（默认：true，推荐）
+	// IsReadHeader Try to read Token from the HTTP Header (default: true, recommended) | 是否尝试从Header读取Token（默认：true，推荐）
 	IsReadHeader bool
 
-	// IsReadCookie Try to read Token from Cookie (default: false) | 是否尝试从Cookie里读取Token（默认：false）
+	// IsReadCookie Try to read Token from the Cookie (default: false) | 是否尝试从Cookie读取Token（默认：false）
 	IsReadCookie bool
 
-	// TokenStyle Token generation style | Token风格
+	// TokenStyle Token generation style | Token生成风格
 	TokenStyle TokenStyle
 
-	// DataRefreshPeriod Auto-refresh period in seconds, -1 means no auto-refresh | 自动续签（单位：秒），-1代表不自动续签
-	DataRefreshPeriod int64
-
-	// TokenSessionCheckLogin Check if Token-Session is kicked out when logging in (true=check on login, false=skip check) | Token-Session在登录时是否检查（true=登录时验证是否被踢下线，false=不作此检查）
+	// TokenSessionCheckLogin Whether to check if Token-Session is kicked out when logging in (true=check, false=skip) | 登录时是否检查Token-Session是否被踢下线（true=检查，false=不检查）
 	TokenSessionCheckLogin bool
 
-	// AutoRenew Auto-renew Token expiration time on each validation | 是否自动续期（每次验证Token时，都会延长Token的有效期）
+	// AutoRenew Automatically renew Token expiration time on each validation | 是否在每次验证Token时自动续期（延长Token有效期）
 	AutoRenew bool
 
-	// JwtSecretKey JWT secret key (only effective when TokenStyle=JWT) | JWT密钥（只有TokenStyle=JWT时，此配置才生效）
+	// JwtSecretKey Secret key for JWT mode (effective only when TokenStyle=JWT) | JWT模式的密钥（仅当TokenStyle=JWT时生效）
 	JwtSecretKey string
 
-	// IsLog Enable operation logging | 是否输出操作日志
+	// IsLog Enable operation logging | 是否开启操作日志
 	IsLog bool
 
-	// IsPrintBanner Print startup banner (default: true) | 是否打印启动 Banner（默认：true）
+	// IsPrintBanner Print the startup banner (default: true) | 是否打印启动Banner（默认：true）
 	IsPrintBanner bool
 
-	// KeyPrefix Storage key prefix for Redis isolation (default: "satoken:") | 存储键前缀，用于Redis隔离（默认："satoken:"）
-	// Set to empty "" to be compatible with Java sa-token default behavior | 设置为空""以兼容Java sa-token默认行为
+	// KeyPrefix Storage key prefix for Redis isolation (default: "satoken:"); set to "" for Java Sa-Token compatibility | 存储键前缀（默认："satoken:"）；设置为空""可兼容Java版Sa-Token默认行为
 	KeyPrefix string
 
 	// CookieConfig Cookie configuration | Cookie配置
 	CookieConfig *CookieConfig
 
-	// RenewPoolConfig Configuration for renewal pool manager | 续期池配置
+	// RenewPoolConfig Configuration for the renewal pool manager | 续期池管理器配置
 	RenewPoolConfig *pool.RenewPoolConfig
+
+	// Authentication system type | 认证体系类型
+	AuthType string
 }
 
 // CookieConfig Cookie configuration | Cookie配置
@@ -147,7 +91,7 @@ type CookieConfig struct {
 	SameSite SameSiteMode
 
 	// MaxAge Cookie expiration time in seconds | 过期时间（单位：秒）
-	MaxAge int
+	MaxAge int64
 }
 
 // DefaultConfig Returns default configuration | 返回默认配置
@@ -165,13 +109,12 @@ func DefaultConfig() *Config {
 		IsReadHeader:           true,
 		IsReadCookie:           false,
 		TokenStyle:             TokenStyleUUID,
-		DataRefreshPeriod:      NoLimit,
 		TokenSessionCheckLogin: true,
 		AutoRenew:              true,
 		JwtSecretKey:           "",
 		IsLog:                  false,
 		IsPrintBanner:          true,
-		KeyPrefix:              "satoken:",
+		KeyPrefix:              DefaultKeyPrefix,
 		CookieConfig: &CookieConfig{
 			Domain:   "",
 			Path:     DefaultCookiePath,
@@ -180,90 +123,123 @@ func DefaultConfig() *Config {
 			SameSite: SameSiteLax,
 			MaxAge:   0,
 		},
+		RenewPoolConfig: pool.DefaultRenewPoolConfig(),
+		AuthType:        DefaultAuthType,
 	}
 }
 
 // Validate validates the configuration | 验证配置是否合理
 func (c *Config) Validate() error {
-	// Check TokenName
-	if c.TokenName == "" {
-		return fmt.Errorf("TokenName cannot be empty")
-	}
-
-	// Check TokenStyle
-	if !c.TokenStyle.IsValid() {
+	// Check TokenStyle validity | 检查 Token 风格是否合法
+	if !c.TokenStyle.IsValidTokenStyle() {
 		return fmt.Errorf("invalid TokenStyle: %s", c.TokenStyle)
 	}
 
-	// Check JWT secret key when using JWT style
+	// Validate numeric fields that must be -1 (no limit) or >0 (valid) | 验证必须为-1（无限制）或>0（有效）的数值字段
+	if err := c.checkNoLimits(); err != nil {
+		return err
+	}
+
+	// Check TokenName | 检查 Token 名称
+	if c.TokenName == "" {
+		return errors.New("TokenName cannot be empty")
+	}
+
+	// Check JwtSecretKey if TokenStyle is JWT | 如果 Token 风格为 JWT，则检查密钥是否设置
 	if c.TokenStyle == TokenStyleJWT && c.JwtSecretKey == "" {
-		return fmt.Errorf("JwtSecretKey is required when TokenStyle is JWT")
+		return errors.New("JwtSecretKey is required when TokenStyle is JWT")
 	}
 
-	// Check Timeout
-	if c.Timeout < NoLimit {
-		return fmt.Errorf("Timeout must be >= -1, got: %d", c.Timeout)
-	}
-
-	// Check MaxRefresh
-	if c.MaxRefresh < NoLimit {
-		return fmt.Errorf("MaxRefresh must be >= -1, got: %d", c.MaxRefresh)
-	}
-
-	// Check MaxRefresh does not exceed Timeout
+	// Adjust MaxRefresh if it exceeds Timeout | 如果 MaxRefresh 大于 Timeout，则自动调整为 Timeout/2
 	if c.Timeout != NoLimit && c.MaxRefresh > c.Timeout {
-		return fmt.Errorf("MaxRefresh (%d) cannot be greater than Timeout (%d)", c.MaxRefresh, c.Timeout)
+		c.MaxRefresh = c.Timeout / 2
+		if c.MaxRefresh < 1 {
+			c.MaxRefresh = 1
+		}
 	}
 
-	// Check RenewInterval
-	if c.RenewInterval < NoLimit {
-		return fmt.Errorf("RenewInterval must be >= -1, got: %d", c.RenewInterval)
-	}
-
-	// Check ActiveTimeout
-	if c.ActiveTimeout < NoLimit {
-		return fmt.Errorf("ActiveTimeout must be >= -1, got: %d", c.ActiveTimeout)
-	}
-
-	// Check MaxLoginCount
-	if c.MaxLoginCount < NoLimit {
-		return fmt.Errorf("MaxLoginCount must be >= -1, got: %d", c.MaxLoginCount)
-	}
-
-	// Check if at least one read source is enabled
+	// Check if at least one read source is enabled | 检查是否至少启用了一个 Token 读取来源
 	if !c.IsReadHeader && !c.IsReadCookie && !c.IsReadBody {
 		return fmt.Errorf("at least one of IsReadHeader, IsReadCookie, or IsReadBody must be true")
 	}
 
-	// Validate RenewPoolConfig if set | 如果设置了续期池配置，进行验证
+	// Check KeyPrefix validity | 检查 KeyPrefix 合法性
+	if c.KeyPrefix == "" {
+		return errors.New("KeyPrefix cannot be empty") // KeyPrefix不能为空
+	}
+	if strings.ContainsAny(c.KeyPrefix, " \t\r\n") {
+		return fmt.Errorf("KeyPrefix cannot contain whitespace characters, got: %q", c.KeyPrefix)
+	}
+	if len(c.KeyPrefix) > 64 {
+		return fmt.Errorf("KeyPrefix too long (max 64 chars), got length: %d", len(c.KeyPrefix))
+	}
+
+	// Check authType validity | 校验AuthType的合法性
+	if c.AuthType == "" {
+		return errors.New("AuthType cannot be empty") // AuthType不能为空
+	}
+	if strings.ContainsAny(c.AuthType, " \t\r\n") {
+		return fmt.Errorf("AuthType cannot contain whitespace characters, got: %q", c.AuthType)
+	}
+	if len(c.AuthType) > 64 {
+		return fmt.Errorf("AuthType too long (max 64 chars), got length: %d", len(c.AuthType))
+	}
+
+	// Check authType validity | 校验 AuthType 的合法性
+	if c.AuthType == "" {
+		return errors.New("AuthType cannot be empty") // AuthType不能为空
+	}
+	if strings.ContainsAny(c.AuthType, " \t\r\n") {
+		return fmt.Errorf("AuthType cannot contain whitespace characters, got: %q", c.AuthType)
+	}
+	if len(c.AuthType) > 64 {
+		return fmt.Errorf("AuthType too long (max 64 chars), got length: %d", len(c.AuthType))
+	}
+
+	// Validate CookieConfig if set | 验证 Cookie 配置（如果设置）
+	if c.CookieConfig != nil {
+		// Check Path | 检查路径
+		if c.CookieConfig.Path == "" {
+			return errors.New("CookieConfig.Path cannot be empty")
+		}
+		// Check SameSite | 检查 SameSite 值是否合法
+		switch c.CookieConfig.SameSite {
+		case SameSiteLax, SameSiteStrict, SameSiteNone:
+		default:
+			return fmt.Errorf("invalid CookieConfig.SameSite value: %v", c.CookieConfig.SameSite)
+		}
+	}
+
+	// Validate RenewPoolConfig if set | 验证续期池配置（如果设置）
 	if c.RenewPoolConfig != nil {
 		// Check MinSize and MaxSize | 检查最小和最大协程池大小
 		if c.RenewPoolConfig.MinSize <= 0 {
-			return fmt.Errorf("RenewPoolConfig.MinSize must be > 0") // 最小协程池大小必须大于0
+			return errors.New("RenewPoolConfig.MinSize must be > 0") // 最小协程池大小必须大于0
 		}
 		if c.RenewPoolConfig.MaxSize < c.RenewPoolConfig.MinSize {
-			return fmt.Errorf("RenewPoolConfig.MaxSize must be >= RenewPoolConfig.MinSize") // 最大协程池大小必须大于等于最小协程池大小
+			return errors.New("RenewPoolConfig.MaxSize must be >= RenewPoolConfig.MinSize") // 最大协程池大小必须大于等于最小协程池大小
 		}
 
 		// Check ScaleUpRate and ScaleDownRate | 检查扩容和缩容阈值
 		if c.RenewPoolConfig.ScaleUpRate <= 0 || c.RenewPoolConfig.ScaleUpRate > 1 {
-			return fmt.Errorf("RenewPoolConfig.ScaleUpRate must be between 0 and 1") // 扩容阈值必须在0和1之间
+			return errors.New("RenewPoolConfig.ScaleUpRate must be between 0 and 1") // 扩容阈值必须在0和1之间
 		}
 		if c.RenewPoolConfig.ScaleDownRate < 0 || c.RenewPoolConfig.ScaleDownRate > 1 {
-			return fmt.Errorf("RenewPoolConfig.ScaleDownRate must be between 0 and 1") // 缩容阈值必须在0和1之间
+			return errors.New("RenewPoolConfig.ScaleDownRate must be between 0 and 1") // 缩容阈值必须在0和1之间
 		}
 
 		// Check CheckInterval | 检查检查间隔
 		if c.RenewPoolConfig.CheckInterval <= 0 {
-			return fmt.Errorf("RenewPoolConfig.CheckInterval must be a positive duration") // 检查间隔必须是一个正值
+			return errors.New("RenewPoolConfig.CheckInterval must be a positive duration") // 检查间隔必须为正数
 		}
 
 		// Check Expiry | 检查过期时间
 		if c.RenewPoolConfig.Expiry <= 0 {
-			return fmt.Errorf("RenewPoolConfig.Expiry must be a positive duration") // 过期时间必须是正值
+			return errors.New("RenewPoolConfig.Expiry must be a positive duration") // 过期时间必须为正数
 		}
 	}
 
+	// All checks passed | 所有配置验证通过
 	return nil
 }
 
@@ -273,6 +249,10 @@ func (c *Config) Clone() *Config {
 	if c.CookieConfig != nil {
 		cookieConfig := *c.CookieConfig
 		newConfig.CookieConfig = &cookieConfig
+	}
+	if c.RenewPoolConfig != nil {
+		poolConfig := *c.RenewPoolConfig
+		newConfig.RenewPoolConfig = &poolConfig
 	}
 	return &newConfig
 }
@@ -320,7 +300,7 @@ func (c *Config) SetIsShare(isShare bool) *Config {
 }
 
 // SetMaxLoginCount Set maximum login count | 设置最大登录数量
-func (c *Config) SetMaxLoginCount(count int) *Config {
+func (c *Config) SetMaxLoginCount(count int64) *Config {
 	c.MaxLoginCount = count
 	return c
 }
@@ -346,12 +326,6 @@ func (c *Config) SetIsReadCookie(isReadCookie bool) *Config {
 // SetTokenStyle Set Token generation style | 设置Token风格
 func (c *Config) SetTokenStyle(style TokenStyle) *Config {
 	c.TokenStyle = style
-	return c
-}
-
-// SetDataRefreshPeriod Set data refresh period | 设置数据刷新周期
-func (c *Config) SetDataRefreshPeriod(period int64) *Config {
-	c.DataRefreshPeriod = period
 	return c
 }
 
@@ -393,12 +367,74 @@ func (c *Config) SetKeyPrefix(prefix string) *Config {
 
 // SetCookieConfig Set cookie configuration | 设置Cookie配置
 func (c *Config) SetCookieConfig(cookieConfig *CookieConfig) *Config {
-	c.CookieConfig = cookieConfig
+	if cookieConfig != nil {
+		c.CookieConfig = cookieConfig
+	}
 	return c
 }
 
 // SetRenewPoolConfig Set renewal pool configuration | 设置续期池配置
 func (c *Config) SetRenewPoolConfig(renewPoolConfig *pool.RenewPoolConfig) *Config {
-	c.RenewPoolConfig = renewPoolConfig
+	if renewPoolConfig != nil {
+		c.RenewPoolConfig = renewPoolConfig
+	}
 	return c
+}
+
+// SetAuthType Set authentication system type | 设置认证体系类型
+func (c *Config) SetAuthType(authType string) *Config {
+	c.AuthType = authType
+	return c
+}
+
+// ============ Internal Helper Methods | 内部辅助方法 ============
+
+// checkNoLimits validates that all numeric fields must be -1 (no limit) or >0 (valid) | 验证所有数值字段必须为 -1（无限制）或 >0（有效）
+func (c *Config) checkNoLimits() error {
+	// Define fields to validate | 定义需要验证的字段
+	fields := map[string]int64{
+		"Timeout":       c.Timeout,
+		"MaxRefresh":    c.MaxRefresh,
+		"RenewInterval": c.RenewInterval,
+		"ActiveTimeout": c.ActiveTimeout,
+		"MaxLoginCount": c.MaxLoginCount,
+	}
+
+	// Iterate through fields and validate each one | 遍历字段并验证
+	for name, value := range fields {
+		// Must be -1 (no limit) or >0 (valid) | 必须为 -1（无限制）或 >0（有效）
+		if value == -1 || value > 0 {
+			continue
+		}
+
+		// Return error if invalid | 若不合法则返回错误
+		return fmt.Errorf("%s must be -1 (no limit) or >0 (valid), got: %d", name, value)
+	}
+
+	// All numeric fields are valid | 所有数值字段均验证通过
+	return nil
+}
+
+// IsValidTokenStyle checks if the TokenStyle is valid | 检查TokenStyle是否有效
+func (ts TokenStyle) IsValidTokenStyle() bool {
+	switch ts {
+	case TokenStyleUUID, TokenStyleSimple, TokenStyleRandom32,
+		TokenStyleRandom64, TokenStyleRandom128, TokenStyleJWT,
+		TokenStyleHash, TokenStyleTimestamp, TokenStyleTik:
+		return true
+	default:
+		return false
+	}
+}
+
+// DefaultCookieConfig returns the default Cookie configuration | 返回默认的 Cookie 配置
+func DefaultCookieConfig() *CookieConfig {
+	return &CookieConfig{
+		Domain:   "",
+		Path:     DefaultCookiePath,
+		Secure:   false,
+		HttpOnly: true,
+		SameSite: SameSiteLax,
+		MaxAge:   0,
+	}
 }

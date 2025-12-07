@@ -15,6 +15,9 @@ type Storage interface {
 	// Get gets value by key, returns nil if key doesn't exist | 获取键对应的值，键不存在时返回nil
 	Get(key string) (any, error)
 
+	// GetAndDelete atomically gets the value and deletes the key | 原子获取并删除键
+	GetAndDelete(key string) (any, error)
+
 	// Delete deletes one or more keys | 删除一个或多个键
 	Delete(keys ...string) error
 

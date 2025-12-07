@@ -117,6 +117,29 @@ func (s *Storage) Get(key string) (any, error) {
 	return item.value, nil
 }
 
+// GetAndDelete atomically gets the value and deletes the key | 原子获取并删除键
+func (s *Storage) GetAndDelete(key string) (any, error) {
+	now := time.Now().Unix()
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	item, exists := s.data[key]
+	if !exists {
+		return nil, ErrKeyNotFound
+	}
+
+	if item.isExpired(now) {
+		delete(s.data, key)
+		return nil, ErrKeyExpired
+	}
+
+	val := item.value
+	delete(s.data, key)
+
+	return val, nil
+}
+
 // Delete 删除键
 func (s *Storage) Delete(keys ...string) error {
 	s.mu.Lock()
@@ -179,12 +202,14 @@ func (s *Storage) Expire(key string, expiration time.Duration) error {
 		return ErrKeyNotFound
 	}
 
+	// expiration>0 设置 TTL
 	if expiration > 0 {
 		item.expiration = time.Now().Add(expiration).Unix()
-	} else {
-		item.expiration = 0 // 永不过期
+		return nil
 	}
 
+	// 兼容redis的过期时间设置
+	delete(s.data, key)
 	return nil
 }
 

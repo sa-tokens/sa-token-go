@@ -1,7 +1,10 @@
 package stputil
 
 import (
+	"errors"
 	"fmt"
+	"github.com/click33/sa-token-go/core/config"
+	"strings"
 	"sync"
 	"time"
 
@@ -11,44 +14,97 @@ import (
 	"github.com/click33/sa-token-go/core/session"
 )
 
-// Global Manager instance | 全局Manager实例
 var (
-	globalManager *manager.Manager
-	once          sync.Once
-	mu            sync.RWMutex
+	globalManagerMap sync.Map
 )
 
-// SetManager sets the global Manager (must be called first) | 设置全局Manager（必须先调用此方法）
-func SetManager(mgr *manager.Manager) {
-	mu.Lock()
-	defer mu.Unlock()
-	globalManager = mgr
+// --------------------------辅助方法--------------------------
+
+// getAutoType checks if a valid autoType is provided, ensures it's trimmed, appends ":" if missing, and returns the value | 检查是否提供有效的 autoType，修剪空格，如果缺少 ":" 则添加，并返回值
+func getAutoType(autoType ...string) string {
+	// Check if autoType is provided and not empty, trim it and append ":" if missing | 检查是否提供了有效的 autoType，修剪空格，如果缺少 ":" 则添加
+	if len(autoType) > 0 && strings.TrimSpace(autoType[0]) != "" {
+		trimmed := strings.TrimSpace(autoType[0])
+		// If it doesn't end with ":", append ":" | 如果 autoType 的值不以 ":" 结尾，则添加 ":"
+		if !strings.HasSuffix(trimmed, ":") {
+			trimmed = trimmed + ":"
+		}
+		return trimmed
+	}
+	// Return default autoType if autoType is empty or invalid | 如果 autoType 为空或无效，返回默认值
+	return config.DefaultAuthType
 }
 
-// GetManager gets the global Manager | 获取全局Manager
-func GetManager() *manager.Manager {
-	mu.RLock()
-	defer mu.RUnlock()
-	if globalManager == nil {
-		panic("StpUtil not initialized, please call SetManager() first or use builder.NewBuilder().Build()")
+// loadManager retrieves the manager from the global map using the valid autoType | 使用有效的 autoType 从全局 map 中加载管理器
+func loadManager(autoType string) (*manager.Manager, error) {
+	// Load the manager from the global map using the valid autoType | 使用有效的 autoType 从全局 map 中加载管理器
+	value, ok := globalManagerMap.Load(autoType)
+	if !ok {
+		return nil, errors.New("manager not found for autoType: " + autoType)
 	}
-	return globalManager
+	// Assert the loaded value to the correct type | 将加载的值断言为正确的类型
+	mgr, ok := value.(*manager.Manager)
+	if !ok {
+		return nil, errors.New("invalid manager type for autoType: " + autoType)
+	}
+	return mgr, nil
 }
 
-// CloseManager closes global Manager and releases resources | 关闭全局 Manager 并释放资源
-func CloseManager() {
-	mu.Lock()
-	defer mu.Unlock()
-	if globalManager != nil {
-		globalManager.CloseManager()
-		globalManager = nil // 置 nil 避免后续误用
+// PutManager stores the manager in the global map using the specified autoType | 使用指定的 autoType 将管理器存储在全局 map 中
+func PutManager(mgr *manager.Manager, autoType ...string) error {
+	// Validate and get the autoType value | 验证并获取 autoType 值
+	validAutoType := getAutoType(autoType...) // 获取 autoType，默认为 config.DefaultAuthType
+	// Store the manager in the global map with the valid autoType | 使用有效的 autoType 将管理器存储在全局 map 中
+	globalManagerMap.Store(validAutoType, mgr)
+	return nil
+}
+
+// GetManager retrieves the manager from the global map using the specified autoType | 使用指定的 autoType 从全局 map 中获取管理器
+func GetManager(autoType ...string) (*manager.Manager, error) {
+	// Validate and get the autoType value | 验证并获取 autoType 值
+	validAutoType := getAutoType(autoType...) // 获取 autoType，默认为 config.DefaultAuthType
+	// Use LoadManager to retrieve the manager | 使用 LoadManager 方法来获取管理器
+	return loadManager(validAutoType)
+}
+
+// CloseManager closes the specific manager for the given autoType and releases resources | 关闭指定的管理器并释放资源
+func CloseManager(autoType string) error {
+	// Validate and get the autoType value | 验证并获取 autoType 值
+	validAutoType := getAutoType(autoType) // 获取 autoType，默认为 config.DefaultAuthType
+	// Load the manager from global map | 从全局 map 中加载管理器
+	manager, err := loadManager(validAutoType)
+	if err != nil {
+		return err
 	}
+	// Close the manager and release resources | 关闭管理器并释放资源
+	manager.CloseManager()
+	// Remove the manager from the global map | 从全局 map 中移除该管理器
+	globalManagerMap.Delete(validAutoType)
+	return nil
+}
+
+// CloseAllManager closes all managers in the global map and releases resources | 关闭所有管理器并释放资源
+func CloseAllManager() {
+	// Iterate over all managers in the global map and close them | 遍历全局 map 中的所有管理器并关闭它们
+	globalManagerMap.Range(func(key, value interface{}) bool {
+		// Assert the value to the correct type | 将值断言为正确的类型
+		manager, ok := value.(*manager.Manager)
+		if ok {
+			// Close each manager | 关闭每个管理器
+			manager.CloseManager()
+		}
+		// Continue iterating | 继续遍历
+		return true
+	})
+	// Clear the global map after closing all managers | 关闭所有管理器后清空全局 map
+	globalManagerMap = sync.Map{}
 }
 
 // ============ Authentication | 登录认证 ============
 
 // Login performs user login | 用户登录
 func Login(loginID interface{}, device ...string) (string, error) {
+
 	return GetManager().Login(toString(loginID), device...)
 }
 
@@ -238,45 +294,51 @@ func GetSessionCount(loginID interface{}) (int, error) {
 
 // ============ 辅助方法 ============
 
-// toString 将interface{}转换为string
-func toString(v interface{}) string {
+// toString Converts interface{} to string | 将interface{}转换为string
+func toString(v interface{}) (string, error) {
+	// Check the type and convert to string | 判断类型并转换为字符串
 	switch val := v.(type) {
 	case string:
-		return val
+		return val, nil // If it's a string, return it directly | 如果是字符串，直接返回
 	case int:
-		return intToString(val)
+		return intToString(val), nil // If it's int, convert to string | 如果是int，转换为string
 	case int64:
-		return int64ToString(val)
+		return int64ToString(val), nil // If it's int64, convert to string | 如果是int64，转换为string
 	case uint:
-		return uintToString(val)
+		return uintToString(val), nil // If it's uint, convert to string | 如果是uint，转换为string
 	case uint64:
-		return uint64ToString(val)
+		return uint64ToString(val), nil // If it's uint64, convert to string | 如果是uint64，转换为string
 	default:
-		return ""
+		return "", errors.New("Invalid type") // For other types, return error | 对于其他类型，返回错误
 	}
 }
 
+// intToString Converts int to string | 将int转换为string
 func intToString(i int) string {
-	return int64ToString(int64(i))
+	return int64ToString(int64(i)) // Call int64ToString to convert | 调用int64ToString进行转换
 }
 
+// int64ToString Converts int64 to string | 将int64转换为string
 func int64ToString(i int64) string {
-	// 简单实现，可以用 strconv.FormatInt(i, 10) 但为了减少依赖
+	// If it's zero, return "0" | 如果是零，返回 "0"
 	if i == 0 {
 		return "0"
 	}
 
+	// Check if it's negative and handle it | 判断是否为负数并处理
 	negative := i < 0
 	if negative {
-		i = -i
+		i = -i // Take the absolute value | 取绝对值
 	}
 
 	var result []byte
+	// Process each digit and prepend to the result array | 将每一位数字依次处理并添加到结果数组
 	for i > 0 {
 		result = append([]byte{byte('0' + i%10)}, result...)
 		i /= 10
 	}
 
+	// If it's negative, add the '-' sign | 如果是负数，添加负号
 	if negative {
 		result = append([]byte{'-'}, result...)
 	}
@@ -284,16 +346,20 @@ func int64ToString(i int64) string {
 	return string(result)
 }
 
+// uintToString Converts uint to string | 将uint转换为string
 func uintToString(u uint) string {
-	return uint64ToString(uint64(u))
+	return uint64ToString(uint64(u)) // Call uint64ToString to convert | 调用uint64ToString进行转换
 }
 
+// uint64ToString Converts uint64 to string | 将uint64转换为string
 func uint64ToString(u uint64) string {
+	// If it's zero, return "0" | 如果是零，返回 "0"
 	if u == 0 {
 		return "0"
 	}
 
 	var result []byte
+	// Process each digit and prepend to the result array | 将每一位数字依次处理并添加到结果数组
 	for u > 0 {
 		result = append([]byte{byte('0' + u%10)}, result...)
 		u /= 10

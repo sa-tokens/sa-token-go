@@ -1,7 +1,9 @@
 package builder
 
 import (
-	"fmt"
+	"github.com/click33/sa-token-go/core/codec"
+	"github.com/click33/sa-token-go/core/dep"
+	"github.com/click33/sa-token-go/core/log"
 	"github.com/click33/sa-token-go/core/pool"
 	"strings"
 	"time"
@@ -12,30 +14,32 @@ import (
 	"github.com/click33/sa-token-go/core/manager"
 )
 
-// Builder Sa-Token builder for fluent configuration | Sa-Token构建器，用于流式配置
+// Builder provides fluent configuration for Sa-Token | Sa-Token 构建器用于流式配置
 type Builder struct {
-	storage                adapter.Storage
-	tokenName              string
-	timeout                int64
-	maxRefresh             int64
-	renewInterval          int64
-	activeTimeout          int64
-	isConcurrent           bool
-	isShare                bool
-	maxLoginCount          int
-	tokenStyle             config.TokenStyle
-	autoRenew              bool
-	jwtSecretKey           string
-	isLog                  bool
-	isPrintBanner          bool
-	isReadBody             bool
-	isReadHeader           bool
-	isReadCookie           bool
-	dataRefreshPeriod      int64
-	tokenSessionCheckLogin bool
-	keyPrefix              string
-	cookieConfig           *config.CookieConfig
-	renewPoolConfig        *pool.RenewPoolConfig
+	storage                adapter.Storage       // Storage adapter | 存储适配器
+	tokenName              string                // Token name used by client | 客户端 Token 名称
+	timeout                int64                 // Token timeout seconds | Token 过期时间（秒）
+	maxRefresh             int64                 // Max auto-refresh duration | 最大无感刷新时间
+	renewInterval          int64                 // Min renewal interval seconds | 最小续期间隔（秒）
+	activeTimeout          int64                 // Force offline when idle | 活跃超时时间（秒）
+	isConcurrent           bool                  // Allow concurrent login | 是否允许并发登录
+	isShare                bool                  // Share same token among devices | 是否共用 Token
+	maxLoginCount          int64                 // Max concurrent login count | 最大并发登录数
+	tokenStyle             config.TokenStyle     // Token generation style | Token 生成方式
+	autoRenew              bool                  // Enable renewal | 是否启用自动续期
+	jwtSecretKey           string                // JWT secret key | JWT 密钥
+	isLog                  bool                  // Enable log output | 是否启用日志
+	isPrintBanner          bool                  // Print startup banner | 是否打印启动 Banner
+	isReadBody             bool                  // Read token from body | 是否从 Body 读取 Token
+	isReadHeader           bool                  // Read token from header | 是否从 Header 读取 Token
+	isReadCookie           bool                  // Read token from cookie | 是否从 Cookie 读取 Token
+	tokenSessionCheckLogin bool                  // Check login before Session | 读取 Session 时是否检查登录
+	keyPrefix              string                // Storage key prefix | 存储键前缀
+	cookieConfig           *config.CookieConfig  // Cookie config | Cookie 配置
+	renewPoolConfig        *pool.RenewPoolConfig // Renew pool config | 续期协程池配置
+	authType               string                // Authentication system type | 认证体系类型
+	codec                  codec.Adapter         // codec Codec adapter for encoding and decoding operations | 编解码操作的编码器适配器
+	log                    log.Adapter           // log Log adapter for logging operations | 日志记录操作的适配器
 }
 
 // NewBuilder creates a new builder with default configuration | 创建新的构建器（使用默认配置）
@@ -56,17 +60,13 @@ func NewBuilder() *Builder {
 		isReadBody:             false,
 		isReadHeader:           true,
 		isReadCookie:           false,
-		dataRefreshPeriod:      config.NoLimit,
 		tokenSessionCheckLogin: true,
-		keyPrefix:              "satoken:",
-		cookieConfig: &config.CookieConfig{
-			Domain:   "",
-			Path:     config.DefaultCookiePath,
-			Secure:   false,
-			HttpOnly: true,
-			SameSite: config.SameSiteLax,
-			MaxAge:   0,
-		},
+		keyPrefix:              config.DefaultKeyPrefix,
+		cookieConfig:           config.DefaultCookieConfig(),
+		renewPoolConfig:        pool.DefaultRenewPoolConfig(),
+		authType:               config.DefaultAuthType,
+		codec:                  codec.GetDefaultSerializer(),
+		log:                    log.GetDefaultLogger(),
 	}
 }
 
@@ -125,7 +125,7 @@ func (b *Builder) IsShare(share bool) *Builder {
 }
 
 // MaxLoginCount sets maximum login count | 设置最大登录数量
-func (b *Builder) MaxLoginCount(count int) *Builder {
+func (b *Builder) MaxLoginCount(count int64) *Builder {
 	b.maxLoginCount = count
 	return b
 }
@@ -175,12 +175,6 @@ func (b *Builder) IsReadHeader(isRead bool) *Builder {
 // IsReadCookie sets whether to read token from cookie | 设置是否从Cookie读取Token
 func (b *Builder) IsReadCookie(isRead bool) *Builder {
 	b.isReadCookie = isRead
-	return b
-}
-
-// DataRefreshPeriod sets data refresh period | 设置数据刷新周期
-func (b *Builder) DataRefreshPeriod(seconds int64) *Builder {
-	b.dataRefreshPeriod = seconds
 	return b
 }
 
@@ -236,7 +230,7 @@ func (b *Builder) CookieSameSite(sameSite config.SameSiteMode) *Builder {
 }
 
 // CookieMaxAge sets cookie max age | 设置Cookie的最大年龄
-func (b *Builder) CookieMaxAge(maxAge int) *Builder {
+func (b *Builder) CookieMaxAge(maxAge int64) *Builder {
 	if b.cookieConfig == nil {
 		b.cookieConfig = &config.CookieConfig{}
 	}
@@ -250,9 +244,102 @@ func (b *Builder) CookieConfig(cfg *config.CookieConfig) *Builder {
 	return b
 }
 
-// RenewPoolConfig sets the token renewal pool configuration | 设置Token续期池配置
+// RenewPoolMinSize sets the minimum pool size | 设置最小协程数
+func (b *Builder) RenewPoolMinSize(size int) *Builder {
+	if b.renewPoolConfig == nil {
+		b.renewPoolConfig = pool.DefaultRenewPoolConfig()
+	}
+	b.renewPoolConfig.MinSize = size
+	return b
+}
+
+// RenewPoolMaxSize sets the maximum pool size | 设置最大协程数
+func (b *Builder) RenewPoolMaxSize(size int) *Builder {
+	if b.renewPoolConfig == nil {
+		b.renewPoolConfig = pool.DefaultRenewPoolConfig()
+	}
+	b.renewPoolConfig.MaxSize = size
+	return b
+}
+
+// RenewPoolScaleUpRate sets the scale-up threshold | 设置扩容阈值
+func (b *Builder) RenewPoolScaleUpRate(rate float64) *Builder {
+	if b.renewPoolConfig == nil {
+		b.renewPoolConfig = pool.DefaultRenewPoolConfig()
+	}
+	b.renewPoolConfig.ScaleUpRate = rate
+	return b
+}
+
+// RenewPoolScaleDownRate sets the scale-down threshold | 设置缩容阈值
+func (b *Builder) RenewPoolScaleDownRate(rate float64) *Builder {
+	if b.renewPoolConfig == nil {
+		b.renewPoolConfig = pool.DefaultRenewPoolConfig()
+	}
+	b.renewPoolConfig.ScaleDownRate = rate
+	return b
+}
+
+// RenewPoolCheckInterval sets the interval for auto-scale checking | 设置自动扩缩容检查间隔
+func (b *Builder) RenewPoolCheckInterval(interval time.Duration) *Builder {
+	if b.renewPoolConfig == nil {
+		b.renewPoolConfig = pool.DefaultRenewPoolConfig()
+	}
+	b.renewPoolConfig.CheckInterval = interval
+	return b
+}
+
+// RenewPoolExpiry sets the idle worker expiry duration | 设置空闲协程过期时间
+func (b *Builder) RenewPoolExpiry(duration time.Duration) *Builder {
+	if b.renewPoolConfig == nil {
+		b.renewPoolConfig = pool.DefaultRenewPoolConfig()
+	}
+	b.renewPoolConfig.Expiry = duration
+	return b
+}
+
+// RenewPoolPrintStatusInterval sets the status printing interval | 设置状态打印间隔
+func (b *Builder) RenewPoolPrintStatusInterval(interval time.Duration) *Builder {
+	if b.renewPoolConfig == nil {
+		b.renewPoolConfig = pool.DefaultRenewPoolConfig()
+	}
+	b.renewPoolConfig.PrintStatusInterval = interval
+	return b
+}
+
+// RenewPoolPreAlloc sets whether to pre-allocate memory | 设置是否预分配内存
+func (b *Builder) RenewPoolPreAlloc(preAlloc bool) *Builder {
+	if b.renewPoolConfig == nil {
+		b.renewPoolConfig = pool.DefaultRenewPoolConfig()
+	}
+	b.renewPoolConfig.PreAlloc = preAlloc
+	return b
+}
+
+// RenewPoolNonBlocking sets whether the pool works in non-blocking mode | 设置是否为非阻塞模式
+func (b *Builder) RenewPoolNonBlocking(nonBlocking bool) *Builder {
+	if b.renewPoolConfig == nil {
+		b.renewPoolConfig = pool.DefaultRenewPoolConfig()
+	}
+	b.renewPoolConfig.NonBlocking = nonBlocking
+	return b
+}
+
+// RenewPoolConfig sets the token renewal pool configuration | 设置完整的Token续期池配置
 func (b *Builder) RenewPoolConfig(cfg *pool.RenewPoolConfig) *Builder {
 	b.renewPoolConfig = cfg
+	return b
+}
+
+// SetCodec sets the codec for encoding and decoding operations | 设置编解码器适配器
+func (b *Builder) SetCodec(codec codec.Adapter) *Builder {
+	b.codec = codec
+	return b
+}
+
+// SetLog sets the log adapter for logging operations | 设置日志记录适配器
+func (b *Builder) SetLog(log log.Adapter) *Builder {
+	b.log = log
 	return b
 }
 
@@ -266,6 +353,17 @@ func (b *Builder) KeyPrefix(prefix string) *Builder {
 		b.keyPrefix = prefix + ":"
 	} else {
 		b.keyPrefix = prefix
+	}
+	return b
+}
+
+// AuthType sets authentication system type | 设置认证体系类型
+func (b *Builder) AuthType(authType string) *Builder {
+	// 如果前缀不为空且不以 : 结尾，自动添加 :
+	if authType != "" && !strings.HasSuffix(authType, ":") {
+		b.authType = authType + ":"
+	} else {
+		b.authType = authType
 	}
 	return b
 }
@@ -288,81 +386,60 @@ func (b *Builder) UnlimitedLogin() *Builder {
 	return b
 }
 
-// Validate validates the builder configuration | 验证构建器配置
-func (b *Builder) Validate() error {
-	if b.storage == nil {
-		return fmt.Errorf("storage is required, please call Storage() method")
-	}
+// NoBanner disables startup banner printing | 禁用启动Banner打印
+func (b *Builder) NoBanner() *Builder {
+	b.isPrintBanner = false
+	return b
+}
 
-	if b.tokenName == "" {
-		return fmt.Errorf("tokenName cannot be empty")
-	}
+// NoLog disables log output | 禁用日志输出
+func (b *Builder) NoLog() *Builder {
+	b.isLog = false
+	return b
+}
 
-	if b.tokenStyle == config.TokenStyleJWT && b.jwtSecretKey == "" {
-		return fmt.Errorf("jwtSecretKey is required when TokenStyle is JWT")
-	}
+// DisableAutoRenew disables token auto-renewal | 禁用Token自动续期
+func (b *Builder) DisableAutoRenew() *Builder {
+	b.autoRenew = false
+	return b
+}
 
-	if !b.isReadHeader && !b.isReadCookie && !b.isReadBody {
-		return fmt.Errorf("at least one of IsReadHeader, IsReadCookie, or IsReadBody must be true")
-	}
+// Jwt sets TokenStyle to JWT and sets secret key | 设置为JWT模式并指定密钥
+func (b *Builder) Jwt(secret string) *Builder {
+	b.tokenStyle = config.TokenStyleJWT
+	b.jwtSecretKey = secret
+	return b
+}
 
-	// Check MaxRefresh
-	if b.maxRefresh < config.NoLimit {
-		return fmt.Errorf("MaxRefresh must be >= -1, got: %d", b.maxRefresh)
+// Clone creates a deep copy of the builder | 克隆当前构建器
+func (b *Builder) Clone() *Builder {
+	clone := *b
+	if b.cookieConfig != nil {
+		cookieCopy := *b.cookieConfig
+		clone.cookieConfig = &cookieCopy
 	}
-
-	// Check MaxRefresh does not exceed Timeout
-	if b.timeout != config.NoLimit && b.maxRefresh > b.timeout {
-		return fmt.Errorf("MaxRefresh (%d) cannot be greater than Timeout (%d)", b.maxRefresh, b.timeout)
-	}
-
-	// Check RenewInterval
-	if b.renewInterval < config.NoLimit {
-		return fmt.Errorf("RenewInterval must be >= -1, got: %d", b.renewInterval)
-	}
-
-	// Validate RenewPoolConfig if set | 如果设置了续期池配置，进行验证
 	if b.renewPoolConfig != nil {
-		// Check MinSize and MaxSize | 检查最小和最大协程池大小
-		if b.renewPoolConfig.MinSize <= 0 {
-			return fmt.Errorf("RenewPoolConfig.MinSize must be > 0") // 最小协程池大小必须大于0
-		}
-		if b.renewPoolConfig.MaxSize < b.renewPoolConfig.MinSize {
-			return fmt.Errorf("RenewPoolConfig.MaxSize must be >= RenewPoolConfig.MinSize") // 最大协程池大小必须大于等于最小协程池大小
-		}
-
-		// Check ScaleUpRate and ScaleDownRate | 检查扩容和缩容阈值
-		if b.renewPoolConfig.ScaleUpRate <= 0 || b.renewPoolConfig.ScaleUpRate > 1 {
-			return fmt.Errorf("RenewPoolConfig.ScaleUpRate must be between 0 and 1") // 扩容阈值必须在0和1之间
-		}
-		if b.renewPoolConfig.ScaleDownRate < 0 || b.renewPoolConfig.ScaleDownRate > 1 {
-			return fmt.Errorf("RenewPoolConfig.ScaleDownRate must be between 0 and 1") // 缩容阈值必须在0和1之间
-		}
-
-		// Check CheckInterval | 检查检查间隔
-		if b.renewPoolConfig.CheckInterval <= 0 {
-			return fmt.Errorf("RenewPoolConfig.CheckInterval must be a positive duration") // 检查间隔必须是一个正值
-		}
-
-		// Check Expiry | 检查过期时间
-		if b.renewPoolConfig.Expiry <= 0 {
-			return fmt.Errorf("RenewPoolConfig.Expiry must be a positive duration") // 过期时间必须是正值
-		}
+		poolCopy := *b.renewPoolConfig
+		clone.renewPoolConfig = &poolCopy
 	}
-
-	return nil
+	return &clone
 }
 
 // Build builds Manager and prints startup banner | 构建Manager并打印启动Banner
 func (b *Builder) Build() *manager.Manager {
-	// Validate configuration | 验证配置
-	if err := b.Validate(); err != nil {
-		panic(fmt.Sprintf("invalid configuration: %v", err))
+	// Validate storage | 验证存储
+	if b.storage == nil {
+		panic("storage cannot be nil") // storage 不能为空
 	}
 
-	// Automatically adjust MaxRefresh if user customized Timeout but didn't set MaxRefresh | 自动调整MaxRefresh逻辑
-	if b.timeout != config.DefaultTimeout && b.maxRefresh == config.DefaultTimeout/2 {
-		b.maxRefresh = b.timeout / 2
+	// Validate codec | 验证codec
+	if b.codec == nil {
+		panic("codec cannot be nil") // codec 不能为空
+	}
+
+	// Validate log | 验证log
+	if b.log == nil {
+		panic("log cannot be nil") // log 不能为空
 	}
 
 	cfg := &config.Config{
@@ -378,7 +455,6 @@ func (b *Builder) Build() *manager.Manager {
 		IsReadHeader:           b.isReadHeader,
 		IsReadCookie:           b.isReadCookie,
 		TokenStyle:             b.tokenStyle,
-		DataRefreshPeriod:      b.dataRefreshPeriod,
 		TokenSessionCheckLogin: b.tokenSessionCheckLogin,
 		AutoRenew:              b.autoRenew,
 		JwtSecretKey:           b.jwtSecretKey,
@@ -387,19 +463,25 @@ func (b *Builder) Build() *manager.Manager {
 		KeyPrefix:              b.keyPrefix,
 		CookieConfig:           b.cookieConfig,
 		RenewPoolConfig:        b.renewPoolConfig,
+		AuthType:               b.authType,
+	}
+
+	// Validate configuration | 验证配置
+	err := cfg.Validate()
+	if err != nil {
+		panic(err)
 	}
 
 	// Print startup banner with full configuration | 打印启动Banner和完整配置
-	// Only skip printing when both IsLog=false AND IsPrintBanner=false | 只有当 IsLog=false 且 IsPrintBanner=false 时才不打印
-	if b.isPrintBanner || b.isLog {
+	if b.isPrintBanner {
 		banner.PrintWithConfig(cfg)
 	}
 
-	mgr := manager.NewManager(b.storage, cfg)
+	// Build Manager | 构建 Manager
+	mgr := manager.NewManager(cfg, b.storage, dep.NewDefaultDep(b.codec, b.log))
 
 	// Note: If you use the stputil package, it will automatically set the global Manager | 注意：如果你使用了 stputil 包，它会自动设置全局 Manager
 	// We don't directly call stputil.SetManager here to avoid hard dependencies | 这里不直接调用 stputil.SetManager，避免强依赖
-
 	return mgr
 }
 

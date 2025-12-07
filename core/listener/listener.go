@@ -2,6 +2,8 @@ package listener
 
 import (
 	"fmt"
+	"github.com/click33/sa-token-go/core/config"
+	"github.com/click33/sa-token-go/core/dep"
 	"sync"
 	"time"
 )
@@ -50,6 +52,7 @@ const (
 // EventData contains information about a triggered event | 事件数据，包含触发事件的相关信息
 type EventData struct {
 	Event     Event          // Event type | 事件类型
+	AuthType  string         // Authentication system type | 认证体系类型
 	LoginID   string         // User login ID | 用户登录ID
 	Device    string         // Device identifier | 设备标识
 	Token     string         // Authentication token | 认证Token
@@ -59,8 +62,8 @@ type EventData struct {
 
 // String returns a string representation of the event data | 返回事件数据的字符串表示
 func (e *EventData) String() string {
-	return fmt.Sprintf("Event{type=%s, loginID=%s, device=%s, timestamp=%d}",
-		e.Event, e.LoginID, e.Device, e.Timestamp)
+	return fmt.Sprintf("Event{type=%s,AuthType=%s, loginID=%s, device=%s, timestamp=%d}",
+		e.Event, e.AuthType, e.LoginID, e.Device, e.Timestamp)
 }
 
 // Listener is the interface for event listeners | 事件监听器接口
@@ -111,6 +114,8 @@ type Manager struct {
 	filters         []EventFilter  // Global event filters | 全局事件过滤器
 	stats           *EventStats    // Event statistics | 事件统计
 	enableStats     bool           // Whether to collect statistics | 是否收集统计信息
+	globalConfig    *config.Config // Global authentication configuration | 全局认证配置
+	deps            *dep.Dep       // Dependencies manager | 依赖管理器
 }
 
 // NewManager creates a new event manager | 创建新的事件管理器

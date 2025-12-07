@@ -13,6 +13,8 @@ const (
 	SerializerMsgPack = "msgpack"
 )
 
+// 默认初始化全局的codec实现 这里先注释 向后兼容
+
 // serializerHolder wraps Adapter to ensure atomic.Value type consistency | 包装 Adapter 以确保 atomic.Value 类型一致性
 type serializerHolder struct {
 	s Adapter
@@ -89,7 +91,7 @@ func NewSerializerMustWithJson(name string) Adapter {
 // UnifyToBytes converts string or []byte to []byte safely | 将 string 或 []byte 安全转换为 []byte
 func UnifyToBytes(data any) ([]byte, error) {
 	if data == nil {
-		return nil, serror.ErrInvalidTokenData
+		return nil, serror.ErrDataNotByte
 	}
 
 	switch v := data.(type) {
@@ -98,6 +100,6 @@ func UnifyToBytes(data any) ([]byte, error) {
 	case string:
 		return []byte(v), nil
 	default:
-		return nil, serror.ErrInvalidTokenData
+		return nil, serror.ErrDataNotByte
 	}
 }

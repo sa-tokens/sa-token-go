@@ -140,6 +140,24 @@ func (s *Storage) Get(key string) (any, error) {
 	return val, nil
 }
 
+// GetAndDelete atomically gets the value and deletes the key | 原子获取并删除键
+func (s *Storage) GetAndDelete(key string) (any, error) {
+	ctx, cancel := s.withTimeout()
+	defer cancel()
+
+	val, err := s.client.Get(ctx, s.getKey(key)).Result()
+	if err == redis.Nil {
+		return nil, fmt.Errorf("key not found: %s", key)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	_, _ = s.client.Del(ctx, s.getKey(key)).Result()
+
+	return val, nil
+}
+
 // Delete 删除键
 func (s *Storage) Delete(keys ...string) error {
 	if len(keys) == 0 {

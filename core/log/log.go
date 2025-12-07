@@ -18,8 +18,8 @@ func init() {
 	defaultLogger.Store(loggerHolder{l: &NopLogger{}})
 }
 
-// SetGlobalLogger sets global logger | 设置全局日志器
-func SetGlobalLogger(l Adapter) {
+// SetDefaultLogger sets the default logger | 设置默认日志器
+func SetDefaultLogger(l Adapter) {
 	if l == nil {
 		return
 	}
@@ -28,24 +28,24 @@ func SetGlobalLogger(l Adapter) {
 	defaultLogger.Store(loggerHolder{l: l})
 }
 
-// getLogger returns the logger | 获取当前日志器
-func getLogger() Adapter {
+// GetDefaultLogger returns the logger | 获取当前日志器
+func GetDefaultLogger() Adapter {
 	return defaultLogger.Load().(loggerHolder).l
 }
 
 // -------------------- Global Logging APIs --------------------
 
-func Print(v ...any)                 { getLogger().Print(v...) }
-func Printf(format string, v ...any) { getLogger().Printf(format, v...) }
+func Print(v ...any)                 { GetDefaultLogger().Print(v...) }
+func Printf(format string, v ...any) { GetDefaultLogger().Printf(format, v...) }
 
-func Debug(v ...any)                 { getLogger().Debug(v...) }
-func Debugf(format string, v ...any) { getLogger().Debugf(format, v...) }
+func Debug(v ...any)                 { GetDefaultLogger().Debug(v...) }
+func Debugf(format string, v ...any) { GetDefaultLogger().Debugf(format, v...) }
 
-func Info(v ...any)                 { getLogger().Info(v...) }
-func Infof(format string, v ...any) { getLogger().Infof(format, v...) }
+func Info(v ...any)                 { GetDefaultLogger().Info(v...) }
+func Infof(format string, v ...any) { GetDefaultLogger().Infof(format, v...) }
 
-func Warn(v ...any)                 { getLogger().Warn(v...) }
-func Warnf(format string, v ...any) { getLogger().Warnf(format, v...) }
+func Warn(v ...any)                 { GetDefaultLogger().Warn(v...) }
+func Warnf(format string, v ...any) { GetDefaultLogger().Warnf(format, v...) }
 
-func Error(v ...any)                 { getLogger().Error(v...) }
-func Errorf(format string, v ...any) { getLogger().Errorf(format, v...) }
+func Error(v ...any)                 { GetDefaultLogger().Error(v...) }
+func Errorf(format string, v ...any) { GetDefaultLogger().Errorf(format, v...) }

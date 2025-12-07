@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"github.com/click33/sa-token-go/core/config"
 	"sync"
 	"time"
 
@@ -37,10 +38,11 @@ var (
 
 // NonceManager Nonce manager for anti-replay attacks | Nonce管理器，用于防重放攻击
 type NonceManager struct {
-	storage   adapter.Storage
-	keyPrefix string // Configurable prefix | 可配置的前缀
-	ttl       time.Duration
-	mu        sync.RWMutex
+	storage      adapter.Storage
+	globalConfig *config.Config // Global authentication configuration | 全局认证配置
+	keyPrefix    string         // Configurable prefix | 可配置的前缀
+	ttl          time.Duration
+	mu           sync.RWMutex
 }
 
 // NewNonceManager Creates a new nonce manager | 创建新的Nonce管理器

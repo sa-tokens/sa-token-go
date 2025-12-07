@@ -8,8 +8,8 @@ import (
 	"github.com/click33/sa-token-go/core/config"
 )
 
-// Version version number | 版本号
-const Version = "0.1.1"
+// Version version number | 版本号 (此配置项需与satoken中的同步)
+const Version = "0.1.3"
 
 // Banner startup banner | 启动横幅
 const Banner = `
@@ -69,7 +69,7 @@ func formatTimeout(seconds int64) string {
 }
 
 // formatCount formats count value (number or "No Limit") | 格式化数量值
-func formatCount(count int) string {
+func formatCount(count int64) string {
 	if count > 0 {
 		return fmt.Sprintf("%d", count)
 	}
@@ -106,6 +106,7 @@ func PrintWithConfig(cfg *config.Config) {
 	fmt.Print(formatConfigLine("Token Name", cfg.TokenName))
 	fmt.Print(formatConfigLine("Token Style", cfg.TokenStyle))
 	fmt.Print(formatConfigLine("Key Prefix", cfg.KeyPrefix))
+	fmt.Print(formatConfigLine("AuthType", cfg.AuthType))
 
 	// Login Control | 登录控制
 	fmt.Println("├─────────────────────────────────────────────────────────┤")
@@ -117,13 +118,12 @@ func PrintWithConfig(cfg *config.Config) {
 	fmt.Println("├─────────────────────────────────────────────────────────┤")
 	fmt.Print(formatConfigLine("Token Timeout", formatTimeout(cfg.Timeout)))
 	fmt.Print(formatConfigLine("Active Timeout", formatTimeout(cfg.ActiveTimeout)))
-	fmt.Print(formatConfigLine("Auto Renew", cfg.AutoRenew))
 
 	// Renewal & Refresh Strategy | 续期与刷新策略
 	fmt.Println("├─────────────────────────────────────────────────────────┤")
+	fmt.Print(formatConfigLine("Auto Renew", cfg.AutoRenew))
 	fmt.Print(formatConfigLine("Max Refresh", formatTimeout(cfg.MaxRefresh)))
 	fmt.Print(formatConfigLine("Renew Interval", formatTimeout(cfg.RenewInterval)))
-	fmt.Print(formatConfigLine("Data Refresh", formatTimeout(cfg.DataRefreshPeriod)))
 
 	// Token Read Sources (compact) | Token 读取来源（紧凑显示）
 	fmt.Println("├─────────────────────────────────────────────────────────┤")
@@ -135,21 +135,6 @@ func PrintWithConfig(cfg *config.Config) {
 		fmt.Print(formatConfigLine("JWT Secret Key", configured))
 	} else {
 		fmt.Print(formatConfigLine("JWT Secret Key", "(not used)"))
-	}
-
-	// Cookie Configuration (only if enabled) | Cookie 配置（仅当启用时显示）
-	fmt.Println("├─────────────────────────────────────────────────────────┤")
-	if cfg.IsReadCookie || cfg.CookieConfig != nil {
-		if cfg.CookieConfig == nil {
-			fmt.Print(formatConfigLine("Cookie Config", "(default)"))
-		} else {
-			maxAge := formatTimeout(int64(cfg.CookieConfig.MaxAge))
-			fmt.Print(formatConfigLine("Cookie MaxAge", maxAge))
-			fmt.Print(formatConfigLine("Cookie Secure", cfg.CookieConfig.Secure))
-			fmt.Print(formatConfigLine("Cookie HttpOnly", cfg.CookieConfig.HttpOnly))
-		}
-	} else {
-		fmt.Print(formatConfigLine("Cookie Support", "disabled"))
 	}
 
 	fmt.Println("└─────────────────────────────────────────────────────────┘")

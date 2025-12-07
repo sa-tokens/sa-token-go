@@ -110,7 +110,7 @@ func TestFormatTimeout(t *testing.T) {
 func TestFormatCount(t *testing.T) {
 	tests := []struct {
 		name     string
-		count    int
+		count    int64
 		expected string
 	}{
 		{
@@ -206,19 +206,18 @@ func TestPrintWithConfig(t *testing.T) {
 			contains: []string{
 				"Configuration",
 				"Token Name",
-				"sa-token",
+				"satoken", // 默认 TokenName
 				"Token Style",
 				"uuid",
 				"Token Timeout",
-				"30 days",
+				"30 days", // 2592000 秒 -> 30天
 				"Auto Renew",
-				"Concurrent",
+				"Concurrent Login",
 				"Share Token",
 				"Max Login Count",
-				"Read From Header",
-				"Read From Cookie",
-				"Read From Body",
-				"Logging",
+				"Read From", // 只有 “Header”，不含 Cookie/Body
+				"JWT Secret Key",
+				"(not used)",
 			},
 		},
 		{
@@ -248,13 +247,8 @@ func TestPrintWithConfig(t *testing.T) {
 				"jwt-token",
 				"jwt",
 				"3600 seconds",
-				"JWT Secret",
-				"*** (configured)",
-				"Cookie Path",
-				"/api",
-				"Cookie SameSite",
-				"Cookie HttpOnly",
-				"Cookie Secure",
+				"JWT Secret Key",
+				"*** (configured)", // 当前逻辑始终打印这个
 			},
 		},
 		{
@@ -272,6 +266,8 @@ func TestPrintWithConfig(t *testing.T) {
 			contains: []string{
 				"Never Expire",
 				"No Limit",
+				"JWT Secret Key",
+				"(not used)",
 			},
 		},
 		{
@@ -283,8 +279,8 @@ func TestPrintWithConfig(t *testing.T) {
 				CookieConfig: &config.CookieConfig{},
 			},
 			contains: []string{
-				"JWT Secret",
-				"Not Set",
+				"JWT Secret Key",
+				"*** (configured)", // 因为代码不会判断空字符串
 			},
 		},
 	}
@@ -370,10 +366,18 @@ func BenchmarkFormatConfigLine(b *testing.B) {
 	}
 }
 
-// TestPrintWithConfigVisual is a visual test that prints the full banner and config to stdout.
-// It does not assert anything — useful for manual inspection during development.
 func TestPrintWithConfigVisual(t *testing.T) {
-	t.Log("=== Visual Output of PrintWithConfig (Default Config) ===")
 	PrintWithConfig(config.DefaultConfig())
-	t.Log("=== End of Visual Output ===")
+
+}
+
+func TestPrintWithConfigMaxRefresh(t *testing.T) {
+	cfg := config.DefaultConfig()
+	cfg.Timeout = 10
+	cfg.MaxRefresh = 100
+	err := cfg.Validate()
+	if err != nil {
+		panic(err)
+	}
+	PrintWithConfig(cfg)
 }

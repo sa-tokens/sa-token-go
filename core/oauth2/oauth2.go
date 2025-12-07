@@ -4,6 +4,8 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"github.com/click33/sa-token-go/core/config"
+	"github.com/click33/sa-token-go/core/dep"
 	"sync"
 	"time"
 
@@ -25,47 +27,6 @@ import (
 //   server.RegisterClient(&oauth2.Client{...})
 //   authCode, _ := server.GenerateAuthorizationCode(...)
 //   token, _ := server.ExchangeCodeForToken(...)
-
-// Constants for OAuth2 | OAuth2常量
-const (
-	DefaultCodeExpiration  = 10 * time.Minute    // Authorization code expiration | 授权码过期时间
-	DefaultTokenExpiration = 2 * time.Hour       // Access token expiration | 访问令牌过期时间
-	DefaultRefreshTTL      = 30 * 24 * time.Hour // Refresh token expiration | 刷新令牌过期时间
-
-	CodeLength         = 32 // Authorization code byte length | 授权码字节长度
-	AccessTokenLength  = 32 // Access token byte length | 访问令牌字节长度
-	RefreshTokenLength = 32 // Refresh token byte length | 刷新令牌字节长度
-
-	CodeKeySuffix    = "oauth2:code:"    // Code key suffix after prefix | 授权码键后缀
-	TokenKeySuffix   = "oauth2:token:"   // Token key suffix after prefix | 令牌键后缀
-	RefreshKeySuffix = "oauth2:refresh:" // Refresh key suffix after prefix | 刷新令牌键后缀
-
-	TokenTypeBearer = "Bearer" // Token type | 令牌类型
-)
-
-// Error variables | 错误变量
-var (
-	ErrClientNotFound           = fmt.Errorf("client not found")
-	ErrInvalidRedirectURI       = fmt.Errorf("invalid redirect_uri")
-	ErrInvalidClientCredentials = fmt.Errorf("invalid client credentials")
-	ErrInvalidAuthCode          = fmt.Errorf("invalid authorization code")
-	ErrAuthCodeUsed             = fmt.Errorf("authorization code already used")
-	ErrAuthCodeExpired          = fmt.Errorf("authorization code expired")
-	ErrClientMismatch           = fmt.Errorf("client mismatch")
-	ErrRedirectURIMismatch      = fmt.Errorf("redirect_uri mismatch")
-	ErrInvalidAccessToken       = fmt.Errorf("invalid access token")
-	ErrInvalidTokenData         = fmt.Errorf("invalid token data")
-)
-
-// GrantType OAuth2 grant type | OAuth2授权类型
-type GrantType string
-
-const (
-	GrantTypeAuthorizationCode GrantType = "authorization_code" // Authorization code flow | 授权码模式
-	GrantTypeRefreshToken      GrantType = "refresh_token"      // Refresh token flow | 刷新令牌模式
-	GrantTypeClientCredentials GrantType = "client_credentials" // Client credentials flow | 客户端凭证模式
-	GrantTypePassword          GrantType = "password"           // Password flow | 密码模式
-)
 
 // Client OAuth2 client configuration | OAuth2客户端配置
 type Client struct {
@@ -104,20 +65,23 @@ type OAuth2Server struct {
 	storage         adapter.Storage
 	keyPrefix       string // Configurable prefix | 可配置的前缀
 	clients         map[string]*Client
-	clientsMu       sync.RWMutex  // Clients map lock | 客户端映射锁
-	codeExpiration  time.Duration // Authorization code expiration (10min) | 授权码过期时间（10分钟）
-	tokenExpiration time.Duration // Access token expiration (2h) | 访问令牌过期时间（2小时）
+	clientsMu       sync.RWMutex   // Clients map lock | 客户端映射锁
+	codeExpiration  time.Duration  // Authorization code expiration (10min) | 授权码过期时间（10分钟）
+	tokenExpiration time.Duration  // Access token expiration (2h) | 访问令牌过期时间（2小时）
+	globalConfig    *config.Config // Global authentication configuration | 全局认证配置
+	deps            *dep.Dep       // Dependencies manager | 依赖管理器
 }
 
 // NewOAuth2Server Creates a new OAuth2 server | 创建新的OAuth2服务器
 // prefix: key prefix (e.g., "satoken:" or "" for Java compatibility) | 键前缀（如："satoken:" 或 "" 兼容Java）
-func NewOAuth2Server(storage adapter.Storage, prefix string) *OAuth2Server {
+func NewOAuth2Server(storage adapter.Storage, deps *dep.Dep, prefix string) *OAuth2Server {
 	return &OAuth2Server{
 		storage:         storage,
 		keyPrefix:       prefix,
 		clients:         make(map[string]*Client),
 		codeExpiration:  DefaultCodeExpiration,
 		tokenExpiration: DefaultTokenExpiration,
+		deps:            deps,
 	}
 }
 

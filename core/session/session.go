@@ -1,18 +1,16 @@
 package session
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"github.com/click33/sa-token-go/core/codec"
+	"github.com/click33/sa-token-go/core/log"
 	"github.com/click33/sa-token-go/core/serror"
 	"sync"
 	"time"
 
 	"github.com/click33/sa-token-go/core/adapter"
-)
-
-// Constants for session keys | Session键常量
-const (
-	SessionKeyPrefix = "session:" // Storage key prefix | 存储键前缀
 )
 
 // Session Session object for storing user data | 会话对象，用于存储用户数据
@@ -23,6 +21,8 @@ type Session struct {
 	mu         sync.RWMutex    `json:"-"`          // Read-write lock | 读写锁
 	storage    adapter.Storage `json:"-"`          // Storage backend | 存储
 	prefix     string          `json:"-"`          // Key prefix | 键前缀
+	serializer codec.Adapter   // codec Codec adapter for encoding and decoding operations | 编解码操作的编码器适配器
+	logger     log.Adapter     // log Log adapter for logging operations | 日志记录操作的适配器
 }
 
 // NewSession Creates a new session | 创建新的Session
@@ -231,13 +231,12 @@ func (s *Session) getStorageKey() string {
 // ============ Static Methods | 静态方法 ============
 
 // Load Loads session from storage | 从存储加载
-func Load(id string, storage adapter.Storage, prefix string) (*Session, error) {
+func Load(ctx context.Context, id string, prefix string, storage adapter.Storage, codecAdapter codec.Adapter, logAdapter log.Adapter) (*Session, error) {
 	if id == "" {
-		return nil, serror.ErrSessionIDEmpty
+		return nil, errors.New("session id cannot be empty")
 	}
 
-	key := prefix + SessionKeyPrefix + id
-	data, err := storage.Get(key)
+	data, err := storage.Get(prefix + SessionKeyPrefix + id)
 	if err != nil {
 		return nil, err
 	}

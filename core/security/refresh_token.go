@@ -65,8 +65,9 @@ func (r *RefreshTokenInfo) UnmarshalBinary(data []byte) error {
 // RefreshTokenManager Refresh token manager | 刷新令牌管理器
 type RefreshTokenManager struct {
 	storage        adapter.Storage
-	keyPrefix      string // Configurable prefix | 可配置的前缀
-	tokenKeyPrefix string // Token key prefix | 令牌键前缀
+	globalConfig   *config.Config // Global authentication configuration | 全局认证配置
+	keyPrefix      string         // Configurable prefix | 可配置的前缀
+	tokenKeyPrefix string         // Token key prefix | 令牌键前缀
 	tokenGen       *token.Generator
 	refreshTTL     time.Duration // Refresh token TTL (30 days) | 刷新令牌有效期（30天）
 	accessTTL      time.Duration // Access token TTL (configurable) | 访问令牌有效期（可配置）

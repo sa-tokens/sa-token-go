@@ -2,6 +2,8 @@
 package pool
 
 import (
+	"github.com/click33/sa-token-go/core/config"
+	"github.com/click33/sa-token-go/core/dep"
 	"github.com/click33/sa-token-go/core/log"
 	"github.com/click33/sa-token-go/core/serror"
 	"sync"
@@ -49,11 +51,13 @@ func DefaultRenewPoolConfig() *RenewPoolConfig {
 
 // RenewPoolManager manages a dynamic scaling goroutine pool for token renewal tasks | 续期任务协程池管理器
 type RenewPoolManager struct {
-	pool    *ants.Pool       // ants pool instance | ants 协程池实例
-	config  *RenewPoolConfig // Configuration object | 池配置对象
-	mu      sync.Mutex       // Synchronization lock | 互斥锁
-	stopCh  chan struct{}    // Stop signal channel | 停止信号通道
-	started bool             // Indicates if pool manager is running | 是否已启动
+	pool         *ants.Pool       // ants pool instance | ants 协程池实例
+	config       *RenewPoolConfig // Configuration object | 池配置对象
+	globalConfig *config.Config   // Global authentication configuration | 全局认证配置
+	mu           sync.Mutex       // Synchronization lock | 互斥锁
+	stopCh       chan struct{}    // Stop signal channel | 停止信号通道
+	started      bool             // Indicates if pool manager is running | 是否已启动
+	deps         *dep.Dep         // Dependencies manager | 依赖管理器
 }
 
 // NewRenewPoolManagerWithConfig creates manager with config | 使用配置创建续期池管理器
@@ -133,7 +137,7 @@ func (m *RenewPoolManager) Stop() {
 	m.started = false
 
 	if m.pool != nil && !m.pool.IsClosed() {
-		_ = m.pool.ReleaseTimeout(10 * time.Second)
+		_ = m.pool.ReleaseTimeout(5 * time.Second)
 	}
 }
 
