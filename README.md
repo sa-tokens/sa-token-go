@@ -55,8 +55,8 @@ go get github.com/click33/sa-token-go/storage/redis@latest  # Redis storage (pro
 
 ```bash
 # Core modules
-go get github.com/click33/sa-token-go/core@v0.1.5
-go get github.com/click33/sa-token-go/stputil@v0.1.5
+go get github.com/click33/sa-token-go/core@vlatest 
+go get github.com/click33/sa-token-go/stputil@vlatest 
 
 # Storage module (choose one)
 go get github.com/click33/sa-token-go/storage/memory@latest # Memory storage (dev)
