@@ -14,10 +14,11 @@ import (
 	"github.com/click33/sa-token-go/core/session"
 	"github.com/click33/sa-token-go/core/token"
 	"github.com/click33/sa-token-go/core/utils"
+	"github.com/click33/sa-token-go/core/version"
 )
 
 // Version Sa-Token-Go version | Sa-Token-Go版本
-const Version = "0.1.3"
+const Version = version.Version
 
 // ============ Exported Types | 导出的类型 ============
 // Export main types and functions for external use | 导出主要类型和函数，方便外部使用
