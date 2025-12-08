@@ -55,8 +55,8 @@ go get github.com/click33/sa-token-go/storage/redis@latest  # Redis存储（生�
 
 ```bash
 # 核心模块
-go get github.com/click33/sa-token-go/core@v0.1.5
-go get github.com/click33/sa-token-go/stputil@v0.1.5
+go get github.com/click33/sa-token-go/core@vlatest 
+go get github.com/click33/sa-token-go/stputil@vlatest 
 
 # 存储模块（选一个）
 go get github.com/click33/sa-token-go/storage/memory@latest # 内存存储（开发）

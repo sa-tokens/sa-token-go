@@ -259,7 +259,7 @@ func TestCustomChecker(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			checker := &CustomChecker{name: "custom", fn: tt.fn}
+			checker := &CustomChecker{fn: tt.fn}
 			err := checker.Check(ctx, mgr, loginID)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("CustomChecker.Check() error = %v, wantErr %v", err, tt.wantErr)
@@ -380,7 +380,7 @@ func TestCheckerConstructors(t *testing.T) {
 	}
 
 	// Test NewCustomChecker
-	if c := NewCustomChecker("test", func(ctx context.Context, manager *manager.Manager, loginID string) error {
+	if c := NewCustomChecker(func(ctx context.Context, manager *manager.Manager, loginID string) error {
 		return nil
 	}); c == nil {
 		t.Error("NewCustomChecker() should return non-nil")
