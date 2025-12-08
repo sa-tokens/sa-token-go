@@ -20,12 +20,6 @@ var (
 	ErrRenewPoolNotStarted = errors.New("renew pool not started") // renew pool not started | 续期线程池未启动
 )
 
-// Session Errors | Session 错误
-var (
-	ErrSessionNotFound = errors.New("session not found")           // session not found | 会话不存在
-	ErrSessionKeyEmpty = errors.New("session key cannot be empty") // session key cannot be empty | Session 键不能为空
-)
-
 // Manager Errors | Manager 错误
 var (
 	ErrTokenNotFound    = errors.New("token not found")           // token not found | Token 不存在

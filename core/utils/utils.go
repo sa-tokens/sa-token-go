@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
@@ -587,4 +588,22 @@ func UniqueSlice[T comparable](slice []T) []T {
 		}
 	}
 	return result
+}
+
+// GetCtxValue Returns the value for the given key in the context as a string or the defaultValue if the value is not of type string | 从上下文中获取指定key的值，如果值不是字符串则返回默认值
+func GetCtxValue(ctx context.Context, valueKey string, defaultValue ...string) string {
+	val := ctx.Value(valueKey) // 从上下文中获取值 | Retrieve the value from the context
+
+	// Check if the value is a non-empty string | 检查值是否是非空字符串
+	if v, ok := val.(string); ok && v != "" {
+		return v // If it's a non-empty string, return it | 如果是非空字符串，返回该值
+	}
+
+	// If defaultValue is provided, return it, otherwise return an empty string | 如果提供了默认值，返回默认值，否则返回空字符串
+	if len(defaultValue) > 0 {
+		return defaultValue[0]
+	}
+
+	// Otherwise, return an empty string | 否则返回空字符串
+	return ""
 }

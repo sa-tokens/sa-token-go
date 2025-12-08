@@ -1,11 +1,11 @@
 package session
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"github.com/click33/sa-token-go/core/codec"
-	"github.com/click33/sa-token-go/core/log"
+	"github.com/click33/sa-token-go/core/dep"
+	"github.com/click33/sa-token-go/core/manager"
 	"github.com/click33/sa-token-go/core/serror"
 	"sync"
 	"time"
@@ -15,24 +15,26 @@ import (
 
 // Session Session object for storing user data | 会话对象，用于存储用户数据
 type Session struct {
+	AuthType   string          `json:"authType"`   // Authentication system type | 认证体系类型
 	ID         string          `json:"id"`         // Session ID | Session标识
 	CreateTime int64           `json:"createTime"` // Creation time | 创建时间
 	Data       map[string]any  `json:"data"`       // Session data | 数据
-	mu         sync.RWMutex    `json:"-"`          // Read-write lock | 读写锁
-	storage    adapter.Storage `json:"-"`          // Storage backend | 存储
 	prefix     string          `json:"-"`          // Key prefix | 键前缀
-	serializer codec.Adapter   // codec Codec adapter for encoding and decoding operations | 编解码操作的编码器适配器
-	logger     log.Adapter     // log Log adapter for logging operations | 日志记录操作的适配器
+	storage    adapter.Storage `json:"-"`          // Storage backend | 存储
+	mu         sync.RWMutex    `json:"-"`          // Read-write lock | 读写锁
+	deps       *dep.Dep        `json:"-"`          // Dependencies manager | 依赖管理器
 }
 
 // NewSession Creates a new session | 创建新的Session
-func NewSession(id string, storage adapter.Storage, prefix string) *Session {
+func NewSession(authType, id, prefix string, deps *dep.Dep, storage adapter.Storage) *Session {
 	return &Session{
+		AuthType:   authType,
 		ID:         id,
 		CreateTime: time.Now().Unix(),
 		Data:       make(map[string]any),
-		storage:    storage,
 		prefix:     prefix,
+		storage:    storage,
+		deps:       deps,
 	}
 }
 
@@ -41,41 +43,34 @@ func NewSession(id string, storage adapter.Storage, prefix string) *Session {
 // Set Sets value | 设置值
 func (s *Session) Set(key string, value any, ttl ...time.Duration) error {
 	if key == "" {
-		return serror.ErrSessionIDEmpty
+		return errors.New("session key cannot empty")
 	}
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	s.Data[key] = value
-	if len(ttl) > 0 && ttl[0] > 0 {
-		return s.saveWithTTL(ttl[0])
-	}
 
-	return s.save()
+	return s.save(ttl...)
 }
 
 // SetMulti sets multiple key-value pairs | 设置多个键值对
-func (s *Session) SetMulti(values map[string]any, ttl ...time.Duration) error {
-	if len(values) == 0 {
+func (s *Session) SetMulti(valueMap map[string]any, ttl ...time.Duration) error {
+	if len(valueMap) == 0 {
 		return nil
 	}
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	for key, value := range values {
+	for key, value := range valueMap {
 		if key == "" {
-			return serror.ErrSessionKeyEmpty
+			return errors.New("session id cannot be empty")
 		}
 		s.Data[key] = value
 	}
 
-	if len(ttl) > 0 && ttl[0] > 0 {
-		return s.saveWithTTL(ttl[0])
-	}
-
-	return s.save()
+	return s.save(ttl...)
 }
 
 // Get Gets value | 获取值
@@ -146,22 +141,22 @@ func (s *Session) Has(key string) bool {
 	return exists
 }
 
-// Delete 删除键
+// Delete removes a key and preserves TTL | 删除键并保留 TTL
 func (s *Session) Delete(key string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	delete(s.Data, key)
-	return s.save()
+	return s.saveKeepTTL()
 }
 
-// Clear Clears all data | 清空所有数据
+// Clear removes all keys but preserves TTL | 清空所有键并保留 TTL
 func (s *Session) Clear() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	s.Data = make(map[string]any)
-	return s.save()
+	return s.saveKeepTTL()
 }
 
 // Keys Gets all keys | 获取所有键
@@ -191,72 +186,12 @@ func (s *Session) IsEmpty() bool {
 
 // Renew extends the session TTL without modifying content | 续期 Session 的 TTL，但不修改内容
 func (s *Session) Renew(ttl time.Duration) error {
-	if ttl <= 0 {
-		return nil // 不允许设置 0 TTL，避免误删
+	if ttl < 0 {
+		return nil // Skip renewal if ttl is invalid | 跳过无效续期
 	}
 
 	key := s.getStorageKey()
 	return s.storage.Expire(key, ttl)
-}
-
-// ============ Internal Methods | 内部方法 ============
-
-// save Saves session to storage | 保存到存储
-func (s *Session) save() error {
-	data, err := codec.Encode(s)
-	if err != nil {
-		return fmt.Errorf("%w: %v", serror.ErrCommonMarshal, err)
-	}
-
-	key := s.getStorageKey()
-	return s.storage.Set(key, data, 0)
-}
-
-// saveWithTTL saves session with TTL | 带 TTL 保存 Session
-func (s *Session) saveWithTTL(ttl time.Duration) error {
-	data, err := codec.Encode(s)
-	if err != nil {
-		return fmt.Errorf("%w: %v", serror.ErrCommonMarshal, err)
-	}
-
-	key := s.getStorageKey()
-	return s.storage.Set(key, string(data), ttl)
-}
-
-// getStorageKey Gets storage key for this session | 获取Session的存储键
-func (s *Session) getStorageKey() string {
-	return s.prefix + SessionKeyPrefix + s.ID
-}
-
-// ============ Static Methods | 静态方法 ============
-
-// Load Loads session from storage | 从存储加载
-func Load(ctx context.Context, id string, prefix string, storage adapter.Storage, codecAdapter codec.Adapter, logAdapter log.Adapter) (*Session, error) {
-	if id == "" {
-		return nil, errors.New("session id cannot be empty")
-	}
-
-	data, err := storage.Get(prefix + SessionKeyPrefix + id)
-	if err != nil {
-		return nil, err
-	}
-	if data == nil {
-		return nil, serror.ErrSessionNotFound
-	}
-
-	raw, err := codec.UnifyToBytes(data)
-	if err != nil {
-		return nil, err
-	}
-
-	var session Session
-	if err = codec.Decode(raw, &session); err != nil {
-		return nil, fmt.Errorf("%w: %v", serror.ErrCommonUnmarshal, err)
-	}
-
-	session.storage = storage
-	session.prefix = prefix
-	return &session, nil
 }
 
 // Destroy Destroys session | 销毁Session
@@ -266,4 +201,83 @@ func (s *Session) Destroy() error {
 
 	key := s.getStorageKey()
 	return s.storage.Delete(key)
+}
+
+// ============ Internal Methods | 内部方法 ============
+
+// getStorageKey Gets storage key for this session | 获取Session的存储键
+func (s *Session) getStorageKey() string {
+	return s.prefix + s.AuthType + SessionKeyPrefix + s.ID
+}
+
+// save Saves session to storage | 保存到存储
+func (s *Session) save(ttl ...time.Duration) error {
+	data, err := s.deps.GetSerializer().Encode(s)
+	if err != nil {
+		return fmt.Errorf("%w: %v", serror.ErrCommonMarshal, err)
+	}
+
+	key := s.getStorageKey()
+
+	// Default to 0 (no expiration) | 默认使用 0（无过期时间）
+	if len(ttl) == 0 || ttl[0] <= 0 {
+		return s.storage.Set(key, data, 0)
+	}
+
+	// Save with provided TTL | 使用指定 TTL 保存
+	return s.storage.Set(key, data, ttl[0])
+}
+
+// saveKeepTTL saves session while preserving its TTL | 保存 Session 并保留现有 TTL
+func (s *Session) saveKeepTTL() error {
+	data, err := s.deps.GetSerializer().Encode(s)
+	if err != nil {
+		return fmt.Errorf("%w: %v", serror.ErrCommonMarshal, err)
+	}
+
+	key := s.getStorageKey()
+
+	// Try to get current TTL | 获取当前 TTL
+	ttl, err := s.storage.TTL(key)
+	if err != nil {
+		return err
+	} else if ttl <= 0 {
+		ttl = 0 // Default to permanent if no TTL exists | 无 TTL 默认永久保存
+	}
+
+	return s.storage.Set(key, data, ttl)
+}
+
+// ============ Static Methods | 静态方法 ============
+
+// Load Loads session from storage | 从存储加载
+func Load(id string, m *manager.Manager) (*Session, error) {
+	if id == "" {
+		return nil, errors.New("session id cannot be empty")
+	}
+	if m == nil {
+		return nil, errors.New("manager cannot be empty")
+	}
+
+	data, err := m.GetStorage().Get(m.GetPrefix() + m.GetAutoType() + SessionKeyPrefix + id)
+	if err != nil {
+		return nil, err
+	}
+	if data == nil {
+		return nil, errors.New("session not found")
+	}
+
+	raw, err := codec.UnifyToBytes(data)
+	if err != nil {
+		return nil, err
+	}
+
+	var session Session
+	if err = m.GetDeps().GetSerializer().Decode(raw, &session); err != nil {
+		return nil, fmt.Errorf("%w: %v", serror.ErrCommonUnmarshal, err)
+	}
+
+	session.storage = m.GetStorage()
+	session.deps = m.GetDeps()
+	return &session, nil
 }
