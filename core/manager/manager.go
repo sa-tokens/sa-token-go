@@ -575,8 +575,8 @@ func (m *Manager) SetPermissions(_ context.Context, loginID string, permissions 
 }
 
 // RemovePermissions removes specified permissions for user | 删除用户指定权限
-func (m *Manager) RemovePermissions(ctx context.Context, loginID string, permissions []string) error {
-	sess, err := m.GetSession(ctx, loginID)
+func (m *Manager) RemovePermissions(_ context.Context, loginID string, permissions []string) error {
+	sess, err := m.GetSession(loginID)
 	if err != nil {
 		return err
 	}
@@ -611,8 +611,8 @@ func (m *Manager) RemovePermissions(ctx context.Context, loginID string, permiss
 }
 
 // GetPermissions Gets permission list | 获取权限列表
-func (m *Manager) GetPermissions(ctx context.Context, loginID string) ([]string, error) {
-	sess, err := m.GetSession(ctx, loginID)
+func (m *Manager) GetPermissions(_ context.Context, loginID string) ([]string, error) {
+	sess, err := m.GetSession(loginID)
 	if err != nil {
 		return nil, err
 	}
@@ -696,8 +696,8 @@ func (m *Manager) matchPermission(_ context.Context, pattern, permission string)
 // ============ Role Validation | 角色验证 ============
 
 // SetRoles Sets roles for user | 设置角色
-func (m *Manager) SetRoles(ctx context.Context, loginID string, roles []string) error {
-	sess, err := m.GetSession(ctx, loginID)
+func (m *Manager) SetRoles(_ context.Context, loginID string, roles []string) error {
+	sess, err := m.GetSession(loginID)
 	if err != nil {
 		return err
 	}
@@ -710,8 +710,8 @@ func (m *Manager) SetRoles(ctx context.Context, loginID string, roles []string) 
 }
 
 // RemoveRoles removes specified roles for user | 删除用户指定角色
-func (m *Manager) RemoveRoles(ctx context.Context, loginID string, roles []string) error {
-	sess, err := m.GetSession(ctx, loginID)
+func (m *Manager) RemoveRoles(_ context.Context, loginID string, roles []string) error {
+	sess, err := m.GetSession(loginID)
 	if err != nil {
 		return err
 	}
@@ -746,8 +746,8 @@ func (m *Manager) RemoveRoles(ctx context.Context, loginID string, roles []strin
 }
 
 // GetRoles Gets role list | 获取角色列表
-func (m *Manager) GetRoles(ctx context.Context, loginID string) ([]string, error) {
-	sess, err := m.GetSession(ctx, loginID)
+func (m *Manager) GetRoles(_ context.Context, loginID string) ([]string, error) {
+	sess, err := m.GetSession(loginID)
 	if err != nil {
 		return nil, err
 	}
@@ -1050,7 +1050,7 @@ func (m *Manager) renewToken(ctx context.Context, info *TokenInfo) {
 	_ = m.storage.Expire(accountKey, exp)
 
 	// Renew session TTL | 续期Session的TTL
-	if sess, err := m.GetSession(ctx, info.LoginID); err == nil && sess != nil {
+	if sess, err := m.GetSession(info.LoginID); err == nil && sess != nil {
 		_ = sess.Renew(exp) // Renew the session expiration | 续期Session的过期时间
 	}
 
@@ -1093,7 +1093,7 @@ func (m *Manager) removeTokenChain(ctx context.Context, destroySession bool, inf
 		_ = m.storage.Delete(accountKey) // Delete account-token mapping | 删除账号映射
 		_ = m.storage.Delete(renewKey)   // Delete renew key | 删除续期标记
 		if destroySession {              // Optionally destroy session | 可选销毁Session
-			_ = m.DeleteSession(ctx, info.LoginID)
+			_ = m.DeleteSession(info.LoginID)
 		}
 
 	// EventKickout User kicked offline (keep session) | 用户被踢下线（保留Session，自动过期）
@@ -1114,7 +1114,7 @@ func (m *Manager) removeTokenChain(ctx context.Context, destroySession bool, inf
 		_ = m.storage.Delete(accountKey) // Delete account-token mapping | 删除账号映射
 		_ = m.storage.Delete(renewKey)   // Delete renew key | 删除续期标记
 		if destroySession {              // Optionally destroy session | 可选销毁Session
-			_ = m.DeleteSession(ctx, info.LoginID)
+			_ = m.DeleteSession(info.LoginID)
 		}
 	}
 

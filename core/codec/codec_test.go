@@ -2,7 +2,6 @@
 package codec
 
 import (
-	"github.com/click33/sa-token-go/core/serror"
 	"reflect"
 	"strings"
 	"sync"
@@ -185,31 +184,6 @@ func TestNewSerializerMustWithJson(t *testing.T) {
 	s := NewSerializerMustWithJson("non-exist")
 	if s.Name() != SerializerJSON {
 		t.Errorf("expected fallback JSON, got %s", s.Name())
-	}
-}
-
-// -------------------- UnifyToBytes Tests --------------------
-
-// TestUnifyToBytes tests type conversion to []byte | 测试数据统一转换为 []byte
-func TestUnifyToBytes(t *testing.T) {
-	data, err := UnifyToBytes([]byte("abc"))
-	if err != nil || string(data) != "abc" {
-		t.Errorf("UnifyToBytes([]byte) failed: %v", err)
-	}
-
-	data, err = UnifyToBytes("xyz")
-	if err != nil || string(data) != "xyz" {
-		t.Errorf("UnifyToBytes(string) failed: %v", err)
-	}
-
-	_, err = UnifyToBytes(123)
-	if err == nil {
-		t.Error("UnifyToBytes(int) should return error")
-	}
-
-	_, err = UnifyToBytes(nil)
-	if err == nil || err != serror.ErrInvalidTokenData {
-		t.Error("UnifyToBytes(nil) should return ErrInvalidTokenData")
 	}
 }
 
