@@ -210,9 +210,12 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("MaxRefresh must be >= -1, got: %d", c.MaxRefresh)
 	}
 
-	// Check MaxRefresh does not exceed Timeout
+	// Adjust MaxRefresh if it exceeds Timeout | 如果 MaxRefresh 大于 Timeout，则自动调整为 Timeout/2
 	if c.Timeout != NoLimit && c.MaxRefresh > c.Timeout {
-		return fmt.Errorf("MaxRefresh (%d) cannot be greater than Timeout (%d)", c.MaxRefresh, c.Timeout)
+		c.MaxRefresh = c.Timeout / 2
+		if c.MaxRefresh < 1 {
+			c.MaxRefresh = 1
+		}
 	}
 
 	// Check RenewInterval
