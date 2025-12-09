@@ -11,8 +11,6 @@ import (
 var (
 	ErrCommonMarshal   = errors.New("failed to marshal data")   // failed to marshal data | 序列化数据失败
 	ErrCommonUnmarshal = errors.New("failed to unmarshal data") // failed to unmarshal data | 反序列化数据失败
-
-	ErrDataNotByte = errors.New("data cannot be converted to byte slice")
 )
 
 // RenewPool Errors | RenewPool 错误

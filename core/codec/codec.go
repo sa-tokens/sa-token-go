@@ -2,7 +2,6 @@
 package codec
 
 import (
-	"github.com/click33/sa-token-go/core/serror"
 	"sync"
 	"sync/atomic"
 )
@@ -84,22 +83,4 @@ func NewSerializerMust(name string) Adapter {
 // NewSerializerMustWithJson returns JSON serializer if name not found | 根据名称创建序列化器，未找到则返回 JSON 序列化器
 func NewSerializerMustWithJson(name string) Adapter {
 	return NewSerializer(name)
-}
-
-// -------------------- Helper Functions --------------------
-
-// UnifyToBytes converts string or []byte to []byte safely | 将 string 或 []byte 安全转换为 []byte
-func UnifyToBytes(data any) ([]byte, error) {
-	if data == nil {
-		return nil, serror.ErrDataNotByte
-	}
-
-	switch v := data.(type) {
-	case []byte:
-		return v, nil
-	case string:
-		return []byte(v), nil
-	default:
-		return nil, serror.ErrDataNotByte
-	}
 }

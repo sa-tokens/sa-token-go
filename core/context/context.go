@@ -1,6 +1,8 @@
 package context
 
 import (
+	"context"
+	"github.com/click33/sa-token-go/core/config"
 	"strings"
 
 	"github.com/click33/sa-token-go/core/adapter"
@@ -14,14 +16,16 @@ const (
 
 // SaTokenContext Sa-Token context for current request | Sa-Token上下文，用于当前请求
 type SaTokenContext struct {
-	ctx     adapter.RequestContext
+	ctx     context.Context
+	reqCtx  adapter.RequestContext
 	manager *manager.Manager
 }
 
 // NewContext creates a new Sa-Token context | 创建新的Sa-Token上下文
-func NewContext(ctx adapter.RequestContext, mgr *manager.Manager) *SaTokenContext {
+func NewContext(ctx context.Context, reqCtx adapter.RequestContext, mgr *manager.Manager) *SaTokenContext {
 	return &SaTokenContext{
 		ctx:     ctx,
+		reqCtx:  reqCtx,
 		manager: mgr,
 	}
 }
@@ -48,12 +52,12 @@ func (c *SaTokenContext) GetTokenValue() string {
 	// 1. 尝试从Header获取
 	if cfg.IsReadHeader {
 		// 从自定义 token 名称的 Header 获取
-		if token := strings.TrimSpace(c.ctx.GetHeader(cfg.TokenName)); token != "" {
+		if token := strings.TrimSpace(c.reqCtx.GetHeader(cfg.TokenName)); token != "" {
 			return token
 		}
 
 		// 从 Authorization 头获取
-		if auth := c.ctx.GetHeader(authHeader); auth != "" {
+		if auth := c.reqCtx.GetHeader(authHeader); auth != "" {
 			if token := extractBearerToken(auth); token != "" {
 				return token
 			}
@@ -62,13 +66,13 @@ func (c *SaTokenContext) GetTokenValue() string {
 
 	// 2. 尝试从Cookie获取
 	if cfg.IsReadCookie {
-		if token := strings.TrimSpace(c.ctx.GetCookie(cfg.TokenName)); token != "" {
+		if token := strings.TrimSpace(c.reqCtx.GetCookie(cfg.TokenName)); token != "" {
 			return token
 		}
 	}
 
 	// 3. 尝试从Query参数获取
-	if token := strings.TrimSpace(c.ctx.GetQuery(cfg.TokenName)); token != "" {
+	if token := strings.TrimSpace(c.reqCtx.GetQuery(cfg.TokenName)); token != "" {
 		return token
 	}
 
@@ -78,19 +82,19 @@ func (c *SaTokenContext) GetTokenValue() string {
 // IsLogin 检查当前请求是否已登录
 func (c *SaTokenContext) IsLogin() bool {
 	token := c.GetTokenValue()
-	return c.manager.IsLogin(token)
+	return c.manager.IsLogin(context.WithValue(c.ctx, config.CtxTokenValue, token))
 }
 
 // CheckLogin 检查登录（未登录抛出错误）
 func (c *SaTokenContext) CheckLogin() error {
 	token := c.GetTokenValue()
-	return c.manager.CheckLogin(token)
+	return c.manager.CheckLogin(context.WithValue(c.ctx, config.CtxTokenValue, token))
 }
 
 // GetLoginID 获取当前登录ID
 func (c *SaTokenContext) GetLoginID() (string, error) {
 	token := c.GetTokenValue()
-	return c.manager.GetLoginID(token)
+	return c.manager.GetLoginID(context.WithValue(c.ctx, config.CtxTokenValue, token))
 }
 
 // HasPermission 检查是否有指定权限
@@ -99,7 +103,7 @@ func (c *SaTokenContext) HasPermission(permission string) bool {
 	if err != nil {
 		return false
 	}
-	return c.manager.HasPermission(loginID, permission)
+	return c.manager.HasPermission(c.ctx, loginID, permission)
 }
 
 // HasRole 检查是否有指定角色
@@ -108,15 +112,20 @@ func (c *SaTokenContext) HasRole(role string) bool {
 	if err != nil {
 		return false
 	}
-	return c.manager.HasRole(loginID, role)
+	return c.manager.HasRole(c.ctx, loginID, role)
 }
 
 // GetRequestContext 获取原始请求上下文
 func (c *SaTokenContext) GetRequestContext() adapter.RequestContext {
-	return c.ctx
+	return c.reqCtx
 }
 
 // GetManager 获取管理器
 func (c *SaTokenContext) GetManager() *manager.Manager {
 	return c.manager
+}
+
+// GetCtx 获取全局Ctx
+func (c *SaTokenContext) GetCtx() context.Context {
+	return c.ctx
 }

@@ -172,7 +172,9 @@ func (rtm *RefreshTokenManager) RefreshAccessToken(refreshToken string) (*Refres
 
 	// Check expiration | 检查是否过期
 	if time.Now().Unix() > oldInfo.ExpireTime {
+		// 删除刷新令牌
 		rtm.storage.Delete(key)
+		// TODO 删除访问令牌
 		return nil, ErrRefreshTokenExpired
 	}
 

@@ -3,10 +3,10 @@ package session
 import (
 	"errors"
 	"fmt"
-	"github.com/click33/sa-token-go/core/codec"
 	"github.com/click33/sa-token-go/core/dep"
 	"github.com/click33/sa-token-go/core/manager"
 	"github.com/click33/sa-token-go/core/serror"
+	"github.com/click33/sa-token-go/core/utils"
 	"sync"
 	"time"
 
@@ -267,7 +267,7 @@ func Load(id string, m *manager.Manager) (*Session, error) {
 		return nil, errors.New("session not found")
 	}
 
-	raw, err := codec.UnifyToBytes(data)
+	raw, err := utils.ToBytes(data)
 	if err != nil {
 		return nil, err
 	}

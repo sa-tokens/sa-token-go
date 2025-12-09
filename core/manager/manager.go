@@ -3,7 +3,6 @@ package manager
 import (
 	"context"
 	"fmt"
-	"github.com/click33/sa-token-go/core/codec"
 	"github.com/click33/sa-token-go/core/dep"
 	"github.com/click33/sa-token-go/core/serror"
 	"github.com/click33/sa-token-go/core/utils"
@@ -175,20 +174,20 @@ func (m *Manager) Login(ctx context.Context, loginID string, device ...string) (
 		return "", err
 	}
 
-	// Create session | 创建Session
-	err = session.
-		NewSession(m.authType, loginID, m.prefix, m.deps, m.storage).
-		SetMulti(
-			map[string]any{
-				SessionKeyLoginID:   loginID,
-				SessionKeyDevice:    deviceType,
-				SessionKeyLoginTime: nowTime,
-			},
-			expiration,
-		)
-	if err != nil {
-		return "", err
-	}
+	//// Create session | 创建Session
+	//err = session.
+	//	NewSession(m.authType, loginID, m.prefix, m.deps, m.storage).
+	//	SetMulti(
+	//		map[string]any{
+	//			SessionKeyLoginID:   loginID,
+	//			SessionKeyDevice:    deviceType,
+	//			SessionKeyLoginTime: nowTime,
+	//		},
+	//		expiration,
+	//	)
+	//if err != nil {
+	//	return "", err
+	//}
 
 	// Trigger login event | 触发登录事件
 	if m.eventManager != nil {
@@ -521,7 +520,7 @@ func (m *Manager) GetDisableTime(ctx context.Context, loginID string) (int64, er
 // ============ Session Management | Session管理 ============
 
 // GetSession Gets session by login ID | 获取Session
-func (m *Manager) GetSession(_ context.Context, loginID string) (*session.Session, error) {
+func (m *Manager) GetSession(loginID string) (*session.Session, error) {
 	sess, err := session.Load(loginID, m)
 	if err != nil {
 		sess = session.NewSession(m.authType, loginID, m.prefix, m.deps, m.storage)
@@ -536,12 +535,12 @@ func (m *Manager) GetSessionByToken(ctx context.Context) (*session.Session, erro
 		return nil, err
 	}
 
-	return m.GetSession(ctx, loginID)
+	return m.GetSession(loginID)
 }
 
 // DeleteSession Deletes session | 删除Session
-func (m *Manager) DeleteSession(ctx context.Context, loginID string) error {
-	sess, err := m.GetSession(ctx, loginID)
+func (m *Manager) DeleteSession(loginID string) error {
+	sess, err := m.GetSession(loginID)
 	if err != nil {
 		return err
 	}
@@ -562,7 +561,7 @@ func (m *Manager) DeleteSessionByToken(ctx context.Context) error {
 // ============ Permission Validation | 权限验证 ============
 
 // SetPermissions Sets permissions for user | 设置权限
-func (m *Manager) SetPermissions(loginID string, permissions []string) error {
+func (m *Manager) SetPermissions(_ context.Context, loginID string, permissions []string) error {
 	sess, err := m.GetSession(loginID)
 	if err != nil {
 		return err
@@ -576,8 +575,8 @@ func (m *Manager) SetPermissions(loginID string, permissions []string) error {
 }
 
 // RemovePermissions removes specified permissions for user | 删除用户指定权限
-func (m *Manager) RemovePermissions(loginID string, permissions []string) error {
-	sess, err := m.GetSession(loginID)
+func (m *Manager) RemovePermissions(ctx context.Context, loginID string, permissions []string) error {
+	sess, err := m.GetSession(ctx, loginID)
 	if err != nil {
 		return err
 	}
@@ -612,8 +611,8 @@ func (m *Manager) RemovePermissions(loginID string, permissions []string) error 
 }
 
 // GetPermissions Gets permission list | 获取权限列表
-func (m *Manager) GetPermissions(loginID string) ([]string, error) {
-	sess, err := m.GetSession(loginID)
+func (m *Manager) GetPermissions(ctx context.Context, loginID string) ([]string, error) {
+	sess, err := m.GetSession(ctx, loginID)
 	if err != nil {
 		return nil, err
 	}
@@ -627,14 +626,14 @@ func (m *Manager) GetPermissions(loginID string) ([]string, error) {
 }
 
 // HasPermission 检查是否有指定权限
-func (m *Manager) HasPermission(loginID string, permission string) bool {
-	perms, err := m.GetPermissions(loginID)
+func (m *Manager) HasPermission(ctx context.Context, loginID string, permission string) bool {
+	perms, err := m.GetPermissions(ctx, loginID)
 	if err != nil {
 		return false
 	}
 
 	for _, p := range perms {
-		if m.matchPermission(p, permission) {
+		if m.matchPermission(ctx, p, permission) {
 			return true
 		}
 	}
@@ -643,9 +642,9 @@ func (m *Manager) HasPermission(loginID string, permission string) bool {
 }
 
 // HasPermissionsAnd 检查是否拥有所有权限（AND）
-func (m *Manager) HasPermissionsAnd(loginID string, permissions []string) bool {
+func (m *Manager) HasPermissionsAnd(ctx context.Context, loginID string, permissions []string) bool {
 	for _, perm := range permissions {
-		if !m.HasPermission(loginID, perm) {
+		if !m.HasPermission(ctx, loginID, perm) {
 			return false
 		}
 	}
@@ -653,9 +652,9 @@ func (m *Manager) HasPermissionsAnd(loginID string, permissions []string) bool {
 }
 
 // HasPermissionsOr 检查是否拥有任一权限（OR）
-func (m *Manager) HasPermissionsOr(loginID string, permissions []string) bool {
+func (m *Manager) HasPermissionsOr(ctx context.Context, loginID string, permissions []string) bool {
 	for _, perm := range permissions {
-		if m.HasPermission(loginID, perm) {
+		if m.HasPermission(ctx, loginID, perm) {
 			return true
 		}
 	}
@@ -663,7 +662,7 @@ func (m *Manager) HasPermissionsOr(loginID string, permissions []string) bool {
 }
 
 // matchPermission Matches permission with wildcards support | 权限匹配（支持通配符）
-func (m *Manager) matchPermission(pattern, permission string) bool {
+func (m *Manager) matchPermission(_ context.Context, pattern, permission string) bool {
 	// Exact match or wildcard | 精确匹配或通配符
 	if pattern == PermissionWildcard || pattern == permission {
 		return true
@@ -697,8 +696,8 @@ func (m *Manager) matchPermission(pattern, permission string) bool {
 // ============ Role Validation | 角色验证 ============
 
 // SetRoles Sets roles for user | 设置角色
-func (m *Manager) SetRoles(loginID string, roles []string) error {
-	sess, err := m.GetSession(loginID)
+func (m *Manager) SetRoles(ctx context.Context, loginID string, roles []string) error {
+	sess, err := m.GetSession(ctx, loginID)
 	if err != nil {
 		return err
 	}
@@ -711,8 +710,8 @@ func (m *Manager) SetRoles(loginID string, roles []string) error {
 }
 
 // RemoveRoles removes specified roles for user | 删除用户指定角色
-func (m *Manager) RemoveRoles(loginID string, roles []string) error {
-	sess, err := m.GetSession(loginID)
+func (m *Manager) RemoveRoles(ctx context.Context, loginID string, roles []string) error {
+	sess, err := m.GetSession(ctx, loginID)
 	if err != nil {
 		return err
 	}
@@ -747,8 +746,8 @@ func (m *Manager) RemoveRoles(loginID string, roles []string) error {
 }
 
 // GetRoles Gets role list | 获取角色列表
-func (m *Manager) GetRoles(loginID string) ([]string, error) {
-	sess, err := m.GetSession(loginID)
+func (m *Manager) GetRoles(ctx context.Context, loginID string) ([]string, error) {
+	sess, err := m.GetSession(ctx, loginID)
 	if err != nil {
 		return nil, err
 	}
@@ -762,8 +761,8 @@ func (m *Manager) GetRoles(loginID string) ([]string, error) {
 }
 
 // HasRole 检查是否有指定角色
-func (m *Manager) HasRole(loginID string, role string) bool {
-	roles, err := m.GetRoles(loginID)
+func (m *Manager) HasRole(ctx context.Context, loginID string, role string) bool {
+	roles, err := m.GetRoles(ctx, loginID)
 	if err != nil {
 		return false
 	}
@@ -777,9 +776,9 @@ func (m *Manager) HasRole(loginID string, role string) bool {
 }
 
 // HasRolesAnd 检查是否拥有所有角色（AND）
-func (m *Manager) HasRolesAnd(loginID string, roles []string) bool {
+func (m *Manager) HasRolesAnd(ctx context.Context, loginID string, roles []string) bool {
 	for _, role := range roles {
-		if !m.HasRole(loginID, role) {
+		if !m.HasRole(ctx, loginID, role) {
 			return false
 		}
 	}
@@ -787,9 +786,9 @@ func (m *Manager) HasRolesAnd(loginID string, roles []string) bool {
 }
 
 // HasRolesOr 检查是否拥有任一角色（OR）
-func (m *Manager) HasRolesOr(loginID string, roles []string) bool {
+func (m *Manager) HasRolesOr(ctx context.Context, loginID string, roles []string) bool {
 	for _, role := range roles {
-		if m.HasRole(loginID, role) {
+		if m.HasRole(ctx, loginID, role) {
 			return true
 		}
 	}
@@ -799,14 +798,14 @@ func (m *Manager) HasRolesOr(loginID string, roles []string) bool {
 // ============ Token Tags | Token标签 ============
 
 // SetTokenTag Sets token tag | 设置Token标签
-func (m *Manager) SetTokenTag(tokenValue, tag string) error {
+func (m *Manager) SetTokenTag(ctx context.Context, tag string) error {
 	// Tag feature not supported to comply with Java sa-token design
 	// If you need custom metadata, use Session instead
 	return fmt.Errorf("token tag feature not supported (use Session for custom metadata)")
 }
 
 // GetTokenTag Gets token tag | 获取Token标签
-func (m *Manager) GetTokenTag(tokenValue string) (string, error) {
+func (m *Manager) GetTokenTag(ctx context.Context) (string, error) {
 	// Tag feature not supported to comply with Java sa-token design
 	return "", fmt.Errorf("token tag feature not supported (use Session for custom metadata)")
 }
@@ -919,10 +918,10 @@ func (m *Manager) VerifyNonce(nonce string) bool {
 }
 
 // LoginWithRefreshToken Logs in with refresh token | 使用刷新令牌登录
-func (m *Manager) LoginWithRefreshToken(loginID, device string) (*security.RefreshTokenInfo, error) {
+func (m *Manager) LoginWithRefreshToken(ctx context.Context, loginID, device string) (*security.RefreshTokenInfo, error) {
 	deviceType := getDevice([]string{device})
 
-	accessToken, err := m.Login(loginID, deviceType)
+	accessToken, err := m.Login(ctx, loginID, deviceType)
 	if err != nil {
 		return nil, err
 	}
@@ -931,12 +930,12 @@ func (m *Manager) LoginWithRefreshToken(loginID, device string) (*security.Refre
 }
 
 // RefreshAccessToken Refreshes access token | 刷新访问令牌
-func (m *Manager) RefreshAccessToken(refreshToken string) (*security.RefreshTokenInfo, error) {
+func (m *Manager) RefreshAccessToken(_ context.Context, refreshToken string) (*security.RefreshTokenInfo, error) {
 	return m.refreshManager.RefreshAccessToken(refreshToken)
 }
 
 // RevokeRefreshToken Revokes refresh token | 撤销刷新令牌
-func (m *Manager) RevokeRefreshToken(refreshToken string) error {
+func (m *Manager) RevokeRefreshToken(_ context.Context, refreshToken string) error {
 	return m.refreshManager.RevokeRefreshToken(refreshToken)
 }
 
@@ -989,7 +988,7 @@ func (m *Manager) getTokenInfoByTokenValue(ctx context.Context, checkState ...bo
 	}
 
 	// Convert data to raw byte slice | 将数据转换为原始字节切片
-	raw, err := codec.UnifyToBytes(data)
+	raw, err := utils.ToBytes(data)
 	if err != nil {
 		return nil, err // Return error if conversion fails | 如果转换失败，返回错误
 	}
