@@ -12,10 +12,11 @@ const (
 	DefaultNonceTTL   = 5 * time.Minute // Default nonce expiration time | 默认随机令牌有效期
 
 	// Key prefixes | 键前缀
-	TokenKeyPrefix   = "token:"   // Token storage prefix | Token 存储前缀
-	AccountKeyPrefix = "account:" // Account storage prefix | 账号存储前缀
-	DisableKeyPrefix = "disable:" // Disable state prefix | 禁用状态存储前缀
-	RenewKeyPrefix   = "renew:"   // Token renew prefix | Token 续期存储前缀
+	TokenKeyPrefix        = "token:"   // Token storage prefix | Token 存储前缀
+	AccountKeyPrefix      = "account:" // Account storage prefix | 账号存储前缀
+	DisableKeyPrefix      = "disable:" // Disable state prefix | 禁用状态存储前缀
+	RenewKeyPrefix        = "renew:"   // Token renew prefix | Token 续期存储前缀
+	TokenValueListLastKey = ":*"
 
 	// Session keys | Session 键
 	SessionKeyLoginID     = "loginId"     // Login ID | 登录 ID

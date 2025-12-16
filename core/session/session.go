@@ -27,7 +27,7 @@ type Session struct {
 }
 
 // NewSession Creates a new session | 创建新的Session
-func NewSession(authType, id, prefix string, storage adapter.Storage, serializer adapter.Codec) *Session {
+func NewSession(authType, prefix, id string, storage adapter.Storage, serializer adapter.Codec) *Session {
 	if storage == nil {
 		storage = memory.NewStorage()
 	}
@@ -267,7 +267,7 @@ func Load(id string, m *manager.Manager) (*Session, error) {
 		return nil, errors.New("manager cannot be empty")
 	}
 
-	data, err := m.GetStorage().Get(m.GetPrefix() + m.GetAutoType() + SessionKeyPrefix + id)
+	data, err := m.GetStorage().Get(m.GetConfig().KeyPrefix + m.GetConfig().AuthType + SessionKeyPrefix + id)
 	if err != nil {
 		return nil, err
 	}
@@ -281,11 +281,11 @@ func Load(id string, m *manager.Manager) (*Session, error) {
 	}
 
 	var session Session
-	if err = m.GetSerializer().Decode(raw, &session); err != nil {
-		return nil, fmt.Errorf("%w: %v", serror.ErrCommonUnmarshal, err)
+	if err = m.GetCodec().Decode(raw, &session); err != nil {
+		return nil, fmt.Errorf("%w: %v", serror.ErrCommonDecode, err)
 	}
 
 	session.storage = m.GetStorage()
-	session.deps = m.GetDeps()
+	session.serializer = m.GetCodec()
 	return &session, nil
 }

@@ -12,7 +12,6 @@ var (
 	ErrRenewPoolNotStarted = errors.New("renew pool not started") // renew pool not started | 续期线程池未启动
 
 	ErrTokenNotFound      = errors.New("token not found")                       // token not found | Token 不存在
-	ErrInvalidTokenData   = errors.New("invalid token data")                    // invalid token data | Token 数据无效
 	ErrTokenKickout       = errors.New("token has been kicked out")             // token has been kicked out | Token 已被踢下线
 	ErrTokenReplaced      = errors.New("token has been replaced")               // token has been replaced | Token 已被顶下线
 	ErrNotLogin           = errors.New("not login")                             // not login | 未登录
