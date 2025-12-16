@@ -311,9 +311,12 @@ func (b *Builder) Validate() error {
 		return fmt.Errorf("MaxRefresh must be >= -1, got: %d", b.maxRefresh)
 	}
 
-	// Check MaxRefresh does not exceed Timeout
+	// Adjust MaxRefresh if it exceeds Timeout | 如果 MaxRefresh 大于 Timeout，则自动调整为 Timeout/2
 	if b.timeout != config.NoLimit && b.maxRefresh > b.timeout {
-		return fmt.Errorf("MaxRefresh (%d) cannot be greater than Timeout (%d)", b.maxRefresh, b.timeout)
+		b.maxRefresh = b.timeout / 2
+		if b.maxRefresh < 1 {
+			b.maxRefresh = 1
+		}
 	}
 
 	// Check RenewInterval
