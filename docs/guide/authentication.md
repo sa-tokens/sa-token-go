@@ -86,7 +86,7 @@ fmt.Println("Create Time:", info.CreateTime)
 ### Concurrent Login
 
 ```go
-// Allow concurrent login (default: true)
+// Allow concurrent login (log: true)
 core.NewBuilder().
     IsConcurrent(true).
     Build()
@@ -95,7 +95,7 @@ core.NewBuilder().
 ### Share Token
 
 ```go
-// Share token for concurrent logins (default: true)
+// Share token for concurrent logins (log: true)
 core.NewBuilder().
     IsShare(true).
     Build()

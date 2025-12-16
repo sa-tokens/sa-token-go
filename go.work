@@ -1,6 +1,8 @@
 go 1.25.3
 
 use (
+	./codec/json
+	./codec/msgpack
 	./core
 	./examples/kratos/kratos-example
 	./integrations/chi
@@ -9,6 +11,10 @@ use (
 	./integrations/gf
 	./integrations/gin
 	./integrations/kratos
+	./log/gf
+	./log/nop
+	./log/slog
+	./pool/ants
 	./storage/memory
 	./storage/redis
 	./stputil

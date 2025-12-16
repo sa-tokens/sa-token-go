@@ -77,7 +77,7 @@ import (
 )
 
 func main() {
-    // Create manager with default event support
+    // Create manager with log event support
     manager := core.NewBuilder().
         Storage(memory.NewStorage()).
         Build()

@@ -100,7 +100,7 @@ var (
 
 // ============ Core constructor functions | 核心构造函数 ============
 
-// DefaultConfig returns default configuration | 返回默认配置
+// DefaultConfig returns log configuration | 返回默认配置
 func DefaultConfig() *Config {
 	return core.DefaultConfig()
 }

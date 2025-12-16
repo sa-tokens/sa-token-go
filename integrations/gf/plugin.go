@@ -211,7 +211,7 @@ func (p *Plugin) LoginHandler(r *ghttp.Request) {
 
 	device := req.Device
 	if device == "" {
-		device = "default"
+		device = "log"
 	}
 
 	token, err := p.manager.Login(req.Username, device)

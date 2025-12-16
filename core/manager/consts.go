@@ -3,9 +3,9 @@ package manager
 
 import "time"
 
-// Constants for storage keys and default values | 存储键和默认值常量
+// Constants for storage keys and log values | 存储键和默认值常量
 const (
-	DefaultDevice     = "default"       // Default device type | 默认设备类型
+	DefaultDevice     = "log"           // Default device type | 默认设备类型
 	DefaultPrefix     = "satoken"       // Default key prefix | 默认键前缀
 	DisableValue      = "1"             // Disabled flag value | 被禁用标记值
 	DefaultRenewValue = "1"             // Default renew flag value | 默认续期标记值

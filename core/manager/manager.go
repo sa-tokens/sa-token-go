@@ -3,13 +3,15 @@ package manager
 import (
 	"context"
 	"fmt"
+	codec_json "github.com/click33/sa-token-go/codec/json"
 	"github.com/click33/sa-token-go/core/dep"
 	"github.com/click33/sa-token-go/core/serror"
 	"github.com/click33/sa-token-go/core/utils"
+	"github.com/click33/sa-token-go/log/nop"
+	"github.com/click33/sa-token-go/pool/ants"
+	"github.com/click33/sa-token-go/storage/memory"
 	"strings"
 	"time"
-
-	"github.com/click33/sa-token-go/core/pool"
 
 	"github.com/click33/sa-token-go/core/adapter"
 	"github.com/click33/sa-token-go/core/config"
@@ -32,70 +34,110 @@ type TokenInfo struct {
 
 // Manager Authentication manager | 认证管理器
 type Manager struct {
-	prefix         string                        // Key prefix for all storage operations | 所有存储操作使用的键前缀
-	authType       string                        // Authentication system type | 认证体系类型
-	storage        adapter.Storage               // Storage adapter (Redis, Memory, etc.) | 存储适配器（例如 Redis、内存）
 	config         *config.Config                // Global authentication configuration | 全局认证配置
 	generator      *token.Generator              // Token generator | Token 生成器
 	nonceManager   *security.NonceManager        // Nonce manager for preventing replay attacks | 随机串管理器
 	refreshManager *security.RefreshTokenManager // Refresh token manager | 刷新令牌管理器
 	oauth2Server   *oauth2.OAuth2Server          // OAuth2 authorization server | OAuth2 授权服务器
-	renewPool      *pool.RenewPoolManager        // Token renewal task pool | Token 自动续期的任务池
 	eventManager   *listener.Manager             // Event manager | 事件管理器
-	deps           *dep.Dep                      // Dependencies manager | 依赖管理器
+
+	storage    adapter.Storage // Storage adapter (Redis, Memory, etc.) | 存储适配器（如 Redis、Memory）
+	serializer adapter.Codec   // Codec adapter for encoding and decoding operations | 编解码器适配器
+	logger     adapter.Log     // Log adapter for logging operations | 日志适配器
+	pool       adapter.Pool    // Async task pool component | 异步任务协程池组件
 }
 
-// NewManager Creates a new manager | 创建管理器
-func NewManager(cfg *config.Config, storage adapter.Storage, deps *dep.Dep) *Manager {
-	// If no configuration is provided, use the default configuration | 如果没有提供配置，使用默认配置
+// NewManager creates and initializes a new Manager instance | 创建并初始化一个新的 Manager 实例
+func NewManager(cfg *config.Config, storage adapter.Storage, serializer adapter.Codec, logger adapter.Log, pool adapter.Pool) *Manager {
+
+	// Use default configuration if cfg is nil | 如果未传入配置，则使用默认配置
 	if cfg == nil {
 		cfg = config.DefaultConfig()
 	}
 
-	// If no dependencies are provided, create a default Dep instance | 如果没有提供依赖管理器，创建默认的 Dep 实例
-	if deps == nil {
-		deps = dep.NewDefaultDep(nil, nil)
+	// Use in-memory storage if storage is nil | 如果未传入存储实现，则使用内存存储
+	if storage == nil {
+		storage = memory.NewStorage()
 	}
 
-	// Initialize the renew pool manager if the renew pool configuration is provided | 如果提供了续期池配置，则初始化续期池管理器
-	var renewPoolManager *pool.RenewPoolManager
-	if cfg.RenewPoolConfig != nil {
-		renewPoolManager, _ = pool.NewRenewPoolManagerWithConfig(&pool.RenewPoolConfig{
-			MinSize:             cfg.RenewPoolConfig.MinSize,             // Minimum pool size | 最小协程数
-			MaxSize:             cfg.RenewPoolConfig.MaxSize,             // Maximum pool size | 最大协程数
-			ScaleUpRate:         cfg.RenewPoolConfig.ScaleUpRate,         // Scale-up threshold | 扩容阈值
-			ScaleDownRate:       cfg.RenewPoolConfig.ScaleDownRate,       // Scale-down threshold | 缩容阈值
-			CheckInterval:       cfg.RenewPoolConfig.CheckInterval,       // Auto-scale check interval | 自动缩放检查间隔
-			Expiry:              cfg.RenewPoolConfig.Expiry,              // Idle worker expiry duration | 空闲协程过期时间
-			PrintStatusInterval: cfg.RenewPoolConfig.PrintStatusInterval, // Interval for periodic status printing | 定时打印池状态的间隔
-			PreAlloc:            cfg.RenewPoolConfig.PreAlloc,            // Whether to pre-allocate memory | 是否预分配内存
-			NonBlocking:         cfg.RenewPoolConfig.NonBlocking,         // Whether to use non-blocking mode | 是否为非阻塞模式
-		})
+	// Use JSON serializer if serializer is nil | 如果未传入序列化器，则使用 JSON 序列化器
+	if serializer == nil {
+		serializer = codec_json.NewJSONSerializer()
 	}
 
-	// Return the new manager instance with the initialized components | 返回初始化后的管理器实例
+	// Use no-op logger if logger is nil | 如果未传入日志实现，则使用空日志（不输出）
+	if logger == nil {
+		logger = nop.NewNopLogger()
+	}
+
+	// 如果启用了自动续期并且pool为nil
+	if cfg.AutoRenew && pool == nil {
+		// Use default goroutine pool if pool is nil | 如果未传入协程池，则使用默认协程池
+		pool = ants.NewRenewPoolManagerWithDefaultConfig()
+	}
+
+	// Initialize token generator based on configuration | 根据配置初始化 Token 生成器
+	generator := token.NewGenerator(cfg)
+
+	// Return the new manager instance with initialized sub-managers | 返回已初始化各子模块的管理器实例
 	return &Manager{
-		prefix:         cfg.KeyPrefix,
-		authType:       cfg.AuthType,
-		storage:        storage,
-		config:         cfg,
-		generator:      token.NewGenerator(cfg),
-		nonceManager:   security.NewNonceManager(storage, cfg.KeyPrefix, DefaultNonceTTL),
-		refreshManager: security.NewRefreshTokenManager(storage, cfg.KeyPrefix, TokenKeyPrefix, cfg),
-		oauth2Server:   oauth2.NewOAuth2Server(storage, deps, cfg.KeyPrefix),
-		eventManager:   listener.NewManager(),
-		renewPool:      renewPoolManager,
-		deps:           deps,
+		// Store global configuration | 保存全局配置
+		config: cfg,
+
+		// Token generator used for creating access/refresh tokens | 用于生成访问令牌和刷新令牌的生成器
+		generator: generator,
+
+		// Nonce manager for replay-attack protection | 防重放攻击的 Nonce 管理器
+		nonceManager: security.NewNonceManager(
+			cfg.AuthType,
+			cfg.KeyPrefix,
+			storage,
+			DefaultNonceTTL,
+		),
+
+		// Refresh token manager for token renewal logic | 刷新令牌管理器，用于令牌续期逻辑
+		refreshManager: security.NewRefreshTokenManager(
+			cfg.AuthType,
+			cfg.KeyPrefix,
+			TokenKeyPrefix,
+			generator,
+			time.Duration(cfg.Timeout)*time.Second,
+			storage,
+			serializer,
+		),
+
+		// OAuth2 server for authorization and token exchange | OAuth2 授权与令牌颁发服务
+		oauth2Server: oauth2.NewOAuth2Server(
+			cfg.AuthType,
+			cfg.KeyPrefix,
+			storage,
+			serializer,
+		),
+
+		// Event manager for lifecycle and auth events | 生命周期与认证事件管理器
+		eventManager: listener.NewManager(logger),
+
+		// Storage adapter for persistence layer | 持久化存储适配器
+		storage: storage,
+
+		// Serializer for encoding/decoding data | 数据编解码序列化器
+		serializer: serializer,
+
+		// Logger for internal logging | 内部日志记录器
+		logger: logger,
+
+		// Goroutine pool for async task execution | 用于异步任务执行的协程池
+		pool: pool,
 	}
 }
 
 // CloseManager Closes the manager and releases all resources | 关闭管理器并释放所有资源
 func (m *Manager) CloseManager() {
-	if m.renewPool != nil {
+	if m.pool != nil {
 		// Safely close the renewPool | 安全关闭 renewPool
-		m.renewPool.Stop()
+		m.pool.Stop()
 		// Set renewPool to nil | 将 renewPool 设置为 nil
-		m.renewPool = nil
+		m.pool = nil
 	}
 }
 
@@ -109,7 +151,9 @@ func (m *Manager) Login(ctx context.Context, loginID string, device ...string) (
 		return "", serror.ErrAccountDisabled
 	}
 
+	// 获取设备类型
 	deviceType := getDevice(device)
+	// 获取账号存储键
 	accountKey := m.getAccountKey(ctx, loginID, deviceType)
 
 	// Handle shared token for concurrent login | 处理多人登录共用 Token 的情况
@@ -117,8 +161,7 @@ func (m *Manager) Login(ctx context.Context, loginID string, device ...string) (
 		// Look for existing token of this account + device | 查找账号 + 设备下是否已有登录 Token
 		existingToken, err := m.storage.Get(accountKey)
 		if err == nil && existingToken != nil {
-			ctx = context.WithValue(ctx, config.CtxTokenValue, existingToken)
-			if tokenStr, ok := assertString(existingToken); ok && m.IsLogin(ctx) {
+			if tokenStr, ok := assertString(existingToken); ok && m.IsLogin(context.WithValue(ctx, config.CtxTokenValue, existingToken)) {
 				// If valid token exists, return it directly | 如果已有 Token 且有效，则直接返回
 				return tokenStr, nil
 			}
@@ -355,8 +398,8 @@ func (m *Manager) IsLogin(ctx context.Context) bool {
 				renewFunc := func() { m.renewToken(ctx, info) }
 
 				// Submit renewal task to the pool if configured, otherwise use a goroutine | 如果配置了续期池，则提交续期任务到池中，否则使用协程
-				if m.renewPool != nil {
-					_ = m.renewPool.Submit(renewFunc) // Submit token renewal task to the pool | 提交Token续期任务到续期池
+				if m.pool != nil {
+					_ = m.pool.Submit(renewFunc) // Submit token renewal task to the pool | 提交Token续期任务到续期池
 				} else {
 					go renewFunc() // Fallback to goroutine if pool is not configured | 如果没有配置续期池，使用普通协程
 				}
@@ -1010,8 +1053,8 @@ func (m *Manager) getTokenInfoByTokenValue(ctx context.Context, checkState ...bo
 	// Parse TokenInfo | 解析Token信息
 	var info TokenInfo
 	// Use the serializer to decode the raw data | 使用序列化器来解码原始数据
-	if err = m.deps.GetSerializer().Decode(raw, &info); err != nil {
-		return nil, fmt.Errorf("%w: %v", serror.ErrCommonUnmarshal, err) // Return error if decoding fails | 如果解码失败，返回错误
+	if err = m.serializer.Decode(raw, &info); err != nil {
+		return nil, fmt.Errorf("%w: %v", serror.ErrCommonDecode, err) // Return error if decoding fails | 如果解码失败，返回错误
 	}
 
 	return &info, nil // Return the parsed TokenInfo | 返回解析后的Token信息
@@ -1122,7 +1165,7 @@ func (m *Manager) removeTokenChain(ctx context.Context, destroySession bool, inf
 	if m.eventManager != nil {
 		m.eventManager.Trigger(&listener.EventData{
 			Event:    event,                                        // Event type | 事件类型
-			AuthType: m.authType,                                   // Auth type from context | 从上下文中获取认证类型
+			AuthType: m.config.AuthType,                            // Auth type from context | 从上下文中获取认证类型
 			LoginID:  info.LoginID,                                 // Login ID of the user | 用户的登录ID
 			Token:    utils.GetCtxValue(ctx, config.CtxTokenValue), // Token value from context | 从上下文中获取Token值
 			Device:   info.Device,                                  // Device type | 设备类型
@@ -1136,22 +1179,22 @@ func (m *Manager) removeTokenChain(ctx context.Context, destroySession bool, inf
 
 // getTokenKey Gets token storage key | 获取Token存储键
 func (m *Manager) getTokenKey(ctx context.Context) string {
-	return m.prefix + m.authType + TokenKeyPrefix + utils.GetCtxValue(ctx, config.CtxTokenValue)
+	return m.config.KeyPrefix + m.config.AuthType + TokenKeyPrefix + utils.GetCtxValue(ctx, config.CtxTokenValue)
 }
 
 // getAccountKey Gets account storage key | 获取账号存储键
 func (m *Manager) getAccountKey(_ context.Context, loginID, device string) string {
-	return m.prefix + m.authType + AccountKeyPrefix + loginID + PermissionSeparator + device
+	return m.config.KeyPrefix + m.config.AuthType + AccountKeyPrefix + loginID + PermissionSeparator + device
 }
 
 // getRenewKey Gets token renewal tracking key | 获取Token续期追踪键
 func (m *Manager) getRenewKey(ctx context.Context) string {
-	return m.prefix + m.authType + RenewKeyPrefix + utils.GetCtxValue(ctx, config.CtxTokenValue)
+	return m.config.KeyPrefix + m.config.AuthType + RenewKeyPrefix + utils.GetCtxValue(ctx, config.CtxTokenValue)
 }
 
 // getDisableKey Gets disable storage key | 获取禁用存储键
 func (m *Manager) getDisableKey(_ context.Context, loginID string) string {
-	return m.prefix + m.authType + DisableKeyPrefix + loginID
+	return m.config.KeyPrefix + m.config.AuthType + DisableKeyPrefix + loginID
 }
 
 // getDevice extracts device type from optional parameter | 从可选参数中提取设备类型

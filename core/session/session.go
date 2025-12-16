@@ -3,10 +3,11 @@ package session
 import (
 	"errors"
 	"fmt"
-	"github.com/click33/sa-token-go/core/dep"
+	codec_json "github.com/click33/sa-token-go/codec/json"
 	"github.com/click33/sa-token-go/core/manager"
 	"github.com/click33/sa-token-go/core/serror"
 	"github.com/click33/sa-token-go/core/utils"
+	"github.com/click33/sa-token-go/storage/memory"
 	"sync"
 	"time"
 
@@ -15,18 +16,25 @@ import (
 
 // Session Session object for storing user data | 会话对象，用于存储用户数据
 type Session struct {
-	AuthType   string          `json:"authType"`   // Authentication system type | 认证体系类型
-	ID         string          `json:"id"`         // Session ID | Session标识
-	CreateTime int64           `json:"createTime"` // Creation time | 创建时间
-	Data       map[string]any  `json:"data"`       // Session data | 数据
-	prefix     string          `json:"-"`          // Key prefix | 键前缀
-	storage    adapter.Storage `json:"-"`          // Storage backend | 存储
-	mu         sync.RWMutex    `json:"-"`          // Read-write lock | 读写锁
-	deps       *dep.Dep        `json:"-"`          // Dependencies manager | 依赖管理器
+	AuthType   string          `json:"authType"`      // Authentication system type | 认证体系类型
+	ID         string          `json:"id"`            // Session ID | Session标识
+	CreateTime int64           `json:"createTime"`    // Creation time | 创建时间
+	Data       map[string]any  `json:"data"`          // Session data | 数据
+	prefix     string          `json:"-" msgpack:"-"` // Key prefix | 键前缀
+	mu         sync.RWMutex    `json:"-" msgpack:"-"` // Read-write lock | 读写锁
+	storage    adapter.Storage `json:"-" msgpack:"-"` // Storage adapter (Redis, Memory, etc.) | 存储适配器（如 Redis、Memory）
+	serializer adapter.Codec   `json:"-" msgpack:"-"` // Codec adapter for encoding and decoding operations | 编解码器适配器
 }
 
 // NewSession Creates a new session | 创建新的Session
-func NewSession(authType, id, prefix string, deps *dep.Dep, storage adapter.Storage) *Session {
+func NewSession(authType, id, prefix string, storage adapter.Storage, serializer adapter.Codec) *Session {
+	if storage == nil {
+		storage = memory.NewStorage()
+	}
+	if serializer == nil {
+		serializer = codec_json.NewJSONSerializer()
+	}
+
 	return &Session{
 		AuthType:   authType,
 		ID:         id,
@@ -34,7 +42,7 @@ func NewSession(authType, id, prefix string, deps *dep.Dep, storage adapter.Stor
 		Data:       make(map[string]any),
 		prefix:     prefix,
 		storage:    storage,
-		deps:       deps,
+		serializer: serializer,
 	}
 }
 
@@ -212,9 +220,9 @@ func (s *Session) getStorageKey() string {
 
 // save Saves session to storage | 保存到存储
 func (s *Session) save(ttl ...time.Duration) error {
-	data, err := s.deps.GetSerializer().Encode(s)
+	data, err := s.serializer.Encode(s)
 	if err != nil {
-		return fmt.Errorf("%w: %v", serror.ErrCommonMarshal, err)
+		return fmt.Errorf("%w: %v", serror.ErrCommonEncode, err)
 	}
 
 	key := s.getStorageKey()
@@ -230,9 +238,9 @@ func (s *Session) save(ttl ...time.Duration) error {
 
 // saveKeepTTL saves session while preserving its TTL | 保存 Session 并保留现有 TTL
 func (s *Session) saveKeepTTL() error {
-	data, err := s.deps.GetSerializer().Encode(s)
+	data, err := s.serializer.Encode(s)
 	if err != nil {
-		return fmt.Errorf("%w: %v", serror.ErrCommonMarshal, err)
+		return fmt.Errorf("%w: %v", serror.ErrCommonEncode, err)
 	}
 
 	key := s.getStorageKey()
@@ -273,7 +281,7 @@ func Load(id string, m *manager.Manager) (*Session, error) {
 	}
 
 	var session Session
-	if err = m.GetDeps().GetSerializer().Decode(raw, &session); err != nil {
+	if err = m.GetSerializer().Decode(raw, &session); err != nil {
 		return nil, fmt.Errorf("%w: %v", serror.ErrCommonUnmarshal, err)
 	}
 

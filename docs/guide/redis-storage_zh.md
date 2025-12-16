@@ -408,7 +408,7 @@ Key:   satoken:token:6R9twUC-OL_uL6JQFKfncyoVuK3NlDL2...
 Value: 1000                          # 只是简单的字符串（4 bytes）
 
 # Account 键（loginID -> Token）
-Key:   satoken:account:1000:default
+Key:   satoken:account:1000:log
 Value: 6R9twUC-OL_uL6JQFKfncyoVuK3NlDL2...
 
 # Session 键（存储完整用户对象和自定义数据）
@@ -438,7 +438,7 @@ GET satoken:token:6R9twUC-OL_uL6JQFKfncyoVuK3NlDL2...
 # 输出: "1000"
 
 # 查看 Account 映射（返回 Token）
-GET satoken:account:1000:default
+GET satoken:account:1000:log
 # 输出: "6R9twUC-OL_uL6JQFKfncyoVuK3NlDL2..."
 
 # 查看用户 Session（包含完整用户数据）

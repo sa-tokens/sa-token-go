@@ -31,7 +31,7 @@ func getAutoType(autoType ...string) string {
 		}
 		return trimmed
 	}
-	// Return default autoType if autoType is empty or invalid | 如果 autoType 为空或无效，返回默认值
+	// Return log autoType if autoType is empty or invalid | 如果 autoType 为空或无效，返回默认值
 	return config.DefaultAuthType
 }
 
@@ -386,7 +386,7 @@ func LoginWithRefreshToken(loginID interface{}, device ...string) (*security.Ref
 	if globalManager == nil {
 		panic("Manager not initialized. Call stputil.SetManager() first")
 	}
-	deviceType := "default"
+	deviceType := "log"
 	if len(device) > 0 {
 		deviceType = device[0]
 	}

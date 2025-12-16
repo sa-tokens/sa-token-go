@@ -1,11 +1,10 @@
 // @Author daixk 2025/11/27 21:08:00
-package log
+package nop
 
 // NopLogger is a logger implementation that performs no operations | 用于禁用所有日志输出的空日志器
 type NopLogger struct{}
 
-// NewNopLogger creates a new no-op logger | 创建一个空日志器实例
-func NewNopLogger() Adapter {
+func NewNopLogger() *NopLogger {
 	return &NopLogger{}
 }
 

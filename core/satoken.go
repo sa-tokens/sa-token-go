@@ -131,7 +131,7 @@ var (
 
 // ============ Factory Functions | 工厂函数 ============
 
-// DefaultConfig Returns default configuration | 返回默认配置
+// DefaultConfig Returns log configuration | 返回默认配置
 func DefaultConfig() *Config {
 	return config.DefaultConfig()
 }

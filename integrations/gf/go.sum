@@ -1,8 +1,8 @@
 github.com/BurntSushi/toml v1.5.0 h1:W5quZX/G/csjUnuI8SUYlsHs9M38FC7znL0lIO+DvMg=
 github.com/clbanning/mxj/v2 v2.7.0 h1:WA/La7UGCanFe5NpHF0Q3DNtnCsVoxbPKuyBNHWRyME=
-github.com/click33/sa-token-go/core v0.1.4 h1:mODeJ0WKSusQmiO5b/uK9UDD0OFqLrkJ/j7W/2e3Ios=
-github.com/click33/sa-token-go/core v0.1.4/go.mod h1:LK9zMyf3L8adSAYkAQj8ypwxKicS1q0qxdWV5uLDD6E=
-github.com/click33/sa-token-go/stputil v0.1.4 h1:YvMEwPfAfTunQn+AePudO3Esp0CvLoc2o5kmg/uZf/c=
+github.com/click33/sa-token-go/core v0.1.5 h1:+1ze5dX8C6+DfOc/3O6eQuY4QYHAmSXB0Qg+x3zMUOs=
+github.com/click33/sa-token-go/core v0.1.5/go.mod h1:mb3AQAJIXqx9WdULyn5qjufK1j/u+kgB0q+tafHVhgk=
+github.com/click33/sa-token-go/stputil v0.1.5 h1:603tbI4JkBTg3MnfTj+lCMDxJOKSCOqsMyC2zyuvEco=
 github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc h1:U9qPSI2PIWSS1VwoXQT9A3Wy9MM3WgvqSxFWenqJduM=
 github.com/emirpasic/gods v1.18.1 h1:FXtiHYKDGKCW2KzwZKx0iC0PQmdlorYgdFG9jPXJ1Bc=
 github.com/fatih/color v1.18.0 h1:S8gINlzdQ840/4pfAwic/ZE0djQEH3wM94VfqLTZcOM=

@@ -230,7 +230,7 @@ All functions from `core` and `stputil` are re-exported in framework integration
 ### Configuration & Initialization
 
 ```go
-config := sagin.DefaultConfig()           // Create default config
+config := sagin.DefaultConfig()           // Create log config
 manager := sagin.NewManager(storage, cfg) // Create manager
 builder := sagin.NewBuilder()             // Create builder
 sagin.SetManager(manager)                 // Set global manager

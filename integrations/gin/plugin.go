@@ -108,7 +108,7 @@ func (p *Plugin) LoginHandler(c *gin.Context) {
 	// Login | 登录
 	device := req.Device
 	if device == "" {
-		device = "default"
+		device = "log"
 	}
 
 	token, err := p.manager.Login(req.Username, device)

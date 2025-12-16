@@ -1,6 +1,6 @@
-github.com/click33/sa-token-go/core v0.1.4 h1:mODeJ0WKSusQmiO5b/uK9UDD0OFqLrkJ/j7W/2e3Ios=
-github.com/click33/sa-token-go/storage/memory v0.1.4 h1:gA2HT42Q84+qaOotHOOrVQOHTRybNxdafllELV5yw4o=
-github.com/click33/sa-token-go/stputil v0.1.4 h1:YvMEwPfAfTunQn+AePudO3Esp0CvLoc2o5kmg/uZf/c=
+github.com/click33/sa-token-go/core v0.1.5 h1:+1ze5dX8C6+DfOc/3O6eQuY4QYHAmSXB0Qg+x3zMUOs=
+github.com/click33/sa-token-go/storage/memory v0.1.5 h1:t+OLAQ57w01Db8bvjIFYzLjgV1HTL+Rar+uZKTWu8j0=
+github.com/click33/sa-token-go/stputil v0.1.5 h1:603tbI4JkBTg3MnfTj+lCMDxJOKSCOqsMyC2zyuvEco=
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc h1:U9qPSI2PIWSS1VwoXQT9A3Wy9MM3WgvqSxFWenqJduM=
 github.com/go-kratos/aegis v0.2.0 h1:dObzCDWn3XVjUkgxyBp6ZeWtx/do0DPZ7LY3yNSJLUQ=

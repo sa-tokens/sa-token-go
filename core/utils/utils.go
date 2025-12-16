@@ -109,7 +109,7 @@ func IsNotEmpty(s string) bool {
 	return !IsEmpty(s)
 }
 
-// DefaultString returns default value if string is empty | 如果字符串为空则返回默认值
+// DefaultString returns log value if string is empty | 如果字符串为空则返回默认值
 func DefaultString(s, defaultValue string) string {
 	if IsEmpty(s) {
 		return defaultValue

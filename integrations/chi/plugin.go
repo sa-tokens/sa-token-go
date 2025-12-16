@@ -100,7 +100,7 @@ func (p *Plugin) LoginHandler(w http.ResponseWriter, r *http.Request) {
 
 	device := req.Device
 	if device == "" {
-		device = "default"
+		device = "log"
 	}
 
 	token, err := p.manager.Login(req.Username, device)

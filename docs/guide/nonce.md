@@ -222,7 +222,7 @@ POST /search         // Search
 // Quick operations (1 minute)
 core.NewNonceManager(storage, 60)
 
-// Form submissions (5 minutes, default)
+// Form submissions (5 minutes, log)
 core.NewNonceManager(storage, 300)
 
 // Long processes (10 minutes)

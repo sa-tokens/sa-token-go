@@ -86,7 +86,7 @@ func (p *Plugin) LoginHandler(c *fiber.Ctx) error {
 
 	device := req.Device
 	if device == "" {
-		device = "default"
+		device = "log"
 	}
 
 	token, err := p.manager.Login(req.Username, device)

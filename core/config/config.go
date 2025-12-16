@@ -3,7 +3,6 @@ package config
 import (
 	"errors"
 	"fmt"
-	"github.com/click33/sa-token-go/core/pool"
 	"strings"
 )
 
@@ -33,13 +32,13 @@ type Config struct {
 	// MaxLoginCount Maximum concurrent login count for the same account; -1 means unlimited (only effective when IsConcurrent=true and IsShare=false) | 同一账号最大登录数量，-1代表不限（仅当IsConcurrent=true且IsShare=false时生效）
 	MaxLoginCount int64
 
-	// IsReadBody Try to read Token from the request body (default: false) | 是否尝试从请求体读取Token（默认：false）
+	// IsReadBody Try to read Token from the request body (log: false) | 是否尝试从请求体读取Token（默认：false）
 	IsReadBody bool
 
-	// IsReadHeader Try to read Token from the HTTP Header (default: true, recommended) | 是否尝试从Header读取Token（默认：true，推荐）
+	// IsReadHeader Try to read Token from the HTTP Header (log: true, recommended) | 是否尝试从Header读取Token（默认：true，推荐）
 	IsReadHeader bool
 
-	// IsReadCookie Try to read Token from the Cookie (default: false) | 是否尝试从Cookie读取Token（默认：false）
+	// IsReadCookie Try to read Token from the Cookie (log: false) | 是否尝试从Cookie读取Token（默认：false）
 	IsReadCookie bool
 
 	// TokenStyle Token generation style | Token生成风格
@@ -57,17 +56,14 @@ type Config struct {
 	// IsLog Enable operation logging | 是否开启操作日志
 	IsLog bool
 
-	// IsPrintBanner Print the startup banner (default: true) | 是否打印启动Banner（默认：true）
+	// IsPrintBanner Print the startup banner (log: true) | 是否打印启动Banner（默认：true）
 	IsPrintBanner bool
 
-	// KeyPrefix Storage key prefix for Redis isolation (default: "satoken:"); set to "" for Java Sa-Token compatibility | 存储键前缀（默认："satoken:"）；设置为空""可兼容Java版Sa-Token默认行为
+	// KeyPrefix Storage key prefix for Storage isolation | 存储键前缀
 	KeyPrefix string
 
 	// CookieConfig Cookie configuration | Cookie配置
 	CookieConfig *CookieConfig
-
-	// RenewPoolConfig Configuration for the renewal pool manager | 续期池管理器配置
-	RenewPoolConfig *pool.RenewPoolConfig
 
 	// Authentication system type | 认证体系类型
 	AuthType string
@@ -94,7 +90,7 @@ type CookieConfig struct {
 	MaxAge int64
 }
 
-// DefaultConfig Returns default configuration | 返回默认配置
+// DefaultConfig Returns log configuration | 返回默认配置
 func DefaultConfig() *Config {
 	return &Config{
 		TokenName:              DefaultTokenName,
@@ -115,16 +111,8 @@ func DefaultConfig() *Config {
 		IsLog:                  false,
 		IsPrintBanner:          true,
 		KeyPrefix:              DefaultKeyPrefix,
-		CookieConfig: &CookieConfig{
-			Domain:   "",
-			Path:     DefaultCookiePath,
-			Secure:   false,
-			HttpOnly: true,
-			SameSite: SameSiteLax,
-			MaxAge:   0,
-		},
-		RenewPoolConfig: pool.DefaultRenewPoolConfig(),
-		AuthType:        DefaultAuthType,
+		CookieConfig:           DefaultCookieConfig(),
+		AuthType:               DefaultAuthType,
 	}
 }
 
@@ -150,12 +138,22 @@ func (c *Config) Validate() error {
 		return errors.New("JwtSecretKey is required when TokenStyle is JWT")
 	}
 
-	// Adjust MaxRefresh if it exceeds Timeout | 如果 MaxRefresh 大于 Timeout，则自动调整为 Timeout/2
+	// MaxRefresh must not exceed Timeout | MaxRefresh 不能大于 Timeout
 	if c.Timeout != NoLimit && c.MaxRefresh > c.Timeout {
-		c.MaxRefresh = c.Timeout / 2
-		if c.MaxRefresh < 1 {
-			c.MaxRefresh = 1
-		}
+		return fmt.Errorf(
+			"MaxRefresh (%d) must be <= Timeout (%d)",
+			c.MaxRefresh,
+			c.Timeout,
+		)
+	}
+
+	// RenewInterval must not exceed MaxRefresh | RenewInterval 不能大于 MaxRefresh
+	if c.MaxRefresh != NoLimit && c.RenewInterval != NoLimit && c.RenewInterval > c.MaxRefresh {
+		return fmt.Errorf(
+			"RenewInterval (%d) must be <= MaxRefresh (%d)",
+			c.RenewInterval,
+			c.MaxRefresh,
+		)
 	}
 
 	// Check if at least one read source is enabled | 检查是否至少启用了一个 Token 读取来源
@@ -172,17 +170,6 @@ func (c *Config) Validate() error {
 	}
 	if len(c.KeyPrefix) > 64 {
 		return fmt.Errorf("KeyPrefix too long (max 64 chars), got length: %d", len(c.KeyPrefix))
-	}
-
-	// Check authType validity | 校验AuthType的合法性
-	if c.AuthType == "" {
-		return errors.New("AuthType cannot be empty") // AuthType不能为空
-	}
-	if strings.ContainsAny(c.AuthType, " \t\r\n") {
-		return fmt.Errorf("AuthType cannot contain whitespace characters, got: %q", c.AuthType)
-	}
-	if len(c.AuthType) > 64 {
-		return fmt.Errorf("AuthType too long (max 64 chars), got length: %d", len(c.AuthType))
 	}
 
 	// Check authType validity | 校验 AuthType 的合法性
@@ -210,35 +197,6 @@ func (c *Config) Validate() error {
 		}
 	}
 
-	// Validate RenewPoolConfig if set | 验证续期池配置（如果设置）
-	if c.RenewPoolConfig != nil {
-		// Check MinSize and MaxSize | 检查最小和最大协程池大小
-		if c.RenewPoolConfig.MinSize <= 0 {
-			return errors.New("RenewPoolConfig.MinSize must be > 0") // 最小协程池大小必须大于0
-		}
-		if c.RenewPoolConfig.MaxSize < c.RenewPoolConfig.MinSize {
-			return errors.New("RenewPoolConfig.MaxSize must be >= RenewPoolConfig.MinSize") // 最大协程池大小必须大于等于最小协程池大小
-		}
-
-		// Check ScaleUpRate and ScaleDownRate | 检查扩容和缩容阈值
-		if c.RenewPoolConfig.ScaleUpRate <= 0 || c.RenewPoolConfig.ScaleUpRate > 1 {
-			return errors.New("RenewPoolConfig.ScaleUpRate must be between 0 and 1") // 扩容阈值必须在0和1之间
-		}
-		if c.RenewPoolConfig.ScaleDownRate < 0 || c.RenewPoolConfig.ScaleDownRate > 1 {
-			return errors.New("RenewPoolConfig.ScaleDownRate must be between 0 and 1") // 缩容阈值必须在0和1之间
-		}
-
-		// Check CheckInterval | 检查检查间隔
-		if c.RenewPoolConfig.CheckInterval <= 0 {
-			return errors.New("RenewPoolConfig.CheckInterval must be a positive duration") // 检查间隔必须为正数
-		}
-
-		// Check Expiry | 检查过期时间
-		if c.RenewPoolConfig.Expiry <= 0 {
-			return errors.New("RenewPoolConfig.Expiry must be a positive duration") // 过期时间必须为正数
-		}
-	}
-
 	// All checks passed | 所有配置验证通过
 	return nil
 }
@@ -249,10 +207,6 @@ func (c *Config) Clone() *Config {
 	if c.CookieConfig != nil {
 		cookieConfig := *c.CookieConfig
 		newConfig.CookieConfig = &cookieConfig
-	}
-	if c.RenewPoolConfig != nil {
-		poolConfig := *c.RenewPoolConfig
-		newConfig.RenewPoolConfig = &poolConfig
 	}
 	return &newConfig
 }
@@ -373,14 +327,6 @@ func (c *Config) SetCookieConfig(cookieConfig *CookieConfig) *Config {
 	return c
 }
 
-// SetRenewPoolConfig Set renewal pool configuration | 设置续期池配置
-func (c *Config) SetRenewPoolConfig(renewPoolConfig *pool.RenewPoolConfig) *Config {
-	if renewPoolConfig != nil {
-		c.RenewPoolConfig = renewPoolConfig
-	}
-	return c
-}
-
 // SetAuthType Set authentication system type | 设置认证体系类型
 func (c *Config) SetAuthType(authType string) *Config {
 	c.AuthType = authType
@@ -427,7 +373,7 @@ func (ts TokenStyle) IsValidTokenStyle() bool {
 	}
 }
 
-// DefaultCookieConfig returns the default Cookie configuration | 返回默认的 Cookie 配置
+// DefaultCookieConfig returns the log Cookie configuration | 返回默认的 Cookie 配置
 func DefaultCookieConfig() *CookieConfig {
 	return &CookieConfig{
 		Domain:   "",

@@ -4,12 +4,13 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
-	"github.com/click33/sa-token-go/core/config"
-	"github.com/click33/sa-token-go/core/dep"
+	codec_json "github.com/click33/sa-token-go/codec/json"
+	"github.com/click33/sa-token-go/core/adapter"
+	"github.com/click33/sa-token-go/core/serror"
+	"github.com/click33/sa-token-go/core/utils"
+	"github.com/click33/sa-token-go/storage/memory"
 	"sync"
 	"time"
-
-	"github.com/click33/sa-token-go/core/adapter"
 )
 
 // OAuth2 Authorization Code Flow Implementation
@@ -62,33 +63,40 @@ type AccessToken struct {
 
 // OAuth2Server OAuth2 authorization server | OAuth2授权服务器
 type OAuth2Server struct {
-	storage         adapter.Storage
-	keyPrefix       string // Configurable prefix | 可配置的前缀
-	clients         map[string]*Client
-	clientsMu       sync.RWMutex   // Clients map lock | 客户端映射锁
-	codeExpiration  time.Duration  // Authorization code expiration (10min) | 授权码过期时间（10分钟）
-	tokenExpiration time.Duration  // Access token expiration (2h) | 访问令牌过期时间（2小时）
-	globalConfig    *config.Config // Global authentication configuration | 全局认证配置
-	deps            *dep.Dep       // Dependencies manager | 依赖管理器
+	authType        string             // Authentication system type | 认证体系类型
+	keyPrefix       string             // Configurable prefix | 可配置的前缀
+	clients         map[string]*Client // client map | 客户端映射map
+	clientsMu       sync.RWMutex       // Clients map lock | 客户端映射锁
+	codeExpiration  time.Duration      // Authorization code expiration (10min) | 授权码过期时间（10分钟）
+	tokenExpiration time.Duration      // Access token expiration (2h) | 访问令牌过期时间（2小时）
+	serializer      adapter.Codec      // Codec adapter for encoding and decoding operations | 编解码器适配器
+	storage         adapter.Storage    // Storage adapter (Redis, Memory, etc.) | 存储适配器（如 Redis、Memory）
 }
 
 // NewOAuth2Server Creates a new OAuth2 server | 创建新的OAuth2服务器
-// prefix: key prefix (e.g., "satoken:" or "" for Java compatibility) | 键前缀（如："satoken:" 或 "" 兼容Java）
-func NewOAuth2Server(storage adapter.Storage, deps *dep.Dep, prefix string) *OAuth2Server {
+func NewOAuth2Server(authType, prefix string, storage adapter.Storage, serializer adapter.Codec) *OAuth2Server {
+	if storage == nil {
+		storage = memory.NewStorage() // default in-memory storage | 默认内存存储
+	}
+	if serializer == nil {
+		serializer = codec_json.NewJSONSerializer() // default JSON serializer | 默认 JSON 编解码器
+	}
+
 	return &OAuth2Server{
-		storage:         storage,
-		keyPrefix:       prefix,
-		clients:         make(map[string]*Client),
-		codeExpiration:  DefaultCodeExpiration,
-		tokenExpiration: DefaultTokenExpiration,
-		deps:            deps,
+		authType:        authType,                 // Auth system identifier | 认证体系标识
+		keyPrefix:       prefix,                   // Global key prefix | 全局Key前缀
+		clients:         make(map[string]*Client), // Initialize client registry | 初始化客户端注册表
+		codeExpiration:  DefaultCodeExpiration,    // Default auth code TTL | 默认授权码有效期
+		tokenExpiration: DefaultTokenExpiration,   // Default access token TTL | 默认访问令牌有效期
+		storage:         storage,                  // Storage backend | 存储后端
+		serializer:      serializer,               // Codec implementation | 编解码实现
 	}
 }
 
 // RegisterClient Registers an OAuth2 client | 注册OAuth2客户端
 func (s *OAuth2Server) RegisterClient(client *Client) error {
 	if client == nil || client.ClientID == "" {
-		return fmt.Errorf("invalid client: clientID is required")
+		return serror.ErrClientOrClientIDEmpty
 	}
 
 	s.clientsMu.Lock()
@@ -113,15 +121,15 @@ func (s *OAuth2Server) GetClient(clientID string) (*Client, error) {
 
 	client, exists := s.clients[clientID]
 	if !exists {
-		return nil, ErrClientNotFound
+		return nil, serror.ErrClientNotFound
 	}
 	return client, nil
 }
 
 // GenerateAuthorizationCode Generates authorization code | 生成授权码
-func (s *OAuth2Server) GenerateAuthorizationCode(clientID, redirectURI, userID string, scopes []string) (*AuthorizationCode, error) {
+func (s *OAuth2Server) GenerateAuthorizationCode(clientID, userID, redirectURI string, scopes []string) (*AuthorizationCode, error) {
 	if userID == "" {
-		return nil, fmt.Errorf("userID cannot be empty")
+		return nil, serror.ErrUserIDEmpty
 	}
 
 	client, err := s.GetClient(clientID)
@@ -131,7 +139,7 @@ func (s *OAuth2Server) GenerateAuthorizationCode(clientID, redirectURI, userID s
 
 	// Validate redirect URI | 验证回调URI
 	if !s.isValidRedirectURI(client, redirectURI) {
-		return nil, ErrInvalidRedirectURI
+		return nil, serror.ErrInvalidRedirectURI
 	}
 
 	// Generate code | 生成授权码
@@ -152,22 +160,17 @@ func (s *OAuth2Server) GenerateAuthorizationCode(clientID, redirectURI, userID s
 		Used:        false,
 	}
 
+	encodeData, err := s.serializer.Encode(authCode)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", serror.ErrCommonEncode, err)
+	}
+
 	key := s.getCodeKey(code)
-	if err := s.storage.Set(key, authCode, s.codeExpiration); err != nil {
+	if err := s.storage.Set(key, encodeData, s.codeExpiration); err != nil {
 		return nil, fmt.Errorf("failed to store authorization code: %w", err)
 	}
 
 	return authCode, nil
-}
-
-// isValidRedirectURI Checks if redirect URI is valid for client | 检查回调URI是否有效
-func (s *OAuth2Server) isValidRedirectURI(client *Client, redirectURI string) bool {
-	for _, uri := range client.RedirectURIs {
-		if uri == redirectURI {
-			return true
-		}
-	}
-	return false
 }
 
 // ExchangeCodeForToken Exchanges authorization code for access token | 用授权码换取访问令牌
@@ -179,44 +182,190 @@ func (s *OAuth2Server) ExchangeCodeForToken(code, clientID, clientSecret, redire
 	}
 
 	if client.ClientSecret != clientSecret {
-		return nil, ErrInvalidClientCredentials
+		return nil, serror.ErrInvalidClientCredentials
 	}
 
 	// Get authorization code | 获取授权码
 	key := s.getCodeKey(code)
 	data, err := s.storage.Get(key)
-	if err != nil || data == nil {
-		return nil, ErrInvalidAuthCode
+	if err != nil {
+		return nil, fmt.Errorf("failed to get authorization data: %w", err)
+	}
+	if data == nil {
+		return nil, serror.ErrInvalidAuthCode
 	}
 
-	authCode, ok := data.(*AuthorizationCode)
-	if !ok {
-		return nil, fmt.Errorf("invalid code data")
+	rawData, err := utils.ToBytes(data)
+	if err != nil {
+		return nil, err
+	}
+
+	var authCode AuthorizationCode
+	if err := s.serializer.Decode(rawData, &authCode); err != nil {
+		return nil, fmt.Errorf("%w: %v", serror.ErrCommonDecode, err)
 	}
 
 	// Validate authorization code | 验证授权码
 	if authCode.Used {
-		return nil, ErrAuthCodeUsed
+		return nil, serror.ErrAuthCodeUsed
 	}
 
 	if authCode.ClientID != clientID {
-		return nil, ErrClientMismatch
+		return nil, serror.ErrClientMismatch
 	}
 
 	if authCode.RedirectURI != redirectURI {
-		return nil, ErrRedirectURIMismatch
+		return nil, serror.ErrRedirectURIMismatch
 	}
 
 	if time.Now().Unix() > authCode.CreateTime+authCode.ExpiresIn {
-		s.storage.Delete(key)
-		return nil, ErrAuthCodeExpired
+		_ = s.storage.Delete(key)
+		return nil, serror.ErrAuthCodeExpired
 	}
 
 	// Mark code as used | 标记为已使用
 	authCode.Used = true
-	s.storage.Set(key, authCode, time.Minute)
+
+	encodeData, err := s.serializer.Encode(authCode)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", serror.ErrCommonEncode, err)
+	}
+
+	_ = s.storage.Set(key, encodeData, time.Minute)
 
 	return s.generateAccessToken(authCode.UserID, authCode.ClientID, authCode.Scopes)
+}
+
+// ValidateAccessToken Validates access token | 验证访问令牌
+func (s *OAuth2Server) ValidateAccessToken(accessToken string) (*AccessToken, error) {
+	if accessToken == "" {
+		return nil, serror.ErrInvalidAccessToken
+	}
+
+	key := s.getTokenKey(accessToken)
+	data, err := s.storage.Get(key)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get access token data: %w", err)
+	}
+	if data == nil {
+		return nil, serror.ErrInvalidAccessToken
+	}
+
+	rawData, err := utils.ToBytes(data)
+	if err != nil {
+		return nil, err
+	}
+
+	var accessTokenInfo AccessToken
+	err = s.serializer.Decode(rawData, &accessTokenInfo)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", serror.ErrCommonDecode, err)
+	}
+
+	return &accessTokenInfo, nil
+}
+
+// RefreshAccessToken Refreshes access token using refresh token | 使用刷新令牌刷新访问令牌
+func (s *OAuth2Server) RefreshAccessToken(refreshToken, clientID, clientSecret string) (*AccessToken, error) {
+	// Verify client credentials | 验证客户端凭证
+	client, err := s.GetClient(clientID)
+	if err != nil {
+		return nil, err
+	}
+
+	if client.ClientSecret != clientSecret {
+		return nil, serror.ErrInvalidClientCredentials
+	}
+
+	// Get refresh token | 获取刷新令牌
+	key := s.getRefreshKey(refreshToken)
+	data, err := s.storage.Get(key)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get refresh token data: %w", err)
+	}
+	if data == nil {
+		return nil, serror.ErrInvalidRefreshToken
+	}
+
+	rawData, err := utils.ToBytes(data)
+	if err != nil {
+		return nil, err
+	}
+
+	var accessTokenInfo AccessToken
+	err = s.serializer.Decode(rawData, &accessTokenInfo)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", serror.ErrCommonDecode, err)
+	}
+
+	if accessTokenInfo.ClientID != clientID {
+		return nil, serror.ErrClientMismatch
+	}
+
+	_ = s.storage.Delete(s.getTokenKey(accessTokenInfo.Token))
+
+	return s.generateAccessToken(accessTokenInfo.UserID, accessTokenInfo.ClientID, accessTokenInfo.Scopes)
+}
+
+// RevokeToken Revokes access token and its refresh token | 撤销访问令牌及其刷新令牌
+func (s *OAuth2Server) RevokeToken(accessToken string) error {
+	if accessToken == "" {
+		return nil
+	}
+
+	key := s.getTokenKey(accessToken)
+	data, err := s.storage.Get(key)
+	if err != nil {
+		return fmt.Errorf("failed to get access token data: %w", err)
+	}
+	if data == nil {
+		return serror.ErrInvalidAccessToken
+	}
+
+	rawData, err := utils.ToBytes(data)
+	if err != nil {
+		return err
+	}
+
+	var accessTokenInfo AccessToken
+	err = s.serializer.Decode(rawData, &accessTokenInfo)
+	if err != nil {
+		return fmt.Errorf("%w: %v", serror.ErrCommonDecode, err)
+	}
+
+	if accessTokenInfo.RefreshToken != "" {
+		refreshKey := s.getRefreshKey(accessTokenInfo.RefreshToken)
+		_ = s.storage.Delete(refreshKey)
+	}
+
+	return s.storage.Delete(key)
+}
+
+// ============ Helper Methods | 辅助方法 ============
+
+// getCodeKey Gets storage key for authorization code | 获取授权码的存储键
+func (s *OAuth2Server) getCodeKey(code string) string {
+	return s.keyPrefix + s.authType + CodeKeySuffix + code
+}
+
+// getTokenKey Gets storage key for access token | 获取访问令牌的存储键
+func (s *OAuth2Server) getTokenKey(token string) string {
+	return s.keyPrefix + s.authType + TokenKeySuffix + token
+}
+
+// getRefreshKey Gets storage key for refresh token | 获取刷新令牌的存储键
+func (s *OAuth2Server) getRefreshKey(refreshToken string) string {
+	return s.keyPrefix + s.authType + RefreshKeySuffix + refreshToken
+}
+
+// isValidRedirectURI Checks if redirect URI is valid for client | 检查回调URI是否有效
+func (s *OAuth2Server) isValidRedirectURI(client *Client, redirectURI string) bool {
+	for _, uri := range client.RedirectURIs {
+		if uri == redirectURI {
+			return true
+		}
+	}
+	return false
 }
 
 // generateAccessToken Generates access token and refresh token | 生成访问令牌和刷新令牌
@@ -244,112 +393,23 @@ func (s *OAuth2Server) generateAccessToken(userID, clientID string, scopes []str
 		UserID:       userID,
 		ClientID:     clientID,
 	}
+	encodeData, err := s.serializer.Encode(token)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", serror.ErrCommonEncode, err)
+	}
 
 	tokenKey := s.getTokenKey(accessToken)
 	refreshKey := s.getRefreshKey(refreshToken)
 
 	// Store access token | 存储访问令牌
-	if err := s.storage.Set(tokenKey, token, s.tokenExpiration); err != nil {
+	if err = s.storage.Set(tokenKey, encodeData, s.tokenExpiration); err != nil {
 		return nil, fmt.Errorf("failed to store access token: %w", err)
 	}
 
 	// Store refresh token | 存储刷新令牌
-	if err := s.storage.Set(refreshKey, token, DefaultRefreshTTL); err != nil {
+	if err = s.storage.Set(refreshKey, encodeData, DefaultRefreshTTL); err != nil {
 		return nil, fmt.Errorf("failed to store refresh token: %w", err)
 	}
 
 	return token, nil
-}
-
-// ValidateAccessToken Validates access token | 验证访问令牌
-func (s *OAuth2Server) ValidateAccessToken(tokenString string) (*AccessToken, error) {
-	if tokenString == "" {
-		return nil, ErrInvalidAccessToken
-	}
-
-	key := s.getTokenKey(tokenString)
-	data, err := s.storage.Get(key)
-	if err != nil || data == nil {
-		return nil, ErrInvalidAccessToken
-	}
-
-	token, ok := data.(*AccessToken)
-	if !ok {
-		return nil, ErrInvalidTokenData
-	}
-
-	return token, nil
-}
-
-// RefreshAccessToken Refreshes access token using refresh token | 使用刷新令牌刷新访问令牌
-func (s *OAuth2Server) RefreshAccessToken(refreshToken, clientID, clientSecret string) (*AccessToken, error) {
-	// Verify client credentials | 验证客户端凭证
-	client, err := s.GetClient(clientID)
-	if err != nil {
-		return nil, err
-	}
-
-	if client.ClientSecret != clientSecret {
-		return nil, ErrInvalidClientCredentials
-	}
-
-	// Get refresh token | 获取刷新令牌
-	key := s.getRefreshKey(refreshToken)
-	data, err := s.storage.Get(key)
-	if err != nil || data == nil {
-		return nil, fmt.Errorf("invalid refresh token")
-	}
-
-	oldToken, ok := data.(*AccessToken)
-	if !ok {
-		return nil, fmt.Errorf("invalid refresh token data")
-	}
-
-	if oldToken.ClientID != clientID {
-		return nil, ErrClientMismatch
-	}
-
-	// Delete old access token | 删除旧的访问令牌
-	oldTokenKey := s.getTokenKey(oldToken.Token)
-	s.storage.Delete(oldTokenKey)
-
-	return s.generateAccessToken(oldToken.UserID, oldToken.ClientID, oldToken.Scopes)
-}
-
-// RevokeToken Revokes access token and its refresh token | 撤销访问令牌及其刷新令牌
-func (s *OAuth2Server) RevokeToken(tokenString string) error {
-	if tokenString == "" {
-		return nil
-	}
-
-	key := s.getTokenKey(tokenString)
-	data, err := s.storage.Get(key)
-	if err != nil {
-		return err
-	}
-
-	// Revoke refresh token if exists | 如果存在则撤销刷新令牌
-	if token, ok := data.(*AccessToken); ok && token.RefreshToken != "" {
-		refreshKey := s.getRefreshKey(token.RefreshToken)
-		s.storage.Delete(refreshKey)
-	}
-
-	return s.storage.Delete(key)
-}
-
-// ============ Helper Methods | 辅助方法 ============
-
-// getCodeKey Gets storage key for authorization code | 获取授权码的存储键
-func (s *OAuth2Server) getCodeKey(code string) string {
-	return s.keyPrefix + CodeKeySuffix + code
-}
-
-// getTokenKey Gets storage key for access token | 获取访问令牌的存储键
-func (s *OAuth2Server) getTokenKey(token string) string {
-	return s.keyPrefix + TokenKeySuffix + token
-}
-
-// getRefreshKey Gets storage key for refresh token | 获取刷新令牌的存储键
-func (s *OAuth2Server) getRefreshKey(refreshToken string) string {
-	return s.keyPrefix + RefreshKeySuffix + refreshToken
 }

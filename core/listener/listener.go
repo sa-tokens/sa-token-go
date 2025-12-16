@@ -2,51 +2,10 @@ package listener
 
 import (
 	"fmt"
-	"github.com/click33/sa-token-go/core/config"
-	"github.com/click33/sa-token-go/core/dep"
+	"github.com/click33/sa-token-go/core/adapter"
+	"github.com/click33/sa-token-go/log/nop"
 	"sync"
 	"time"
-)
-
-// Event represents the type of authentication event | 认证事件类型
-type Event string
-
-const (
-	// EventLogin fired when a user logs in | 用户登录事件
-	EventLogin Event = "login"
-
-	// EventLogout fired when a user logs out | 用户登出事件
-	EventLogout Event = "logout"
-
-	// EventKickout fired when a user is forcibly logged out | 用户被踢下线事件
-	EventKickout Event = "kickout"
-
-	// EventReplace fired when a user is replaced by a new login | 用户被顶下线事件
-	EventReplace Event = "replace"
-
-	// EventDisable fired when an account is disabled | 账号被禁用事件
-	EventDisable Event = "disable"
-
-	// EventUntie fired when an account is re-enabled | 账号解禁事件
-	EventUntie Event = "untie"
-
-	// EventRenew fired when a token is renewed | Token续期事件
-	EventRenew Event = "renew"
-
-	// EventCreateSession fired when a new session is created | Session创建事件
-	EventCreateSession Event = "createSession"
-
-	// EventDestroySession fired when a session is destroyed | Session销毁事件
-	EventDestroySession Event = "destroySession"
-
-	// EventPermissionCheck fired when a permission check is performed | 权限检查事件
-	EventPermissionCheck Event = "permissionCheck"
-
-	// EventRoleCheck fired when a role check is performed | 角色检查事件
-	EventRoleCheck Event = "roleCheck"
-
-	// EventAll is a wildcard event that matches all events | 通配符事件（匹配所有事件）
-	EventAll Event = "*"
 )
 
 // EventData contains information about a triggered event | 事件数据，包含触发事件的相关信息
@@ -84,7 +43,7 @@ func (f ListenerFunc) OnEvent(data *EventData) {
 // ListenerConfig holds configuration for a registered listener | 监听器配置
 type ListenerConfig struct {
 	Async    bool   // If true, listener runs asynchronously | 如果为true，监听器异步运行
-	Priority int    // Higher priority listeners are called first (default: 0) | 优先级越高越先执行（默认：0）
+	Priority int    // Higher priority listeners are called first (log: 0) | 优先级越高越先执行（默认：0）
 	ID       string // Unique identifier for this listener (for unregistering) | 监听器唯一标识（用于注销）
 }
 
@@ -114,26 +73,40 @@ type Manager struct {
 	filters         []EventFilter  // Global event filters | 全局事件过滤器
 	stats           *EventStats    // Event statistics | 事件统计
 	enableStats     bool           // Whether to collect statistics | 是否收集统计信息
-	globalConfig    *config.Config // Global authentication configuration | 全局认证配置
-	deps            *dep.Dep       // Dependencies manager | 依赖管理器
+	logger          adapter.Log    // Log adapter for logging operations | 日志适配器
 }
 
 // NewManager creates a new event manager | 创建新的事件管理器
-func NewManager() *Manager {
-	return &Manager{
-		listeners: make(map[Event][]listenerEntry),
-		panicHandler: func(event Event, data *EventData, recovered any) {
-			// Default panic handler: log but don't crash | 默认panic处理器：记录日志但不崩溃
-			fmt.Printf("sa-token: listener panic recovered: event=%s, panic=%v\n", event, recovered)
-		},
-		enabledEvents: nil, // All events enabled by default | 默认启用所有事件
+func NewManager(loggers ...adapter.Log) *Manager {
+	var logger adapter.Log
+
+	if len(loggers) > 0 && loggers[0] != nil {
+		logger = loggers[0]
+	} else {
+		logger = nop.NewNopLogger()
+	}
+
+	m := &Manager{
+		listeners:     make(map[Event][]listenerEntry),
+		enabledEvents: nil, // All events enabled by log | 默认启用所有事件
 		filters:       make([]EventFilter, 0),
 		stats: &EventStats{
 			EventCounts:   make(map[Event]int64),
 			LastTriggered: make(map[Event]time.Time),
 		},
-		enableStats: false, // Stats disabled by default | 默认不启用统计
+		enableStats: false, // Stats disabled by log | 默认不启用统计
+		logger:      logger,
 	}
+
+	// panicHandler 绑定“已经确定好的 logger”
+	m.panicHandler = func(event Event, data *EventData, recovered any) {
+		logger.Errorf(
+			"listener panic recovered: event=%s, panic=%v",
+			event, recovered,
+		)
+	}
+
+	return m
 }
 
 // SetPanicHandler sets a custom panic handler for listener errors | 设置自定义的panic处理器
@@ -242,7 +215,7 @@ func (m *Manager) IsEventEnabled(event Event) bool {
 	return m.enabledEvents[event] || m.enabledEvents[EventAll]
 }
 
-// Register registers a listener for an event with default configuration
+// Register registers a listener for an event with log configuration
 func (m *Manager) Register(event Event, listener Listener) string {
 	return m.RegisterWithConfig(event, listener, ListenerConfig{
 		Async:    true,
@@ -278,7 +251,7 @@ func (m *Manager) RegisterWithConfig(event Event, listener Listener, config List
 	return config.ID
 }
 
-// RegisterFunc registers a function listener with default configuration
+// RegisterFunc registers a function listener with log configuration
 func (m *Manager) RegisterFunc(event Event, handler func(data *EventData)) string {
 	return m.Register(event, ListenerFunc(handler))
 }
