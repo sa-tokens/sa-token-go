@@ -7,10 +7,10 @@ import (
 	codec_json "github.com/click33/sa-token-go/codec/json"
 	"github.com/click33/sa-token-go/core/adapter"
 	"github.com/click33/sa-token-go/core/serror"
+	"github.com/click33/sa-token-go/generator/sgenerator"
 	"github.com/click33/sa-token-go/storage/memory"
 	"time"
 
-	"github.com/click33/sa-token-go/core/token"
 	"github.com/click33/sa-token-go/core/utils"
 )
 
@@ -40,27 +40,28 @@ type RefreshTokenInfo struct {
 
 // RefreshTokenManager Refresh token manager | 刷新令牌管理器
 type RefreshTokenManager struct {
-	authType       string // Auth system type | 认证体系类型
-	keyPrefix      string // Storage key prefix | 存储前缀
-	tokenKeyPrefix string // Token key prefix | Token 前缀
-	tokenGen       *token.Generator
-	refreshTTL     time.Duration   // Refresh token TTL | 刷新令牌有效期
-	accessTTL      time.Duration   // Access token TTL | 访问令牌有效期
-	storage        adapter.Storage // Storage adapter | 存储适配器
-	serializer     adapter.Codec   // Codec adapter | 编解码器
+	authType       string        // Auth system type | 认证体系类型
+	keyPrefix      string        // Storage key prefix | 存储前缀
+	tokenKeyPrefix string        // Token key prefix | Token 前缀
+	refreshTTL     time.Duration // Refresh token TTL | 刷新令牌有效期
+	accessTTL      time.Duration // Access token TTL | 访问令牌有效期
+
+	tokenGen   adapter.Generator // Token generator | Token 生成器
+	storage    adapter.Storage   // Storage adapter | 存储适配器
+	serializer adapter.Codec     // Codec adapter | 编解码器
 }
 
 // NewRefreshTokenManager Create manager instance | 创建刷新令牌管理器
 func NewRefreshTokenManager(
 	authType, prefix, tokenKeyPrefix string,
-	tokenGen *token.Generator,
+	tokenGen adapter.Generator,
 	accessTTL time.Duration,
 	storage adapter.Storage,
 	serializer adapter.Codec,
 ) *RefreshTokenManager {
 
 	if tokenGen == nil {
-		tokenGen = token.NewGenerator(nil)
+		tokenGen = sgenerator.NewGenerator(nil)
 	}
 	if accessTTL == 0 {
 		accessTTL = DefaultAccessTTL

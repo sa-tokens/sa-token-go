@@ -22,13 +22,13 @@ package dep
 //// NewDep Creates a new Dep instance with strict parameter checking | 创建一个 Dep 实例（严格校验参数）
 //func NewDep(serializer adapter.Codec, logger adapter.Log, storage adapter.Storage, pool adapter.Pool) (*Dep, error) {
 //	if serializer == nil {
-//		return nil, errors.New("serializer cannot be nil") // Serializer cannot be nil | 序列化器不能为空
+//		return nil, fmt.Errorf("serializer cannot be nil") // Serializer cannot be nil | 序列化器不能为空
 //	}
 //	if logger == nil {
-//		return nil, errors.New("logger cannot be nil") // Logger cannot be nil | 日志实现不能为空
+//		return nil, fmt.Errorf("logger cannot be nil") // Logger cannot be nil | 日志实现不能为空
 //	}
 //	if storage == nil {
-//		return nil, errors.New("storage cannot be nil") // Storage cannot be nil | 存储实现不能为空
+//		return nil, fmt.Errorf("storage cannot be nil") // Storage cannot be nil | 存储实现不能为空
 //	}
 //
 //	return &Dep{

@@ -87,3 +87,13 @@ const (
 	DefaultCheckInterval = time.Minute      // Interval for auto-scaling checks | 检查间隔
 	DefaultExpiry        = 10 * time.Second // Idle worker expiry duration | 空闲协程过期时间
 )
+
+// Constants for token generation | Token生成常量
+const (
+	DefaultJWTSecret    = "log-secret-key" // Should be overridden in production | 生产环境应覆盖
+	TikTokenLength      = 11               // TikTok-style short ID length | Tik风格短ID长度
+	TikCharset          = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+	HashRandomBytesLen  = 16 // Random bytes length for hash token | 哈希Token的随机字节长度
+	TimestampRandomLen  = 8  // Random bytes length for timestamp token | 时间戳Token的随机字节长度
+	DefaultSimpleLength = 16 // Default simple token length | 默认简单Token长度
+)

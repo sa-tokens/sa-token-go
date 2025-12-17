@@ -12,7 +12,6 @@ import (
 	"github.com/click33/sa-token-go/core/oauth2"
 	"github.com/click33/sa-token-go/core/security"
 	"github.com/click33/sa-token-go/core/session"
-	"github.com/click33/sa-token-go/core/token"
 	"github.com/click33/sa-token-go/core/utils"
 )
 
@@ -24,9 +23,14 @@ const Version = "0.1.3"
 
 // Configuration related types | 配置相关类型
 type (
-	Config       = config.Config
-	CookieConfig = config.CookieConfig
+	Config          = config.Config
+	CookieConfig    = config.CookieConfig
+	LoggerConfig    = config.LoggerConfig
+	RenewPoolConfig = config.RenewPoolConfig
+
 	TokenStyle   = config.TokenStyle
+	SameSiteMode = config.SameSiteMode
+	LogLevel     = config.LogLevel
 )
 
 // Token style constants | Token风格常量
@@ -42,27 +46,37 @@ const (
 	TokenStyleTik       = config.TokenStyleTik
 )
 
-// Core types | 核心类型
-type (
-	Manager             = manager.Manager
-	TokenInfo           = manager.TokenInfo
-	Session             = session.Session
-	TokenGenerator      = token.Generator
-	SaTokenContext      = context.SaTokenContext
-	Builder             = builder.Builder
-	NonceManager        = security.NonceManager
-	RefreshTokenInfo    = security.RefreshTokenInfo
-	RefreshTokenManager = security.RefreshTokenManager
-	OAuth2Server        = oauth2.OAuth2Server
-	OAuth2Client        = oauth2.Client
-	OAuth2AccessToken   = oauth2.AccessToken
-	OAuth2GrantType     = oauth2.GrantType
-)
-
 // Adapter interfaces | 适配器接口
 type (
+	Codec          = adapter.Codec
+	Generator      = adapter.Generator
+	Log            = adapter.Log
+	Pool           = adapter.Pool
 	Storage        = adapter.Storage
 	RequestContext = adapter.RequestContext
+)
+
+// Core types | 核心类型
+type (
+	Builder = builder.Builder
+
+	Manager   = manager.Manager
+	TokenInfo = manager.TokenInfo
+
+	Session = session.Session
+
+	SaTokenContext = context.SaTokenContext
+
+	NonceManager = security.NonceManager
+
+	AccessTokenInfo     = security.AccessTokenInfo
+	RefreshTokenInfo    = security.RefreshTokenInfo
+	RefreshTokenManager = security.RefreshTokenManager
+
+	OAuth2Client      = oauth2.Client
+	OAuth2Server      = oauth2.OAuth2Server
+	OAuth2AccessToken = oauth2.AccessToken
+	OAuth2GrantType   = oauth2.GrantType
 )
 
 // Event related types | 事件相关类型
@@ -137,8 +151,8 @@ func DefaultConfig() *Config {
 }
 
 // NewManager Creates a new authentication manager | 创建新的认证管理器
-func NewManager(storage Storage, cfg *Config) *Manager {
-	return manager.NewManager(storage, cfg)
+func NewManager(cfg *Config, generator adapter.Generator, storage adapter.Storage, serializer adapter.Codec, logger adapter.Log, pool adapter.Pool) *Manager {
+	return manager.NewManager(cfg, generator, storage, serializer, logger, pool)
 }
 
 // NewContext Creates a new Sa-Token context | 创建新的Sa-Token上下文

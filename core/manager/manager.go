@@ -6,6 +6,7 @@ import (
 	codec_json "github.com/click33/sa-token-go/codec/json"
 	"github.com/click33/sa-token-go/core/serror"
 	"github.com/click33/sa-token-go/core/utils"
+	"github.com/click33/sa-token-go/generator/sgenerator"
 	"github.com/click33/sa-token-go/log/nop"
 	"github.com/click33/sa-token-go/pool/ants"
 	"github.com/click33/sa-token-go/storage/memory"
@@ -18,7 +19,6 @@ import (
 	"github.com/click33/sa-token-go/core/oauth2"
 	"github.com/click33/sa-token-go/core/security"
 	"github.com/click33/sa-token-go/core/session"
-	"github.com/click33/sa-token-go/core/token"
 )
 
 // TokenInfo Token information | Token 信息
@@ -34,24 +34,29 @@ type TokenInfo struct {
 // Manager Authentication manager | 认证管理器
 type Manager struct {
 	config         *config.Config                // Global authentication configuration | 全局认证配置
-	generator      *token.Generator              // Token generator | Token 生成器
 	nonceManager   *security.NonceManager        // Nonce manager for preventing replay attacks | 随机串管理器
 	refreshManager *security.RefreshTokenManager // Refresh token manager | 刷新令牌管理器
 	oauth2Server   *oauth2.OAuth2Server          // OAuth2 authorization server | OAuth2 授权服务器
 	eventManager   *listener.Manager             // Event manager | 事件管理器
 
-	storage    adapter.Storage // Storage adapter (Redis, Memory, etc.) | 存储适配器（如 Redis、Memory）
-	serializer adapter.Codec   // Codec adapter for encoding and decoding operations | 编解码器适配器
-	logger     adapter.Log     // Log adapter for logging operations | 日志适配器
-	pool       adapter.Pool    // Async task pool component | 异步任务协程池组件
+	generator  adapter.Generator // Token generator | Token 生成器
+	storage    adapter.Storage   // Storage adapter (Redis, Memory, etc.) | 存储适配器（如 Redis、Memory）
+	serializer adapter.Codec     // Codec adapter for encoding and decoding operations | 编解码器适配器
+	logger     adapter.Log       // Log adapter for logging operations | 日志适配器
+	pool       adapter.Pool      // Async task pool component | 异步任务协程池组件
 }
 
 // NewManager creates and initializes a new Manager instance | 创建并初始化一个新的 Manager 实例
-func NewManager(cfg *config.Config, storage adapter.Storage, serializer adapter.Codec, logger adapter.Log, pool adapter.Pool) *Manager {
+func NewManager(cfg *config.Config, generator adapter.Generator, storage adapter.Storage, serializer adapter.Codec, logger adapter.Log, pool adapter.Pool) *Manager {
 
 	// Use default configuration if cfg is nil | 如果未传入配置，则使用默认配置
 	if cfg == nil {
 		cfg = config.DefaultConfig()
+	}
+
+	// generator
+	if generator == nil {
+		generator = sgenerator.NewGenerator(cfg)
 	}
 
 	// Use in-memory storage if storage is nil | 如果未传入存储实现，则使用内存存储
@@ -74,9 +79,6 @@ func NewManager(cfg *config.Config, storage adapter.Storage, serializer adapter.
 		// Use default goroutine pool if pool is nil | 如果未传入协程池，则使用默认协程池
 		pool = ants.NewRenewPoolManagerWithDefaultConfig()
 	}
-
-	// Initialize token generator based on configuration | 根据配置初始化 Token 生成器
-	generator := token.NewGenerator(cfg)
 
 	// Return the new manager instance with initialized sub-managers | 返回已初始化各子模块的管理器实例
 	return &Manager{
@@ -142,8 +144,7 @@ func (m *Manager) CloseManager() {
 
 // ============ Login Authentication | 登录认证 ============
 
-// Login Performs user login and returns token | 登录，返回Token
-// TODO 后续参数可以修改为结构体
+// Login Performs user login and returns token | 登录，返回Token TODO 后续参数可以修改为结构体
 func (m *Manager) Login(ctx context.Context, loginID string, device ...string) (string, error) {
 	// Check if account is disabled | 检查账号是否被封禁
 	if m.IsDisable(ctx, loginID) {
@@ -1038,7 +1039,7 @@ func (m *Manager) GetPool() adapter.Pool {
 }
 
 // GetGenerator returns the token generator | 获取 Token 生成器
-func (m *Manager) GetGenerator() *token.Generator {
+func (m *Manager) GetGenerator() adapter.Generator {
 	return m.generator
 }
 

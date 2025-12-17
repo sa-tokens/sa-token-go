@@ -1,23 +1,18 @@
-package token
+// @Author daixk 2025/12/17 9:39:00
+package sgenerator
 
 import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"math/big"
-	"time"
-
 	"github.com/click33/sa-token-go/core/config"
+	"github.com/click33/sa-token-go/core/serror"
 	"github.com/click33/sa-token-go/core/utils"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
-)
-
-// Error variables | 错误变量
-var (
-	ErrInvalidToken            = fmt.Errorf("invalid token")
-	ErrUnexpectedSigningMethod = fmt.Errorf("unexpected signing method")
+	"math/big"
+	"time"
 )
 
 // Generator Token generator | Token生成器
@@ -47,7 +42,7 @@ func (g *Generator) Generate(loginID string, device string) (string, error) {
 	case config.TokenStyleUUID:
 		return g.generateUUID()
 	case config.TokenStyleSimple:
-		return g.generateSimple(DefaultSimpleLength)
+		return g.generateSimple(config.DefaultSimpleLength)
 	case config.TokenStyleRandom32:
 		return g.generateSimple(32)
 	case config.TokenStyleRandom64:
@@ -81,7 +76,7 @@ func (g *Generator) generateUUID() (string, error) {
 // generateSimple Generates simple random string token | 生成简单随机字符串Token
 func (g *Generator) generateSimple(length int) (string, error) {
 	if length <= 0 {
-		length = DefaultSimpleLength
+		length = config.DefaultSimpleLength
 	}
 
 	token := utils.RandomString(length)
@@ -121,7 +116,7 @@ func (g *Generator) getJWTSecret() string {
 	if g.config.JwtSecretKey != "" {
 		return g.config.JwtSecretKey
 	}
-	return DefaultJWTSecret
+	return config.DefaultJWTSecret
 }
 
 // ============ JWT Helper Methods | JWT辅助方法 ============
@@ -137,7 +132,7 @@ func (g *Generator) ParseJWT(tokenStr string) (jwt.MapClaims, error) {
 	token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (any, error) {
 		// Verify signing method | 验证签名方法
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("%w: %v", ErrUnexpectedSigningMethod, token.Header["alg"])
+			return nil, fmt.Errorf("%w: %v", serror.ErrUnexpectedSigningMethod, token.Header["alg"])
 		}
 		return []byte(secretKey), nil
 	})
@@ -150,7 +145,7 @@ func (g *Generator) ParseJWT(tokenStr string) (jwt.MapClaims, error) {
 		return claims, nil
 	}
 
-	return nil, ErrInvalidToken
+	return nil, serror.ErrInvalidToken
 }
 
 // ValidateJWT Validates JWT token | 验证JWT Token
@@ -177,7 +172,7 @@ func (g *Generator) GetLoginIDFromJWT(tokenStr string) (string, error) {
 // generateHash Generates SHA256 hash-based token | 生成SHA256哈希风格Token
 func (g *Generator) generateHash(loginID string, device string) (string, error) {
 	// Combine loginID, device, timestamp and random bytes | 组合 loginID、device、时间戳和随机字节
-	randomBytes := make([]byte, HashRandomBytesLen)
+	randomBytes := make([]byte, config.HashRandomBytesLen)
 	if _, err := rand.Read(randomBytes); err != nil {
 		return "", fmt.Errorf("failed to generate random bytes: %w", err)
 	}
@@ -196,7 +191,7 @@ func (g *Generator) generateHash(loginID string, device string) (string, error) 
 // generateTimestamp Generates timestamp-based token | 生成时间戳风格Token
 func (g *Generator) generateTimestamp(loginID string, device string) (string, error) {
 	// Format: timestamp_loginID_random | 格式：时间戳_loginID_随机数
-	randomBytes := make([]byte, TimestampRandomLen)
+	randomBytes := make([]byte, config.TimestampRandomLen)
 	if _, err := rand.Read(randomBytes); err != nil {
 		return "", fmt.Errorf("failed to generate random bytes: %w", err)
 	}
@@ -208,15 +203,15 @@ func (g *Generator) generateTimestamp(loginID string, device string) (string, er
 
 // generateTik Generates short ID style token (like TikTok) | 生成Tik风格短ID Token（类似抖音）
 func (g *Generator) generateTik() (string, error) {
-	result := make([]byte, TikTokenLength)
-	charsetLen := int64(len(TikCharset))
+	result := make([]byte, config.TikTokenLength)
+	charsetLen := int64(len(config.TikCharset))
 
 	for i := range result {
 		num, err := rand.Int(rand.Reader, big.NewInt(charsetLen))
 		if err != nil {
 			return "", fmt.Errorf("failed to generate random number: %w", err)
 		}
-		result[i] = TikCharset[num.Int64()]
+		result[i] = config.TikCharset[num.Int64()]
 	}
 
 	return string(result), nil

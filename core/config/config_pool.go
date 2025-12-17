@@ -2,7 +2,7 @@
 package config
 
 import (
-	"errors"
+	"fmt"
 	"time"
 )
 
@@ -40,24 +40,24 @@ func (c *RenewPoolConfig) Validate() error {
 	}
 
 	if c.MinSize <= 0 {
-		return errors.New("RenewPoolConfig.MinSize must be > 0")
+		return fmt.Errorf("RenewPoolConfig.MinSize must be > 0")
 	}
 	if c.MaxSize < c.MinSize {
-		return errors.New("RenewPoolConfig.MaxSize must be >= RenewPoolConfig.MinSize")
+		return fmt.Errorf("RenewPoolConfig.MaxSize must be >= RenewPoolConfig.MinSize")
 	}
 
 	if c.ScaleUpRate <= 0 || c.ScaleUpRate > 1 {
-		return errors.New("RenewPoolConfig.ScaleUpRate must be between 0 and 1")
+		return fmt.Errorf("RenewPoolConfig.ScaleUpRate must be between 0 and 1")
 	}
 	if c.ScaleDownRate < 0 || c.ScaleDownRate > 1 {
-		return errors.New("RenewPoolConfig.ScaleDownRate must be between 0 and 1")
+		return fmt.Errorf("RenewPoolConfig.ScaleDownRate must be between 0 and 1")
 	}
 
 	if c.CheckInterval <= 0 {
-		return errors.New("RenewPoolConfig.CheckInterval must be a positive duration")
+		return fmt.Errorf("RenewPoolConfig.CheckInterval must be a positive duration")
 	}
 	if c.Expiry <= 0 {
-		return errors.New("RenewPoolConfig.Expiry must be a positive duration")
+		return fmt.Errorf("RenewPoolConfig.Expiry must be a positive duration")
 	}
 
 	return nil

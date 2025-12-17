@@ -2,6 +2,7 @@ package builder
 
 import (
 	codec_json "github.com/click33/sa-token-go/codec/json"
+	"github.com/click33/sa-token-go/generator/sgenerator"
 	"github.com/click33/sa-token-go/log/nop"
 	"github.com/click33/sa-token-go/pool/ants"
 	"strings"
@@ -40,10 +41,11 @@ type Builder struct {
 	renewPoolConfig *config.RenewPoolConfig // Renew pool config | 续期协程池配置
 	logConfig       *config.LoggerConfig    // 日志配置
 
-	storage adapter.Storage // Storage adapter | 存储适配器
-	codec   adapter.Codec   // codec Codec adapter for encoding and decoding operations | 编解码操作的编码器适配器
-	log     adapter.Log     // log Log adapter for logging operations | 日志记录操作的适配器
-	pool    adapter.Pool    // 续期池
+	generator adapter.Generator // Token generator | Token 生成器
+	storage   adapter.Storage   // Storage adapter | 存储适配器
+	codec     adapter.Codec     // codec Codec adapter for encoding and decoding operations | 编解码操作的编码器适配器
+	log       adapter.Log       // log Log adapter for logging operations | 日志记录操作的适配器
+	pool      adapter.Pool      // 续期池
 }
 
 // NewBuilder creates a new builder with log configuration | 创建新的构建器（使用默认配置）
@@ -448,8 +450,14 @@ func (b *Builder) LoggerConfig(cfg *config.LoggerConfig) *Builder {
 	return b
 }
 
-// Storage sets storage adapter | 设置存储适配器
-func (b *Builder) Storage(storage adapter.Storage) *Builder {
+// SetGenerator sets generator adapter | 设置Token生成器
+func (b *Builder) SetGenerator(generator adapter.Generator) *Builder {
+	b.generator = generator
+	return b
+}
+
+// SetStorage sets storage adapter | 设置存储适配器
+func (b *Builder) SetStorage(storage adapter.Storage) *Builder {
 	b.storage = storage
 	return b
 }
@@ -530,6 +538,10 @@ func (b *Builder) Build() *manager.Manager {
 		panic("Invalid config: " + err.Error())
 	}
 
+	// 如果generator为nil，则初始化默认generator
+	if b.generator == nil {
+		b.generator = sgenerator.NewGenerator(cfg)
+	}
 	// 如果storage为nil，则初始化默认storage
 	if b.storage == nil {
 		b.storage = memory.NewStorage()
@@ -575,5 +587,5 @@ func (b *Builder) Build() *manager.Manager {
 	}
 
 	// Build Manager | 构建 Manager
-	return manager.NewManager(cfg, b.storage, b.codec, b.log, b.pool)
+	return manager.NewManager(cfg, b.generator, b.storage, b.codec, b.log, b.pool)
 }

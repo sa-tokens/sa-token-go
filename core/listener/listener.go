@@ -101,7 +101,7 @@ func NewManager(loggers ...adapter.Log) *Manager {
 	// panicHandler 绑定“已经确定好的 logger”
 	m.panicHandler = func(event Event, data *EventData, recovered any) {
 		logger.Errorf(
-			"listener panic recovered: event=%s, panic=%v",
+			"[listener] listener panic recovered: event=%s, panic=%v",
 			event, recovered,
 		)
 	}
@@ -338,6 +338,16 @@ func (m *Manager) Trigger(data *EventData) {
 	}
 
 	m.mu.RUnlock()
+
+	// log
+	m.logger.Debugf(
+		"[listener] auth event triggered: event=%s, authType=%s, loginID=%s, device=%s, listeners=%d",
+		data.Event,
+		data.AuthType,
+		data.LoginID,
+		data.Device,
+		len(listenersToCall),
+	)
 
 	// Execute listeners
 	for _, entry := range listenersToCall {

@@ -1,7 +1,6 @@
 package session
 
 import (
-	"errors"
 	"fmt"
 	codec_json "github.com/click33/sa-token-go/codec/json"
 	"github.com/click33/sa-token-go/core/manager"
@@ -51,7 +50,7 @@ func NewSession(authType, prefix, id string, storage adapter.Storage, serializer
 // Set Sets value | 设置值
 func (s *Session) Set(key string, value any, ttl ...time.Duration) error {
 	if key == "" {
-		return errors.New("session key cannot empty")
+		return fmt.Errorf("session key cannot empty")
 	}
 
 	s.mu.Lock()
@@ -73,7 +72,7 @@ func (s *Session) SetMulti(valueMap map[string]any, ttl ...time.Duration) error 
 
 	for key, value := range valueMap {
 		if key == "" {
-			return errors.New("session id cannot be empty")
+			return fmt.Errorf("session id cannot be empty")
 		}
 		s.Data[key] = value
 	}
@@ -261,10 +260,10 @@ func (s *Session) saveKeepTTL() error {
 // Load Loads session from storage | 从存储加载
 func Load(id string, m *manager.Manager) (*Session, error) {
 	if id == "" {
-		return nil, errors.New("session id cannot be empty")
+		return nil, fmt.Errorf("session id cannot be empty")
 	}
 	if m == nil {
-		return nil, errors.New("manager cannot be empty")
+		return nil, fmt.Errorf("manager cannot be empty")
 	}
 
 	data, err := m.GetStorage().Get(m.GetConfig().KeyPrefix + m.GetConfig().AuthType + SessionKeyPrefix + id)
@@ -272,7 +271,7 @@ func Load(id string, m *manager.Manager) (*Session, error) {
 		return nil, err
 	}
 	if data == nil {
-		return nil, errors.New("session not found")
+		return nil, fmt.Errorf("session not found")
 	}
 
 	raw, err := utils.ToBytes(data)

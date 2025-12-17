@@ -1,7 +1,6 @@
 package config
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 )
@@ -130,12 +129,12 @@ func (c *Config) Validate() error {
 
 	// Check TokenName | 检查 Token 名称
 	if c.TokenName == "" {
-		return errors.New("TokenName cannot be empty")
+		return fmt.Errorf("TokenName cannot be empty")
 	}
 
 	// Check JwtSecretKey if TokenStyle is JWT | 如果 Token 风格为 JWT，则检查密钥是否设置
 	if c.TokenStyle == TokenStyleJWT && c.JwtSecretKey == "" {
-		return errors.New("JwtSecretKey is required when TokenStyle is JWT")
+		return fmt.Errorf("JwtSecretKey is required when TokenStyle is JWT")
 	}
 
 	// MaxRefresh must not exceed Timeout | MaxRefresh 不能大于 Timeout
@@ -163,7 +162,7 @@ func (c *Config) Validate() error {
 
 	// Check KeyPrefix validity | 检查 KeyPrefix 合法性
 	if c.KeyPrefix == "" {
-		return errors.New("KeyPrefix cannot be empty") // KeyPrefix不能为空
+		return fmt.Errorf("KeyPrefix cannot be empty") // KeyPrefix不能为空
 	}
 	if strings.ContainsAny(c.KeyPrefix, " \t\r\n") {
 		return fmt.Errorf("KeyPrefix cannot contain whitespace characters, got: %q", c.KeyPrefix)
@@ -174,7 +173,7 @@ func (c *Config) Validate() error {
 
 	// Check authType validity | 校验 AuthType 的合法性
 	if c.AuthType == "" {
-		return errors.New("AuthType cannot be empty") // AuthType不能为空
+		return fmt.Errorf("AuthType cannot be empty") // AuthType不能为空
 	}
 	if strings.ContainsAny(c.AuthType, " \t\r\n") {
 		return fmt.Errorf("AuthType cannot contain whitespace characters, got: %q", c.AuthType)
@@ -187,7 +186,7 @@ func (c *Config) Validate() error {
 	if c.CookieConfig != nil {
 		// Check Path | 检查路径
 		if c.CookieConfig.Path == "" {
-			return errors.New("CookieConfig.Path cannot be empty")
+			return fmt.Errorf("CookieConfig.Path cannot be empty")
 		}
 		// Check SameSite | 检查 SameSite 值是否合法
 		switch c.CookieConfig.SameSite {
