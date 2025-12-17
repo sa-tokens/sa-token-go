@@ -110,12 +110,6 @@ func (rtm *RefreshTokenManager) GenerateTokenPair(loginID, device string, access
 		}
 	}
 
-	// Save token-loginID mapping (符合 Java sa-token 设计) | 保存 Token-LoginID 映射
-	tokenKey := rtm.getTokenKey(accessToken)
-	if err := rtm.storage.Set(tokenKey, loginID, rtm.accessTTL); err != nil {
-		return nil, fmt.Errorf("failed to save token: %w", err)
-	}
-
 	// Generate refresh token | 生成刷新令牌
 	refreshTokenBytes := make([]byte, RefreshTokenLength)
 	if _, err := rand.Read(refreshTokenBytes); err != nil {
@@ -184,10 +178,14 @@ func (rtm *RefreshTokenManager) RefreshAccessToken(refreshToken string) (*Refres
 	// Update access token info | 更新访问令牌信息
 	oldInfo.AccessToken = newAccessToken
 
-	// Save token-loginID mapping (符合 Java sa-token 设计) | 保存 Token-LoginID 映射
-	tokenKey := rtm.getTokenKey(newAccessToken)
-	if err := rtm.storage.Set(tokenKey, oldInfo.LoginID, rtm.accessTTL); err != nil {
-		return nil, fmt.Errorf("failed to save token: %w", err)
+	// Copy original token storage value to new access token key, to keep JSON TokenInfo format
+	// 复制原 access token 的存储值到新的 access token 键，保持 JSON TokenInfo 格式，避免破坏 IsLogin/CheckLogin
+	oldTokenKey := rtm.getTokenKey(oldInfo.AccessToken)
+	if data, err := rtm.storage.Get(oldTokenKey); err == nil && data != nil {
+		newTokenKey := rtm.getTokenKey(newAccessToken)
+		if err := rtm.storage.Set(newTokenKey, data, rtm.accessTTL); err != nil {
+			return nil, fmt.Errorf("failed to save new access token: %w", err)
+		}
 	}
 
 	// Update storage | 更新存储
