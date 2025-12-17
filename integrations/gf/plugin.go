@@ -47,6 +47,33 @@ func (p *Plugin) AuthMiddleware() ghttp.HandlerFunc {
 
 }
 
+// PathAuthMiddleware path-based authentication middleware | 基于路径的鉴权中间件
+func (p *Plugin) PathAuthMiddleware(config *core.PathAuthConfig) ghttp.HandlerFunc {
+	return func(r *ghttp.Request) {
+		path := r.Request.URL.Path
+		token := r.Header.Get(p.manager.GetConfig().TokenName)
+		if token == "" {
+			token = r.Cookie.Get(p.manager.GetConfig().TokenName).String()
+		}
+
+		result := core.ProcessAuth(path, token, config, p.manager)
+
+		if result.ShouldReject() {
+			writeErrorResponse(r, core.NewPathAuthRequiredError(path))
+			return
+		}
+
+		if result.IsValid && result.TokenInfo != nil {
+			ctx := NewGFContext(r)
+			saCtx := core.NewContext(ctx, p.manager)
+			r.SetCtxVar("satoken", saCtx)
+			r.SetCtxVar("loginID", result.LoginID())
+		}
+
+		r.Middleware.Next()
+	}
+}
+
 // PermissionRequired permission validation middleware | 权限验证中间件
 func (p *Plugin) PermissionRequired(permission string) ghttp.HandlerFunc {
 	return func(r *ghttp.Request) {

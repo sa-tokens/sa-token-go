@@ -10,6 +10,7 @@ import (
 	"github.com/click33/sa-token-go/core/listener"
 	"github.com/click33/sa-token-go/core/manager"
 	"github.com/click33/sa-token-go/core/oauth2"
+	"github.com/click33/sa-token-go/core/router"
 	"github.com/click33/sa-token-go/core/security"
 	"github.com/click33/sa-token-go/core/session"
 	"github.com/click33/sa-token-go/core/token"
@@ -58,6 +59,8 @@ type (
 	OAuth2Client        = oauth2.Client
 	OAuth2AccessToken   = oauth2.AccessToken
 	OAuth2GrantType     = oauth2.GrantType
+	PathAuthConfig      = router.PathAuthConfig
+	AuthResult          = router.AuthResult
 )
 
 // Adapter interfaces | 适配器接口
@@ -119,6 +122,13 @@ var (
 
 	// Pattern matching | 模式匹配
 	MatchPattern = utils.MatchPattern
+
+	// Router utilities | 路由工具
+	MatchPath        = router.MatchPath
+	MatchAny         = router.MatchAny
+	NeedAuth         = router.NeedAuth
+	ProcessAuth      = router.ProcessAuth
+	NewPathAuthConfig = router.NewPathAuthConfig
 
 	// Duration utilities | 时长工具
 	FormatDuration = utils.FormatDuration

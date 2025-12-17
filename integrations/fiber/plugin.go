@@ -34,6 +34,32 @@ func (p *Plugin) AuthMiddleware() fiber.Handler {
 	}
 }
 
+// PathAuthMiddleware path-based authentication middleware | 基于路径的鉴权中间件
+func (p *Plugin) PathAuthMiddleware(config *core.PathAuthConfig) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		path := c.Path()
+		token := c.Get(p.manager.GetConfig().TokenName)
+		if token == "" {
+			token = c.Cookies(p.manager.GetConfig().TokenName)
+		}
+
+		result := core.ProcessAuth(path, token, config, p.manager)
+
+		if result.ShouldReject() {
+			return writeErrorResponse(c, core.NewPathAuthRequiredError(path))
+		}
+
+		if result.IsValid && result.TokenInfo != nil {
+			ctx := NewFiberContext(c)
+			saCtx := core.NewContext(ctx, p.manager)
+			c.Locals("satoken", saCtx)
+			c.Locals("loginID", result.LoginID())
+		}
+
+		return c.Next()
+	}
+}
+
 // PermissionRequired permission validation middleware | 权限验证中间件
 func (p *Plugin) PermissionRequired(permission string) fiber.Handler {
 	return func(c *fiber.Ctx) error {

@@ -37,6 +37,37 @@ func (p *Plugin) AuthMiddleware() echo.MiddlewareFunc {
 	}
 }
 
+// PathAuthMiddleware path-based authentication middleware | 基于路径的鉴权中间件
+func (p *Plugin) PathAuthMiddleware(config *core.PathAuthConfig) echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			path := c.Request().URL.Path
+			token := c.Request().Header.Get(p.manager.GetConfig().TokenName)
+			if token == "" {
+				cookie, _ := c.Cookie(p.manager.GetConfig().TokenName)
+				if cookie != nil {
+					token = cookie.Value
+				}
+			}
+
+			result := core.ProcessAuth(path, token, config, p.manager)
+
+			if result.ShouldReject() {
+				return writeErrorResponse(c, core.NewPathAuthRequiredError(path))
+			}
+
+			if result.IsValid && result.TokenInfo != nil {
+				ctx := NewEchoContext(c)
+				saCtx := core.NewContext(ctx, p.manager)
+				c.Set("satoken", saCtx)
+				c.Set("loginID", result.LoginID())
+			}
+
+			return next(c)
+		}
+	}
+}
+
 // PermissionRequired permission validation middleware | 权限验证中间件
 func (p *Plugin) PermissionRequired(permission string) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {

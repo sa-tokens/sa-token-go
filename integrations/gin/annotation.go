@@ -90,7 +90,6 @@ func (a *Annotation) Validate() bool {
 // GetHandler gets handler with annotations | 获取带注解的处理器
 func GetHandler(handler interface{}, annotations ...*Annotation) ginfw.HandlerFunc {
 	return func(c *ginfw.Context) {
-		// Check if authentication should be ignored | 检查是否忽略认证
 		if len(annotations) > 0 && annotations[0].Ignore {
 			if callHandler(handler, c) {
 				return
@@ -99,24 +98,22 @@ func GetHandler(handler interface{}, annotations ...*Annotation) ginfw.HandlerFu
 			return
 		}
 
-		// Get token from context using configured TokenName | 从上下文获取Token（使用配置的TokenName）
 		ctx := NewGinContext(c)
 		saCtx := core.NewContext(ctx, stputil.GetManager())
 		token := saCtx.GetTokenValue()
+
 		if token == "" {
 			writeErrorResponse(c, core.NewNotLoginError())
 			c.Abort()
 			return
 		}
 
-		// Check login | 检查登录
 		if !stputil.IsLogin(token) {
 			writeErrorResponse(c, core.NewNotLoginError())
 			c.Abort()
 			return
 		}
 
-		// Get login ID | 获取登录ID
 		loginID, err := stputil.GetLoginID(token)
 		if err != nil {
 			writeErrorResponse(c, err)
@@ -289,31 +286,27 @@ func (h *HandlerWithAnnotations) ToGinHandler() ginfw.HandlerFunc {
 // Middleware 创建中间件版本
 func Middleware(annotations ...*Annotation) ginfw.HandlerFunc {
 	return func(c *ginfw.Context) {
-
-		// 检查是否忽略认证
 		if len(annotations) > 0 && annotations[0].Ignore {
 			c.Next()
 			return
 		}
 
-		// 获取Token（使用配置的TokenName）
 		ctx := NewGinContext(c)
 		saCtx := core.NewContext(ctx, stputil.GetManager())
 		token := saCtx.GetTokenValue()
+
 		if token == "" {
 			writeErrorResponse(c, core.NewNotLoginError())
 			c.Abort()
 			return
 		}
 
-		// 检查登录
 		if !stputil.IsLogin(token) {
 			writeErrorResponse(c, core.NewNotLoginError())
 			c.Abort()
 			return
 		}
 
-		// 获取登录ID
 		loginID, err := stputil.GetLoginID(token)
 		if err != nil {
 			writeErrorResponse(c, err)

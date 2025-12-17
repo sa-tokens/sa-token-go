@@ -2,6 +2,7 @@ package kratos
 
 import (
 	"context"
+	"net/http"
 	"sort"
 	"strings"
 
@@ -49,7 +50,6 @@ func (e *Plugin) Server() middleware.Middleware {
 		return func(ctx context.Context, req interface{}) (reply interface{}, err error) {
 			info, ok := transport.FromServerContext(ctx)
 			if !ok {
-				// 无法获取传输层信息，直接放行
 				return handler(ctx, req)
 			}
 
@@ -85,6 +85,48 @@ func (e *Plugin) Server() middleware.Middleware {
 			}
 
 			ctx = context.WithValue(ctx, "satoken", saCtx)
+			return handler(ctx, req)
+		}
+	}
+}
+
+// PathAuthMiddleware 基于路径的鉴权中间件
+// 使用 Ant 风格通配符进行路径匹配
+func (e *Plugin) PathAuthMiddleware(config *core.PathAuthConfig) middleware.Middleware {
+	return func(handler middleware.Handler) middleware.Handler {
+		return func(ctx context.Context, req interface{}) (reply interface{}, err error) {
+			info, ok := transport.FromServerContext(ctx)
+			if !ok {
+				return handler(ctx, req)
+			}
+
+			// 获取实际的 HTTP 路径
+			var path string
+			if htr, ok := info.(interface{ Request() *http.Request }); ok {
+				path = htr.Request().URL.Path
+			} else {
+				// 如果无法获取路径，使用 operation 作为后备
+				path = info.Operation()
+			}
+
+			// 获取 token
+			kratosContext := NewKratosContext(ctx)
+			saCtx := core.NewContext(kratosContext, e.manager)
+			token := saCtx.GetTokenValue()
+
+			// 处理路径鉴权
+			result := core.ProcessAuth(path, token, config, e.manager)
+
+			if result.ShouldReject() {
+				return nil, e.options.ErrorHandler(ctx, core.NewPathAuthRequiredError(path))
+			}
+
+			// 如果 token 有效，将相关信息存储到 context
+			if result.IsValid && result.TokenInfo != nil {
+				ctx = context.WithValue(ctx, "satoken", saCtx)
+				ctx = context.WithValue(ctx, "loginID", result.LoginID())
+			}
+
 			return handler(ctx, req)
 		}
 	}

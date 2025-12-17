@@ -20,7 +20,6 @@ type Annotation struct {
 // GetHandler gets handler with annotations | 获取带注解的处理器
 func GetHandler(handler echo.HandlerFunc, annotations ...*Annotation) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		// Check if authentication should be ignored | 检查是否忽略认证
 		if len(annotations) > 0 && annotations[0].Ignore {
 			if handler != nil {
 				return handler(c)
@@ -28,20 +27,18 @@ func GetHandler(handler echo.HandlerFunc, annotations ...*Annotation) echo.Handl
 			return nil
 		}
 
-		// Get token from context using configured TokenName | 从上下文获取Token（使用配置的TokenName）
 		ctx := NewEchoContext(c)
 		saCtx := core.NewContext(ctx, stputil.GetManager())
 		token := saCtx.GetTokenValue()
+
 		if token == "" {
 			return writeErrorResponse(c, core.NewNotLoginError())
 		}
 
-		// Check login | 检查登录
 		if !stputil.IsLogin(token) {
 			return writeErrorResponse(c, core.NewNotLoginError())
 		}
 
-		// Get login ID | 获取登录ID
 		loginID, err := stputil.GetLoginID(token)
 		if err != nil {
 			return writeErrorResponse(c, err)

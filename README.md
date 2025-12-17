@@ -11,6 +11,7 @@ A lightweight, high-performance Go authentication and authorization framework, i
 
 - 🔐 **Authentication** - Multi-device login, Token management
 - 🛡️ **Authorization** - Fine-grained permission control, wildcard support (`*`, `user:*`, `user:*:view`)
+- 🛣️ **Path-Based Auth** - Flexible path-based authentication with Ant-style wildcards
 - 👥 **Role Management** - Flexible role authorization mechanism
 - 🚫 **Account Ban** - Temporary/permanent account disabling
 - 👢 **Kickout** - Force user logout, multi-device mutual exclusion
@@ -105,7 +106,7 @@ func init() {
  ___/ / /_/ /   / / / /_/ / ,< /  __/ / / /_____/ /_/ / /_/ /
 /____/\__,_/   /_/  \____/_/|_|\___/_/ /_/      \____/\____/ 
                                                              
-:: Sa-Token-Go ::                                    (v0.1.5)
+:: Sa-Token-Go ::                                    (v0.1.6)
 :: Go Version ::                                     go1.21.0
 :: GOOS/GOARCH ::                                    linux/amd64
 
@@ -575,6 +576,7 @@ sa-token-go/
 
 - [Quick Start](docs/tutorial/quick-start.md) - Get started in 5 minutes
 - [Authentication](docs/guide/authentication.md) - Authentication guide
+- [Path-Based Auth](docs/guide/path-auth.md) - Path-based authentication guide
 - [Permission](docs/guide/permission.md) - Permission system
 - [Annotations](docs/guide/annotation.md) - Decorator pattern guide
 - [Event Listener](docs/guide/listener.md) - Event system guide

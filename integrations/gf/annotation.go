@@ -20,7 +20,6 @@ type Annotation struct {
 // GetHandler gets handler with annotations | 获取带注解的处理器
 func GetHandler(handler ghttp.HandlerFunc, annotations ...*Annotation) ghttp.HandlerFunc {
 	return func(r *ghttp.Request) {
-		// Check if authentication should be ignored | 检查是否忽略认证
 		if len(annotations) > 0 && annotations[0].Ignore {
 			if handler != nil {
 				handler(r)
@@ -30,22 +29,20 @@ func GetHandler(handler ghttp.HandlerFunc, annotations ...*Annotation) ghttp.Han
 			return
 		}
 
-		// Get token from context using configured TokenName | 从上下文获取Token（使用配置的TokenName）
 		ctx := NewGFContext(r)
 		saCtx := core.NewContext(ctx, stputil.GetManager())
 		token := saCtx.GetTokenValue()
+
 		if token == "" {
 			writeErrorResponse(r, core.NewNotLoginError())
 			return
 		}
 
-		// Check login | 检查登录
 		if !stputil.IsLogin(token) {
 			writeErrorResponse(r, core.NewNotLoginError())
 			return
 		}
 
-		// Get login ID | 获取登录ID
 		loginID, err := stputil.GetLoginID(token)
 		if err != nil {
 			writeErrorResponse(r, err)

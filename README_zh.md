@@ -11,6 +11,7 @@
 
 - 🔐 **登录认证** - 支持多设备登录、Token管理
 - 🛡️ **权限验证** - 细粒度权限控制、通配符支持（`*`, `user:*`, `user:*:view`）
+- 🛣️ **路径鉴权** - 灵活的路径鉴权、支持Ant风格通配符
 - 👥 **角色管理** - 灵活的角色授权机制
 - 🚫 **账号封禁** - 临时/永久封禁功能
 - 👢 **踢人下线** - 强制用户下线、多端互斥登录
@@ -105,7 +106,7 @@ func init() {
  ___/ / /_/ /   / / / /_/ / ,< /  __/ / / /_____/ /_/ / /_/ /
 /____/\__,_/   /_/  \____/_/|_|\___/_/ /_/      \____/\____/ 
                                                              
-:: Sa-Token-Go ::                                    (v0.1.5)
+:: Sa-Token-Go ::                                    (v0.1.6)
 :: Go Version ::                                     go1.21.0
 :: GOOS/GOARCH ::                                    linux/amd64
 
@@ -583,6 +584,7 @@ sa-token-go/
 
 - [快速开始](docs/tutorial/quick-start_zh.md) - 5分钟上手
 - [登录认证](docs/guide/authentication_zh.md) - 登录认证详解
+- [路径鉴权](docs/guide/path-auth_zh.md) - 路径鉴权详解
 - [权限验证](docs/guide/permission_zh.md) - 权限系统详解
 - [注解使用](docs/guide/annotation_zh.md) - 装饰器模式详解
 - [事件监听](docs/guide/listener_zh.md) - 事件系统详解

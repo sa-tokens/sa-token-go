@@ -63,6 +63,16 @@ var (
 	ErrMaxLoginCount = fmt.Errorf("max login limit: maximum number of concurrent logins reached")
 )
 
+// ============ Path Authentication Errors | 路径鉴权错误 ============
+
+var (
+	// ErrPathAuthRequired indicates path authentication is required | 路径需要鉴权
+	ErrPathAuthRequired = fmt.Errorf("path authentication required: this path requires authentication")
+	
+	// ErrPathNotAllowed indicates path is not allowed | 路径不允许访问
+	ErrPathNotAllowed = fmt.Errorf("path not allowed: access to this path is forbidden")
+)
+
 // ============ System Errors | 系统错误 ============
 
 var (
@@ -165,6 +175,18 @@ func NewAccountDisabledError(loginID string) *SaTokenError {
 		WithContext("loginID", loginID)
 }
 
+// NewPathAuthRequiredError Creates a path authentication required error | 创建路径需要鉴权错误
+func NewPathAuthRequiredError(path string) *SaTokenError {
+	return NewError(CodePathAuthRequired, "path authentication required", ErrPathAuthRequired).
+		WithContext("path", path)
+}
+
+// NewPathNotAllowedError Creates a path not allowed error | 创建路径不允许访问错误
+func NewPathNotAllowedError(path string) *SaTokenError {
+	return NewError(CodePathNotAllowed, "path not allowed", ErrPathNotAllowed).
+		WithContext("path", path)
+}
+
 // ============ Error Checking Helpers | 错误检查辅助函数 ============
 
 // IsNotLoginError Checks if error is a not login error | 检查是否为未登录错误
@@ -204,6 +226,8 @@ const (
 	CodeBadRequest       = 400 // Bad request | 错误的请求
 	CodeNotLogin         = 401 // Not authenticated | 未认证
 	CodePermissionDenied = 403 // Permission denied | 权限不足
+	CodePathAuthRequired = 401 // Path authentication required | 路径需要鉴权
+	CodePathNotAllowed   = 403 // Path not allowed | 路径不允许访问
 	CodeNotFound         = 404 // Resource not found | 资源未找到
 	CodeServerError      = 500 // Internal server error | 服务器内部错误
 
