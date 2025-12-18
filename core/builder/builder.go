@@ -1,6 +1,7 @@
 package builder
 
 import (
+	"context"
 	codec_json "github.com/click33/sa-token-go/codec/json"
 	"github.com/click33/sa-token-go/generator/sgenerator"
 	"github.com/click33/sa-token-go/log/nop"
@@ -45,7 +46,10 @@ type Builder struct {
 	storage   adapter.Storage   // Storage adapter | 存储适配器
 	codec     adapter.Codec     // codec Codec adapter for encoding and decoding operations | 编解码操作的编码器适配器
 	log       adapter.Log       // log Log adapter for logging operations | 日志记录操作的适配器
-	pool      adapter.Pool      // 续期池
+	pool      adapter.Pool      // Async task pool component | 异步任务协程池组件
+
+	customPermissionListFunc func(ctx context.Context, loginID string) ([]string, error) // Custom permission provider | 自定义权限获取函数
+	customRoleListFunc       func(ctx context.Context, loginID string) ([]string, error) // Custom role provider | 自定义角色获取函数
 }
 
 // NewBuilder creates a new builder with log configuration | 创建新的构建器（使用默认配置）
@@ -198,12 +202,18 @@ func (b *Builder) KeyPrefix(prefix string) *Builder {
 
 // AuthType sets authentication system type | 设置认证体系类型
 func (b *Builder) AuthType(authType string) *Builder {
+	// 如果为空，则使用默认
+	if authType == "" {
+		b.authType = config.DefaultAuthType
+	}
+
 	// 如果前缀不为空且不以 : 结尾，自动添加 :
 	if authType != "" && !strings.HasSuffix(authType, ":") {
 		b.authType = authType + ":"
 	} else {
 		b.authType = authType
 	}
+
 	return b
 }
 
@@ -474,6 +484,18 @@ func (b *Builder) SetLog(log adapter.Log) *Builder {
 	return b
 }
 
+// SetCustomPermissionListFunc sets the custom permission provider | 设置自定义权限获取函数
+func (b *Builder) SetCustomPermissionListFunc(f func(ctx context.Context, loginID string) ([]string, error)) *Builder {
+	b.customPermissionListFunc = f
+	return b
+}
+
+// SetCustomRoleListFunc sets the custom role provider | 设置自定义角色获取函数
+func (b *Builder) SetCustomRoleListFunc(f func(ctx context.Context, loginID string) ([]string, error)) *Builder {
+	b.customRoleListFunc = f
+	return b
+}
+
 // Jwt sets TokenStyle to JWT and sets secret key | 设置为JWT模式并指定密钥
 func (b *Builder) Jwt(secret string) *Builder {
 	b.tokenStyle = config.TokenStyleJWT
@@ -587,5 +609,5 @@ func (b *Builder) Build() *manager.Manager {
 	}
 
 	// Build Manager | 构建 Manager
-	return manager.NewManager(cfg, b.generator, b.storage, b.codec, b.log, b.pool)
+	return manager.NewManager(cfg, b.generator, b.storage, b.codec, b.log, b.pool, b.customPermissionListFunc, b.customRoleListFunc)
 }

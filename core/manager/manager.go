@@ -44,10 +44,13 @@ type Manager struct {
 	serializer adapter.Codec     // Codec adapter for encoding and decoding operations | 编解码器适配器
 	logger     adapter.Log       // Log adapter for logging operations | 日志适配器
 	pool       adapter.Pool      // Async task pool component | 异步任务协程池组件
+
+	CustomPermissionListFunc func(ctx context.Context, loginID string) ([]string, error) // Custom permission func | 自定义权限获取函数
+	CustomRoleListFunc       func(ctx context.Context, loginID string) ([]string, error) // Custom role func | 自定义角色获取函数
 }
 
 // NewManager creates and initializes a new Manager instance | 创建并初始化一个新的 Manager 实例
-func NewManager(cfg *config.Config, generator adapter.Generator, storage adapter.Storage, serializer adapter.Codec, logger adapter.Log, pool adapter.Pool) *Manager {
+func NewManager(cfg *config.Config, generator adapter.Generator, storage adapter.Storage, serializer adapter.Codec, logger adapter.Log, pool adapter.Pool, customPermissionListFunc, CustomRoleListFunc func(ctx context.Context, loginID string) ([]string, error)) *Manager {
 
 	// Use default configuration if cfg is nil | 如果未传入配置，则使用默认配置
 	if cfg == nil {
@@ -340,7 +343,7 @@ func (m *Manager) replace(ctx context.Context, loginID string, device string) er
 	return m.removeTokenChain(context.WithValue(ctx, config.CtxTokenValue, tokenStr), false, nil, listener.EventReplace)
 }
 
-// Replace Replace user offline by login ID and device (public method) | 根据账号和设备顶人下线（公开方法）
+// Replace user offline by login ID and device (public method) | 根据账号和设备顶人下线（公开方法）
 func (m *Manager) Replace(ctx context.Context, loginID string, device ...string) error {
 	deviceType := getDevice(device)
 	return m.replace(ctx, loginID, deviceType)
@@ -558,8 +561,8 @@ func (m *Manager) GetDisableTime(ctx context.Context, loginID string) (int64, er
 // ============ Session Management | Session管理 ============
 
 // GetSession Gets session by login ID | 获取Session
-func (m *Manager) GetSession(loginID string) (*session.Session, error) {
-	sess, err := session.Load(loginID, m)
+func (m *Manager) GetSession(ctx context.Context, loginID string) (*session.Session, error) {
+	sess, err := session.Load(ctx, loginID, m)
 	if err != nil {
 		sess = session.NewSession(m.config.AuthType, m.config.KeyPrefix, loginID, m.storage, m.serializer)
 	}
@@ -574,12 +577,12 @@ func (m *Manager) GetSessionByToken(ctx context.Context) (*session.Session, erro
 		return nil, err
 	}
 
-	return m.GetSession(loginID)
+	return m.GetSession(ctx, loginID)
 }
 
 // DeleteSession Deletes session | 删除Session
-func (m *Manager) DeleteSession(loginID string) error {
-	sess, err := m.GetSession(loginID)
+func (m *Manager) DeleteSession(ctx context.Context, loginID string) error {
+	sess, err := m.GetSession(ctx, loginID)
 	if err != nil {
 		return err
 	}
@@ -600,8 +603,8 @@ func (m *Manager) DeleteSessionByToken(ctx context.Context) error {
 // ============ Permission Validation | 权限验证 ============
 
 // SetPermissions Sets permissions for user | 设置权限
-func (m *Manager) SetPermissions(_ context.Context, loginID string, permissions []string) error {
-	sess, err := m.GetSession(loginID)
+func (m *Manager) SetPermissions(ctx context.Context, loginID string, permissions []string) error {
+	sess, err := m.GetSession(ctx, loginID)
 	if err != nil {
 		return err
 	}
@@ -616,8 +619,8 @@ func (m *Manager) SetPermissions(_ context.Context, loginID string, permissions 
 }
 
 // RemovePermissions removes specified permissions for user | 删除用户指定权限
-func (m *Manager) RemovePermissions(_ context.Context, loginID string, permissions []string) error {
-	sess, err := m.GetSession(loginID)
+func (m *Manager) RemovePermissions(ctx context.Context, loginID string, permissions []string) error {
+	sess, err := m.GetSession(ctx, loginID)
 	if err != nil {
 		return err
 	}
@@ -650,8 +653,16 @@ func (m *Manager) RemovePermissions(_ context.Context, loginID string, permissio
 }
 
 // GetPermissions Gets permission list | 获取权限列表
-func (m *Manager) GetPermissions(_ context.Context, loginID string) ([]string, error) {
-	sess, err := m.GetSession(loginID)
+func (m *Manager) GetPermissions(ctx context.Context, loginID string) ([]string, error) {
+	if m.CustomPermissionListFunc != nil {
+		perms, err := m.CustomPermissionListFunc(ctx, loginID)
+		if err != nil {
+			return nil, err
+		}
+		return perms, nil
+	}
+
+	sess, err := m.GetSession(ctx, loginID)
 	if err != nil {
 		return nil, err
 	}
@@ -664,7 +675,7 @@ func (m *Manager) GetPermissions(_ context.Context, loginID string) ([]string, e
 	return m.toStringSlice(perms), nil
 }
 
-// HasPermission 检查是否有指定权限
+// HasPermission checks whether the specified loginID has the given permission | 检查指定账号是否拥有指定权限
 func (m *Manager) HasPermission(ctx context.Context, loginID string, permission string) bool {
 	perms, err := m.GetPermissions(ctx, loginID)
 	if err != nil {
@@ -746,6 +757,7 @@ func (m *Manager) matchPermission(_ context.Context, pattern, permission string)
 	return false
 }
 
+// hasPermissionInList checks whether permission exists in permission list | 判断权限是否存在于权限列表中
 func (m *Manager) hasPermissionInList(ctx context.Context, perms []string, permission string) bool {
 	for _, p := range perms {
 		if m.matchPermission(ctx, p, permission) {
@@ -758,8 +770,8 @@ func (m *Manager) hasPermissionInList(ctx context.Context, perms []string, permi
 // ============ Role Validation | 角色验证 ============
 
 // SetRoles Sets roles for user | 设置角色
-func (m *Manager) SetRoles(_ context.Context, loginID string, roles []string) error {
-	sess, err := m.GetSession(loginID)
+func (m *Manager) SetRoles(ctx context.Context, loginID string, roles []string) error {
+	sess, err := m.GetSession(ctx, loginID)
 	if err != nil {
 		return err
 	}
@@ -774,8 +786,8 @@ func (m *Manager) SetRoles(_ context.Context, loginID string, roles []string) er
 }
 
 // RemoveRoles removes specified roles for user | 删除用户指定角色
-func (m *Manager) RemoveRoles(_ context.Context, loginID string, roles []string) error {
-	sess, err := m.GetSession(loginID)
+func (m *Manager) RemoveRoles(ctx context.Context, loginID string, roles []string) error {
+	sess, err := m.GetSession(ctx, loginID)
 	if err != nil {
 		return err
 	}
@@ -809,9 +821,17 @@ func (m *Manager) RemoveRoles(_ context.Context, loginID string, roles []string)
 	return sess.Set(SessionKeyRoles, newRoles, m.getExpiration())
 }
 
-// GetRoles Gets role list | 获取角色列表
-func (m *Manager) GetRoles(_ context.Context, loginID string) ([]string, error) {
-	sess, err := m.GetSession(loginID)
+// GetRoles gets role list for the specified loginID | 获取指定账号的角色列表
+func (m *Manager) GetRoles(ctx context.Context, loginID string) ([]string, error) {
+	if m.CustomRoleListFunc != nil {
+		perms, err := m.CustomRoleListFunc(ctx, loginID)
+		if err != nil {
+			return nil, err
+		}
+		return perms, nil
+	}
+
+	sess, err := m.GetSession(ctx, loginID)
 	if err != nil {
 		return nil, err
 	}
@@ -824,7 +844,7 @@ func (m *Manager) GetRoles(_ context.Context, loginID string) ([]string, error) 
 	return m.toStringSlice(roles), nil
 }
 
-// HasRole 检查是否有指定角色
+// HasRole checks whether the specified loginID has the given role | 检查指定账号是否拥有指定角色
 func (m *Manager) HasRole(ctx context.Context, loginID string, role string) bool {
 	roles, err := m.GetRoles(ctx, loginID)
 	if err != nil {
@@ -869,6 +889,7 @@ func (m *Manager) HasRolesOr(ctx context.Context, loginID string, roles []string
 	return false
 }
 
+// hasPermissionInList checks whether permission exists in permission list | 判断权限是否存在于权限列表中
 func (m *Manager) hasRoleInList(roles []string, role string) bool {
 	for _, r := range roles {
 		if r == role {
@@ -985,31 +1006,31 @@ func (m *Manager) WaitEvents() {
 
 // ============ Security Features | 安全特性 ============
 
-// GenerateNonce Generates a one-time nonce | 生成一次性随机数
-func (m *Manager) GenerateNonce() (string, error) {
-	return m.nonceManager.Generate()
-}
-
-// VerifyNonce Verifies a nonce | 验证随机数
-func (m *Manager) VerifyNonce(nonce string) bool {
-	return m.nonceManager.Verify(nonce)
-}
-
-// LoginWithRefreshToken Logs in with refresh token | 使用刷新令牌登录
-func (m *Manager) LoginWithRefreshToken(_ context.Context, loginID, device string) (*security.RefreshTokenInfo, error) {
-	deviceType := getDevice([]string{device})
-	return m.refreshManager.GenerateTokenPair(loginID, deviceType)
-}
-
-// RefreshAccessToken Refreshes access token | 刷新访问令牌
-func (m *Manager) RefreshAccessToken(_ context.Context, refreshToken string) (*security.RefreshTokenInfo, error) {
-	return m.refreshManager.RefreshAccessToken(refreshToken)
-}
-
-// RevokeRefreshToken Revokes refresh token | 撤销刷新令牌
-func (m *Manager) RevokeRefreshToken(_ context.Context, refreshToken string) error {
-	return m.refreshManager.RevokeRefreshToken(refreshToken)
-}
+//// GenerateNonce Generates a one-time nonce | 生成一次性随机数
+//func (m *Manager) GenerateNonce(_ context.Context) (string, error) {
+//	return m.nonceManager.Generate()
+//}
+//
+//// VerifyNonce Verifies a nonce | 验证随机数
+//func (m *Manager) VerifyNonce(_ context.Context, nonce string) bool {
+//	return m.nonceManager.Verify(nonce)
+//}
+//
+//// LoginWithRefreshToken Logs in with refresh token | 使用刷新令牌登录
+//func (m *Manager) LoginWithRefreshToken(_ context.Context, loginID string, device ...string) (*security.RefreshTokenInfo, error) {
+//	deviceType := getDevice(device)
+//	return m.refreshManager.GenerateTokenPair(loginID, deviceType)
+//}
+//
+//// RefreshAccessToken Refreshes access token | 刷新访问令牌
+//func (m *Manager) RefreshAccessToken(ctx context.Context) (*security.RefreshTokenInfo, error) {
+//	return m.refreshManager.RefreshAccessToken(utils.GetCtxValue(ctx, config.CtxTokenValue))
+//}
+//
+//// RevokeRefreshToken Revokes refresh token | 撤销刷新令牌
+//func (m *Manager) RevokeRefreshToken(ctx context.Context) error {
+//	return m.refreshManager.RevokeRefreshToken(utils.GetCtxValue(ctx, config.CtxTokenValue))
+//}
 
 // ============ Public Getters | 公共获取器 ============
 
@@ -1138,7 +1159,7 @@ func (m *Manager) renewToken(ctx context.Context, info *TokenInfo) {
 	_ = m.storage.Expire(accountKey, exp)
 
 	// Renew session TTL | 续期Session的TTL
-	if sess, err := m.GetSession(info.LoginID); err == nil && sess != nil {
+	if sess, err := m.GetSession(ctx, info.LoginID); err == nil && sess != nil {
 		_ = sess.Renew(exp) // Renew the session expiration | 续期Session的过期时间
 	}
 
@@ -1179,7 +1200,7 @@ func (m *Manager) removeTokenChain(ctx context.Context, destroySession bool, inf
 		_ = m.storage.Delete(accountKey) // Delete account-token mapping | 删除账号映射
 		_ = m.storage.Delete(renewKey)   // Delete renew key | 删除续期标记
 		if destroySession {              // Optionally destroy session | 可选销毁Session
-			_ = m.DeleteSession(info.LoginID)
+			_ = m.DeleteSession(ctx, info.LoginID)
 		}
 
 	// EventKickout User kicked offline (keep session) | 用户被踢下线（保留Session，自动过期）
@@ -1200,7 +1221,7 @@ func (m *Manager) removeTokenChain(ctx context.Context, destroySession bool, inf
 		_ = m.storage.Delete(accountKey) // Delete account-token mapping | 删除账号映射
 		_ = m.storage.Delete(renewKey)   // Delete renew key | 删除续期标记
 		if destroySession {              // Optionally destroy session | 可选销毁Session
-			_ = m.DeleteSession(info.LoginID)
+			_ = m.DeleteSession(ctx, info.LoginID)
 		}
 	}
 
@@ -1248,6 +1269,14 @@ func getDevice(device []string) string {
 	return DefaultDevice
 }
 
+// GetDevice extracts device type from optional parameter | 从可选参数中提取设备类型 公开方法
+func (m *Manager) GetDevice(device []string) string {
+	if len(device) > 0 && strings.TrimSpace(device[0]) != "" {
+		return device[0]
+	}
+	return DefaultDevice
+}
+
 // getExpiration calculates expiration duration from config | 从配置计算过期时间
 func (m *Manager) getExpiration() time.Duration {
 	if m.config.Timeout > 0 {
@@ -1256,7 +1285,7 @@ func (m *Manager) getExpiration() time.Duration {
 	return 0
 }
 
-// assertString safely converts interface to string | 安全地将interface转换为string
+// assertString asserts value as string safely | 安全断言值为字符串
 func assertString(v any) (string, bool) {
 	s, ok := v.(string)
 	return s, ok

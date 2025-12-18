@@ -1,6 +1,7 @@
 package session
 
 import (
+	"context"
 	"fmt"
 	codec_json "github.com/click33/sa-token-go/codec/json"
 	"github.com/click33/sa-token-go/core/manager"
@@ -258,7 +259,7 @@ func (s *Session) saveKeepTTL() error {
 // ============ Static Methods | 静态方法 ============
 
 // Load Loads session from storage | 从存储加载
-func Load(id string, m *manager.Manager) (*Session, error) {
+func Load(_ context.Context, id string, m *manager.Manager) (*Session, error) {
 	if id == "" {
 		return nil, fmt.Errorf("session id cannot be empty")
 	}

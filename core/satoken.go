@@ -150,6 +150,10 @@ func DefaultConfig() *Config {
 	return config.DefaultConfig()
 }
 
+func DefaultLoggerConfig() *LoggerConfig {
+	return config.DefaultLoggerConfig()
+}
+
 // NewManager Creates a new authentication manager | 创建新的认证管理器
 func NewManager(cfg *Config, generator adapter.Generator, storage adapter.Storage, serializer adapter.Codec, logger adapter.Log, pool adapter.Pool) *Manager {
 	return manager.NewManager(cfg, generator, storage, serializer, logger, pool)
