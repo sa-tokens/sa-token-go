@@ -6,7 +6,6 @@ import (
 	"fmt"
 	codec_json "github.com/click33/sa-token-go/codec/json"
 	"github.com/click33/sa-token-go/core/adapter"
-	"github.com/click33/sa-token-go/core/serror"
 	"github.com/click33/sa-token-go/core/utils"
 	"github.com/click33/sa-token-go/storage/memory"
 	"sync"
@@ -96,7 +95,7 @@ func NewOAuth2Server(authType, prefix string, storage adapter.Storage, serialize
 // RegisterClient Registers an OAuth2 client | 注册OAuth2客户端
 func (s *OAuth2Server) RegisterClient(client *Client) error {
 	if client == nil || client.ClientID == "" {
-		return serror.ErrClientOrClientIDEmpty
+		return ErrClientOrClientIDEmpty
 	}
 
 	s.clientsMu.Lock()
@@ -121,7 +120,7 @@ func (s *OAuth2Server) GetClient(clientID string) (*Client, error) {
 
 	client, exists := s.clients[clientID]
 	if !exists {
-		return nil, serror.ErrClientNotFound
+		return nil, ErrClientNotFound
 	}
 	return client, nil
 }
@@ -129,7 +128,7 @@ func (s *OAuth2Server) GetClient(clientID string) (*Client, error) {
 // GenerateAuthorizationCode Generates authorization code | 生成授权码
 func (s *OAuth2Server) GenerateAuthorizationCode(clientID, userID, redirectURI string, scopes []string) (*AuthorizationCode, error) {
 	if userID == "" {
-		return nil, serror.ErrUserIDEmpty
+		return nil, ErrUserIDEmpty
 	}
 
 	client, err := s.GetClient(clientID)
@@ -139,7 +138,7 @@ func (s *OAuth2Server) GenerateAuthorizationCode(clientID, userID, redirectURI s
 
 	// Validate redirect URI | 验证回调URI
 	if !s.isValidRedirectURI(client, redirectURI) {
-		return nil, serror.ErrInvalidRedirectURI
+		return nil, ErrInvalidRedirectURI
 	}
 
 	// Generate code | 生成授权码
@@ -162,7 +161,7 @@ func (s *OAuth2Server) GenerateAuthorizationCode(clientID, userID, redirectURI s
 
 	encodeData, err := s.serializer.Encode(authCode)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", serror.ErrCommonEncode, err)
+		return nil, fmt.Errorf("%w: %v", fmt.Errorf("failed to encode data"), err)
 	}
 
 	key := s.getCodeKey(code)
@@ -182,7 +181,7 @@ func (s *OAuth2Server) ExchangeCodeForToken(code, clientID, clientSecret, redire
 	}
 
 	if client.ClientSecret != clientSecret {
-		return nil, serror.ErrInvalidClientCredentials
+		return nil, ErrInvalidClientCredentials
 	}
 
 	// Get authorization code | 获取授权码
@@ -192,7 +191,7 @@ func (s *OAuth2Server) ExchangeCodeForToken(code, clientID, clientSecret, redire
 		return nil, fmt.Errorf("failed to get authorization data: %w", err)
 	}
 	if data == nil {
-		return nil, serror.ErrInvalidAuthCode
+		return nil, ErrInvalidAuthCode
 	}
 
 	rawData, err := utils.ToBytes(data)
@@ -202,25 +201,25 @@ func (s *OAuth2Server) ExchangeCodeForToken(code, clientID, clientSecret, redire
 
 	var authCode AuthorizationCode
 	if err := s.serializer.Decode(rawData, &authCode); err != nil {
-		return nil, fmt.Errorf("%w: %v", serror.ErrCommonDecode, err)
+		return nil, fmt.Errorf("%w: %v", fmt.Errorf("failed to decode data"), err)
 	}
 
 	// Validate authorization code | 验证授权码
 	if authCode.Used {
-		return nil, serror.ErrAuthCodeUsed
+		return nil, ErrAuthCodeUsed
 	}
 
 	if authCode.ClientID != clientID {
-		return nil, serror.ErrClientMismatch
+		return nil, ErrClientMismatch
 	}
 
 	if authCode.RedirectURI != redirectURI {
-		return nil, serror.ErrRedirectURIMismatch
+		return nil, ErrRedirectURIMismatch
 	}
 
 	if time.Now().Unix() > authCode.CreateTime+authCode.ExpiresIn {
 		_ = s.storage.Delete(key)
-		return nil, serror.ErrAuthCodeExpired
+		return nil, ErrAuthCodeExpired
 	}
 
 	// Mark code as used | 标记为已使用
@@ -228,7 +227,7 @@ func (s *OAuth2Server) ExchangeCodeForToken(code, clientID, clientSecret, redire
 
 	encodeData, err := s.serializer.Encode(authCode)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", serror.ErrCommonEncode, err)
+		return nil, fmt.Errorf("%w: %v", fmt.Errorf("failed to encode data"), err)
 	}
 
 	_ = s.storage.Set(key, encodeData, time.Minute)
@@ -239,7 +238,7 @@ func (s *OAuth2Server) ExchangeCodeForToken(code, clientID, clientSecret, redire
 // ValidateAccessToken Validates access token | 验证访问令牌
 func (s *OAuth2Server) ValidateAccessToken(accessToken string) (*AccessToken, error) {
 	if accessToken == "" {
-		return nil, serror.ErrInvalidAccessToken
+		return nil, ErrInvalidAccessToken
 	}
 
 	key := s.getTokenKey(accessToken)
@@ -248,7 +247,7 @@ func (s *OAuth2Server) ValidateAccessToken(accessToken string) (*AccessToken, er
 		return nil, fmt.Errorf("failed to get access token data: %w", err)
 	}
 	if data == nil {
-		return nil, serror.ErrInvalidAccessToken
+		return nil, ErrInvalidAccessToken
 	}
 
 	rawData, err := utils.ToBytes(data)
@@ -259,7 +258,7 @@ func (s *OAuth2Server) ValidateAccessToken(accessToken string) (*AccessToken, er
 	var accessTokenInfo AccessToken
 	err = s.serializer.Decode(rawData, &accessTokenInfo)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", serror.ErrCommonDecode, err)
+		return nil, fmt.Errorf("%w: %v", fmt.Errorf("failed to decode data"), err)
 	}
 
 	return &accessTokenInfo, nil
@@ -274,7 +273,7 @@ func (s *OAuth2Server) RefreshAccessToken(refreshToken, clientID, clientSecret s
 	}
 
 	if client.ClientSecret != clientSecret {
-		return nil, serror.ErrInvalidClientCredentials
+		return nil, ErrInvalidClientCredentials
 	}
 
 	// Get refresh token | 获取刷新令牌
@@ -284,7 +283,7 @@ func (s *OAuth2Server) RefreshAccessToken(refreshToken, clientID, clientSecret s
 		return nil, fmt.Errorf("failed to get refresh token data: %w", err)
 	}
 	if data == nil {
-		return nil, serror.ErrInvalidRefreshToken
+		return nil, ErrInvalidRefreshToken
 	}
 
 	rawData, err := utils.ToBytes(data)
@@ -295,11 +294,11 @@ func (s *OAuth2Server) RefreshAccessToken(refreshToken, clientID, clientSecret s
 	var accessTokenInfo AccessToken
 	err = s.serializer.Decode(rawData, &accessTokenInfo)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", serror.ErrCommonDecode, err)
+		return nil, fmt.Errorf("%w: %v", fmt.Errorf("failed to decode data"), err)
 	}
 
 	if accessTokenInfo.ClientID != clientID {
-		return nil, serror.ErrClientMismatch
+		return nil, ErrClientMismatch
 	}
 
 	_ = s.storage.Delete(s.getTokenKey(accessTokenInfo.Token))
@@ -319,7 +318,7 @@ func (s *OAuth2Server) RevokeToken(accessToken string) error {
 		return fmt.Errorf("failed to get access token data: %w", err)
 	}
 	if data == nil {
-		return serror.ErrInvalidAccessToken
+		return ErrInvalidAccessToken
 	}
 
 	rawData, err := utils.ToBytes(data)
@@ -330,7 +329,7 @@ func (s *OAuth2Server) RevokeToken(accessToken string) error {
 	var accessTokenInfo AccessToken
 	err = s.serializer.Decode(rawData, &accessTokenInfo)
 	if err != nil {
-		return fmt.Errorf("%w: %v", serror.ErrCommonDecode, err)
+		return fmt.Errorf("%w: %v", fmt.Errorf("failed to decode data"), err)
 	}
 
 	if accessTokenInfo.RefreshToken != "" {
@@ -395,7 +394,7 @@ func (s *OAuth2Server) generateAccessToken(userID, clientID string, scopes []str
 	}
 	encodeData, err := s.serializer.Encode(token)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", serror.ErrCommonEncode, err)
+		return nil, fmt.Errorf("%w: %v", fmt.Errorf("failed to encode data"), err)
 	}
 
 	tokenKey := s.getTokenKey(accessToken)

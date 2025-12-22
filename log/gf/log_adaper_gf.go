@@ -8,8 +8,15 @@ import (
 
 // GFLogger adapts GoFrame v2 glog.Logger to Sa-Token logger interface | GoFrame v2 glog 适配器
 type GFLogger struct {
-	l   *glog.Logger
 	ctx context.Context
+	l   *glog.Logger
+}
+
+func NewGFLogger(ctx context.Context, l *glog.Logger) *GFLogger {
+	return &GFLogger{
+		ctx: ctx,
+		l:   l,
+	}
 }
 
 // ---- Implement Adapter Interface | 实现 Adapter 接口 ----

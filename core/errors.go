@@ -20,6 +20,12 @@ var (
 	// ErrTokenExpired indicates the token has expired | Token已过期
 	ErrTokenExpired = fmt.Errorf("token expired: please login again to get a new token")
 
+	// ErrTokenKickout token has been kicked out | Token 已被踢下线
+	ErrTokenKickout = fmt.Errorf("token has been kicked out")
+
+	// ErrTokenReplaced token has been replaced | Token 已被顶下线
+	ErrTokenReplaced = fmt.Errorf("token has been replaced")
+
 	// ErrInvalidLoginID indicates the login ID is invalid | 登录ID无效
 	ErrInvalidLoginID = fmt.Errorf("invalid login ID: the login identifier cannot be empty")
 

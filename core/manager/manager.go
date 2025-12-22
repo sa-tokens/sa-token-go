@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	codec_json "github.com/click33/sa-token-go/codec/json"
-	"github.com/click33/sa-token-go/core/serror"
 	"github.com/click33/sa-token-go/core/utils"
 	"github.com/click33/sa-token-go/generator/sgenerator"
 	"github.com/click33/sa-token-go/log/nop"
@@ -132,6 +131,12 @@ func NewManager(cfg *config.Config, generator adapter.Generator, storage adapter
 
 		// Goroutine pool for async task execution | 用于异步任务执行的协程池
 		pool: pool,
+
+		// Custom permission list provider | 自定义权限列表获取函数
+		CustomPermissionListFunc: customPermissionListFunc,
+
+		// Custom role list provider | 自定义角色列表获取函数
+		CustomRoleListFunc: CustomRoleListFunc,
 	}
 }
 
@@ -151,7 +156,7 @@ func (m *Manager) CloseManager() {
 func (m *Manager) Login(ctx context.Context, loginID string, device ...string) (string, error) {
 	// Check if account is disabled | 检查账号是否被封禁
 	if m.IsDisable(ctx, loginID) {
-		return "", serror.ErrAccountDisabled
+		return "", ErrAccountDisabled
 	}
 
 	// 获取设备类型
@@ -182,7 +187,7 @@ func (m *Manager) Login(ctx context.Context, loginID string, device ...string) (
 		tokens, _ := m.GetTokenValueListByLoginID(ctx, loginID)
 		if int64(len(tokens)) >= m.config.MaxLoginCount {
 			// Reached maximum concurrent login count | 已达到最大并发登录数 如需也可改为 踢掉最早Token
-			return "", serror.ErrLoginLimitExceeded
+			return "", ErrLoginLimitExceeded
 		}
 	}
 
@@ -206,7 +211,7 @@ func (m *Manager) Login(ctx context.Context, loginID string, device ...string) (
 		ActiveTime: nowTime,
 	})
 	if err != nil {
-		return "", fmt.Errorf("%w: %v", serror.ErrCommonDecode, err)
+		return "", fmt.Errorf("%w: %v", fmt.Errorf("failed to encode data"), err)
 	}
 
 	// 生成新的ctx
@@ -261,7 +266,7 @@ func (m *Manager) LoginByToken(ctx context.Context) error {
 
 	// Check if the account is disabled | 检查账号是否被封禁
 	if m.IsDisable(ctx, info.LoginID) {
-		return serror.ErrAccountDisabled
+		return ErrAccountDisabled
 	}
 
 	// Renews token expiration asynchronously | 异步续期Token
@@ -408,7 +413,7 @@ func (m *Manager) IsLogin(ctx context.Context) bool {
 // CheckLogin Checks login status (throws serror if not logged in) | 检查登录（未登录抛出错误）
 func (m *Manager) CheckLogin(ctx context.Context) error {
 	if !m.IsLogin(ctx) {
-		return serror.ErrNotLogin
+		return ErrNotLogin
 	}
 	return nil
 }
@@ -426,7 +431,7 @@ func (m *Manager) CheckLoginWithState(ctx context.Context) (bool, error) {
 		if now-info.ActiveTime > m.config.ActiveTimeout {
 			// Force logout and clean up token data | 强制登出并清理Token相关数据
 			_ = m.removeTokenChain(ctx, false, info, listener.EventKickout)
-			return false, serror.ErrTokenKickout
+			return false, ErrTokenKickout
 		}
 	}
 
@@ -461,7 +466,7 @@ func (m *Manager) GetLoginID(ctx context.Context) (string, error) {
 	// Check if the user is logged in | 检查用户是否已登录
 	isLogin := m.IsLogin(ctx)
 	if !isLogin {
-		return "", serror.ErrNotLogin // Return error if not logged in | 如果未登录，则返回错误
+		return "", ErrNotLogin // Return error if not logged in | 如果未登录，则返回错误
 	}
 
 	// Retrieve the login ID without checking token validity | 获取登录ID，不检查Token有效性
@@ -487,13 +492,13 @@ func (m *Manager) GetTokenValue(ctx context.Context, loginID string, device ...s
 	// Retrieve the token value from storage | 从存储中获取Token值
 	tokenValue, err := m.storage.Get(accountKey)
 	if err != nil || tokenValue == nil {
-		return "", serror.ErrTokenNotFound // Return error if token not found | 如果未找到Token，则返回错误
+		return "", ErrTokenNotFound // Return error if token not found | 如果未找到Token，则返回错误
 	}
 
 	// Assert token value as a string | 断言Token值为字符串
 	tokenStr, ok := assertString(tokenValue)
 	if !ok {
-		return "", serror.ErrTokenNotFound // Return error if token is not a valid string | 如果Token不是有效字符串，则返回错误
+		return "", ErrTokenNotFound // Return error if token is not a valid string | 如果Token不是有效字符串，则返回错误
 	}
 
 	// Return the token string | 返回Token字符串
@@ -691,6 +696,27 @@ func (m *Manager) HasPermission(ctx context.Context, loginID string, permission 
 	return false
 }
 
+// HasPermissionByToken checks whether the current token subject has the specified permission | 根据当前 Token 判断是否拥有指定权限
+func (m *Manager) HasPermissionByToken(ctx context.Context, permission string) bool {
+	loginID, err := m.GetLoginIDNotCheck(ctx)
+	if err != nil {
+		return false
+	}
+
+	perms, err := m.GetPermissions(ctx, loginID)
+	if err != nil {
+		return false
+	}
+
+	for _, p := range perms {
+		if m.matchPermission(ctx, p, permission) {
+			return true
+		}
+	}
+
+	return false
+}
+
 // HasPermissionsAnd Checks whether the user has all permissions (AND) | 是否拥有所有权限（AND）
 func (m *Manager) HasPermissionsAnd(ctx context.Context, loginID string, permissions []string) bool {
 	// Get all permissions once | 一次性获取用户权限
@@ -708,8 +734,52 @@ func (m *Manager) HasPermissionsAnd(ctx context.Context, loginID string, permiss
 	return true
 }
 
+// HasPermissionsAndByToken checks whether the current token subject has all specified permissions (AND) | 根据当前 Token 判断是否拥有所有指定权限（AND）
+func (m *Manager) HasPermissionsAndByToken(ctx context.Context, permissions []string) bool {
+	loginID, err := m.GetLoginIDNotCheck(ctx)
+	if err != nil {
+		return false
+	}
+
+	// Get all permissions once | 一次性获取用户权限
+	userPerms, err := m.GetPermissions(ctx, loginID)
+	if err != nil || len(userPerms) == 0 {
+		return false
+	}
+
+	// Check every required permission | 校验每一个必需权限
+	for _, need := range permissions {
+		if !m.hasPermissionInList(ctx, userPerms, need) {
+			return false
+		}
+	}
+	return true
+}
+
 // HasPermissionsOr Checks whether the user has any permission (OR) | 是否拥有任一权限（OR）
 func (m *Manager) HasPermissionsOr(ctx context.Context, loginID string, permissions []string) bool {
+	// Get all permissions once | 一次性获取用户权限
+	userPerms, err := m.GetPermissions(ctx, loginID)
+	if err != nil || len(userPerms) == 0 {
+		return false
+	}
+
+	// Check if any permission matches | 任一权限匹配即通过
+	for _, need := range permissions {
+		if m.hasPermissionInList(ctx, userPerms, need) {
+			return true
+		}
+	}
+	return false
+}
+
+// HasPermissionsOrByToken checks whether the current token subject has any of the specified permissions (OR) | 根据当前 Token 判断是否拥有任一指定权限（OR）
+func (m *Manager) HasPermissionsOrByToken(ctx context.Context, permissions []string) bool {
+	loginID, err := m.GetLoginIDNotCheck(ctx)
+	if err != nil {
+		return false
+	}
+
 	// Get all permissions once | 一次性获取用户权限
 	userPerms, err := m.GetPermissions(ctx, loginID)
 	if err != nil || len(userPerms) == 0 {
@@ -859,6 +929,26 @@ func (m *Manager) HasRole(ctx context.Context, loginID string, role string) bool
 	return false
 }
 
+// HasRoleByToken checks whether the current token subject has the specified role | 根据当前 Token 判断是否拥有指定角色
+func (m *Manager) HasRoleByToken(ctx context.Context, role string) bool {
+	loginID, err := m.GetLoginIDNotCheck(ctx)
+	if err != nil {
+		return false
+	}
+
+	roles, err := m.GetRoles(ctx, loginID)
+	if err != nil {
+		return false
+	}
+
+	for _, r := range roles {
+		if r == role {
+			return true
+		}
+	}
+	return false
+}
+
 // HasRolesAnd Checks whether the user has all roles (AND) | 是否拥有所有角色（AND）
 func (m *Manager) HasRolesAnd(ctx context.Context, loginID string, roles []string) bool {
 	userRoles, err := m.GetRoles(ctx, loginID)
@@ -874,8 +964,48 @@ func (m *Manager) HasRolesAnd(ctx context.Context, loginID string, roles []strin
 	return true
 }
 
+// HasRolesAndByToken checks whether the current token subject has all specified roles (AND) | 根据当前 Token 判断是否拥有所有指定角色（AND）
+func (m *Manager) HasRolesAndByToken(ctx context.Context, roles []string) bool {
+	loginID, err := m.GetLoginIDNotCheck(ctx)
+	if err != nil {
+		return false
+	}
+
+	userRoles, err := m.GetRoles(ctx, loginID)
+	if err != nil || len(userRoles) == 0 {
+		return false
+	}
+
+	for _, need := range roles {
+		if !m.hasRoleInList(userRoles, need) {
+			return false
+		}
+	}
+	return true
+}
+
 // HasRolesOr Checks whether the user has any role (OR) | 是否拥有任一角色（OR）
 func (m *Manager) HasRolesOr(ctx context.Context, loginID string, roles []string) bool {
+	userRoles, err := m.GetRoles(ctx, loginID)
+	if err != nil || len(userRoles) == 0 {
+		return false
+	}
+
+	for _, need := range roles {
+		if m.hasRoleInList(userRoles, need) {
+			return true
+		}
+	}
+	return false
+}
+
+// HasRolesOrByToken checks whether the current token subject has any of the specified roles (OR) | 根据当前 Token 判断是否拥有任一指定角色（OR）
+func (m *Manager) HasRolesOrByToken(ctx context.Context, roles []string) bool {
+	loginID, err := m.GetLoginIDNotCheck(ctx)
+	if err != nil {
+		return false
+	}
+
 	userRoles, err := m.GetRoles(ctx, loginID)
 	if err != nil || len(userRoles) == 0 {
 		return false
@@ -1097,7 +1227,7 @@ func (m *Manager) getTokenInfoByTokenValue(ctx context.Context, checkState ...bo
 		return nil, err // Return error if data retrieval fails | 如果数据获取失败，返回错误
 	}
 	if data == nil {
-		return nil, serror.ErrTokenNotFound // Return error if token is not found | 如果Token未找到，返回错误
+		return nil, ErrTokenNotFound // Return error if token is not found | 如果Token未找到，返回错误
 	}
 
 	// Convert data to raw byte slice | 将数据转换为原始字节切片
@@ -1113,10 +1243,10 @@ func (m *Manager) getTokenInfoByTokenValue(ctx context.Context, checkState ...bo
 		switch string(raw) {
 		case string(TokenStateKickout):
 			// Token has been kicked out | Token已被踢下线
-			return nil, serror.ErrTokenKickout // Return error if token is kicked out | 如果Token被踢下线，返回错误
+			return nil, ErrTokenKickout // Return error if token is kicked out | 如果Token被踢下线，返回错误
 		case string(TokenStateReplaced):
 			// Token has been replaced | Token已被顶下线
-			return nil, serror.ErrTokenReplaced // Return error if token is replaced | 如果Token被顶下线，返回错误
+			return nil, ErrTokenReplaced // Return error if token is replaced | 如果Token被顶下线，返回错误
 		}
 	}
 
@@ -1124,7 +1254,7 @@ func (m *Manager) getTokenInfoByTokenValue(ctx context.Context, checkState ...bo
 	var info TokenInfo
 	// Use the serializer to decode the raw data | 使用序列化器来解码原始数据
 	if err = m.serializer.Decode(raw, &info); err != nil {
-		return nil, fmt.Errorf("%w: %v", serror.ErrCommonDecode, err) // Return error if decoding fails | 如果解码失败，返回错误
+		return nil, fmt.Errorf("%w: %v", fmt.Errorf("failed to decode data"), err) // Return error if decoding fails | 如果解码失败，返回错误
 	}
 
 	return &info, nil // Return the parsed TokenInfo | 返回解析后的Token信息

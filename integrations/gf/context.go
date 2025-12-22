@@ -12,6 +12,13 @@ type GFContext struct {
 	aborted bool
 }
 
+// NewGFContext creates a GF context adapter | 创建GF上下文适配器
+func NewGFContext(c *ghttp.Request) adapter.RequestContext {
+	return &GFContext{
+		c: c,
+	}
+}
+
 // Get implements adapter.RequestContext.
 func (g *GFContext) Get(key string) (interface{}, bool) {
 	v := g.c.Get(key)
@@ -71,13 +78,6 @@ func (g *GFContext) SetHeader(key string, value string) {
 	g.c.Header.Set(key, value)
 }
 
-// NewGFContext creates a GF context adapter | 创建GF上下文适配器
-func NewGFContext(c *ghttp.Request) adapter.RequestContext {
-	return &GFContext{
-		c: c,
-	}
-}
-
 // ============ Additional Required Methods | 额外必需的方法 ============
 
 // GetHeaders implements adapter.RequestContext.
@@ -123,7 +123,7 @@ func (g *GFContext) SetCookieWithOptions(options *adapter.CookieOptions) {
 		HttpOnly: options.HttpOnly,
 		SameSite: http.SameSite(0), // Default to SameSiteNone
 	}
-	
+
 	// Set SameSite attribute
 	switch options.SameSite {
 	case "Strict":
@@ -133,7 +133,7 @@ func (g *GFContext) SetCookieWithOptions(options *adapter.CookieOptions) {
 	case "None":
 		cookie.SameSite = http.SameSiteNoneMode
 	}
-	
+
 	g.c.Cookie.SetHttpCookie(cookie)
 }
 

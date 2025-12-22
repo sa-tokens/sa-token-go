@@ -2,8 +2,8 @@
 package ants
 
 import (
+	"fmt"
 	"github.com/click33/sa-token-go/core/config"
-	"github.com/click33/sa-token-go/core/serror"
 	"github.com/panjf2000/ants/v2"
 	"sync"
 	"time"
@@ -78,7 +78,7 @@ func (m *RenewPoolManager) initPool() error {
 // Submit submits a renewal task | 提交续期任务
 func (m *RenewPoolManager) Submit(task func()) error {
 	if !m.started {
-		return serror.ErrRenewPoolNotStarted
+		return fmt.Errorf("renew pool not started")
 	}
 	return m.pool.Submit(task)
 }

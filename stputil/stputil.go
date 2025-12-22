@@ -3,7 +3,6 @@ package stputil
 import (
 	"context"
 	"errors"
-	"fmt"
 	"github.com/click33/sa-token-go/core/adapter"
 	"github.com/click33/sa-token-go/core/config"
 	"github.com/click33/sa-token-go/core/listener"
@@ -161,7 +160,7 @@ func GetLoginID(ctx context.Context, tokenValue string, authType ...string) (str
 	return mgr.GetLoginID(context.WithValue(ctx, config.CtxTokenValue, tokenValue))
 }
 
-// GetLoginIDNotCheck gets login ID without checking | 获取登录ID（不检查）
+// GetLoginIDNotCheck gets login ID without checking | 获取登录ID（不检查登录状态）
 func GetLoginIDNotCheck(ctx context.Context, tokenValue string, authType ...string) (string, error) {
 	mgr, err := GetManager(authType...)
 	if err != nil {
@@ -211,6 +210,21 @@ func Disable(ctx context.Context, loginID interface{}, duration time.Duration, a
 	}
 }
 
+// DisableByToken disables the account associated with the given token for a duration | 根据指定 Token 封禁其对应的账号
+func DisableByToken(ctx context.Context, tokenValue string, duration time.Duration, authType ...string) error {
+	mgr, err := GetManager(authType...)
+	if err != nil {
+		return err
+	}
+
+	loginID, err := mgr.GetLoginIDNotCheck(context.WithValue(ctx, config.CtxTokenValue, tokenValue))
+	if err != nil {
+		return err
+	}
+
+	return mgr.Disable(ctx, loginID, duration)
+}
+
 // Untie re-enables a disabled account | 解封账号
 func Untie(ctx context.Context, loginID interface{}, authType ...string) error {
 	mgr, err := GetManager(authType...)
@@ -223,6 +237,20 @@ func Untie(ctx context.Context, loginID interface{}, authType ...string) error {
 	} else {
 		return mgr.Untie(ctx, id)
 	}
+}
+
+func UntieByToken(ctx context.Context, tokenValue string, authType ...string) error {
+	mgr, err := GetManager(authType...)
+	if err != nil {
+		return err
+	}
+
+	loginID, err := mgr.GetLoginIDNotCheck(context.WithValue(ctx, config.CtxTokenValue, tokenValue))
+	if err != nil {
+		return err
+	}
+
+	return mgr.Untie(ctx, loginID)
 }
 
 // IsDisable checks if an account is disabled | 检查账号是否被封禁
@@ -239,6 +267,20 @@ func IsDisable(ctx context.Context, loginID interface{}, authType ...string) boo
 	}
 }
 
+func IsDisableByToken(ctx context.Context, tokenValue string, authType ...string) bool {
+	mgr, err := GetManager(authType...)
+	if err != nil {
+		return false
+	}
+
+	loginID, err := mgr.GetLoginIDNotCheck(context.WithValue(ctx, config.CtxTokenValue, tokenValue))
+	if err != nil {
+		return false
+	}
+
+	return mgr.IsDisable(ctx, loginID)
+}
+
 // GetDisableTime gets remaining disable time in seconds | 获取剩余封禁时间（秒）
 func GetDisableTime(ctx context.Context, loginID interface{}, authType ...string) (int64, error) {
 	mgr, err := GetManager(authType...)
@@ -251,6 +293,20 @@ func GetDisableTime(ctx context.Context, loginID interface{}, authType ...string
 	} else {
 		return mgr.GetDisableTime(ctx, id)
 	}
+}
+
+func GetDisableTimeByToken(ctx context.Context, tokenValue string, authType ...string) (int64, error) {
+	mgr, err := GetManager(authType...)
+	if err != nil {
+		return 0, err
+	}
+
+	loginID, err := mgr.GetLoginIDNotCheck(context.WithValue(ctx, config.CtxTokenValue, tokenValue))
+	if err != nil {
+		return 0, err
+	}
+
+	return mgr.GetDisableTime(ctx, loginID)
 }
 
 // ============ Session Management | Session管理 ============
@@ -319,6 +375,23 @@ func SetPermissions(ctx context.Context, loginID interface{}, permissions []stri
 	}
 }
 
+// SetPermissionsByToken sets permissions by token | 根据 Token 设置对应账号的权限
+func SetPermissionsByToken(ctx context.Context, tokenValue string, permissions []string, authType ...string) error {
+	mgr, err := GetManager(authType...)
+	if err != nil {
+		return err
+	}
+
+	loginID, err := mgr.GetLoginIDNotCheck(
+		context.WithValue(ctx, config.CtxTokenValue, tokenValue),
+	)
+	if err != nil {
+		return err
+	}
+
+	return mgr.SetPermissions(ctx, loginID, permissions)
+}
+
 // RemovePermissions removes specified permissions for a login ID | 删除用户指定权限
 func RemovePermissions(ctx context.Context, loginID interface{}, permissions []string, authType ...string) error {
 	mgr, err := GetManager(authType...)
@@ -331,6 +404,23 @@ func RemovePermissions(ctx context.Context, loginID interface{}, permissions []s
 	} else {
 		return mgr.RemovePermissions(ctx, id, permissions)
 	}
+}
+
+// RemovePermissionsByToken removes specified permissions by token | 根据 Token 删除对应账号的指定权限
+func RemovePermissionsByToken(ctx context.Context, tokenValue string, permissions []string, authType ...string) error {
+	mgr, err := GetManager(authType...)
+	if err != nil {
+		return err
+	}
+
+	loginID, err := mgr.GetLoginIDNotCheck(
+		context.WithValue(ctx, config.CtxTokenValue, tokenValue),
+	)
+	if err != nil {
+		return err
+	}
+
+	return mgr.RemovePermissions(ctx, loginID, permissions)
 }
 
 // GetPermissions gets permission list | 获取权限列表
@@ -347,6 +437,23 @@ func GetPermissions(ctx context.Context, loginID interface{}, authType ...string
 	}
 }
 
+// GetPermissionsByToken gets permission list by token | 根据 Token 获取对应账号的权限列表
+func GetPermissionsByToken(ctx context.Context, tokenValue string, authType ...string) ([]string, error) {
+	mgr, err := GetManager(authType...)
+	if err != nil {
+		return nil, err
+	}
+
+	loginID, err := mgr.GetLoginIDNotCheck(
+		context.WithValue(ctx, config.CtxTokenValue, tokenValue),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return mgr.GetPermissions(ctx, loginID)
+}
+
 // HasPermission checks if has specified permission | 检查是否拥有指定权限
 func HasPermission(ctx context.Context, loginID interface{}, permissions string, authType ...string) bool {
 	mgr, err := GetManager(authType...)
@@ -359,6 +466,21 @@ func HasPermission(ctx context.Context, loginID interface{}, permissions string,
 	} else {
 		return mgr.HasPermission(ctx, id, permissions)
 	}
+}
+
+// HasPermissionByToken checks if the token has the specified permission | 检查Token是否拥有指定权限
+func HasPermissionByToken(ctx context.Context, tokenValue string, permission string, authType ...string) bool {
+	mgr, err := GetManager(authType...)
+	if err != nil {
+		return false
+	}
+
+	loginID, err := mgr.GetLoginIDNotCheck(context.WithValue(ctx, config.CtxTokenValue, tokenValue))
+	if err != nil {
+		return false
+	}
+
+	return mgr.HasPermission(ctx, loginID, permission)
 }
 
 // HasPermissionsAnd checks if has all permissions (AND logic) | 检查是否拥有所有权限（AND逻辑）
@@ -375,6 +497,21 @@ func HasPermissionsAnd(ctx context.Context, loginID interface{}, permissions []s
 	}
 }
 
+// HasPermissionsAndByToken checks if the token has all specified permissions | 检查Token是否拥有所有指定权限
+func HasPermissionsAndByToken(ctx context.Context, tokenValue string, permissions []string, authType ...string) bool {
+	mgr, err := GetManager(authType...)
+	if err != nil {
+		return false
+	}
+
+	loginID, err := mgr.GetLoginIDNotCheck(context.WithValue(ctx, config.CtxTokenValue, tokenValue))
+	if err != nil {
+		return false
+	}
+
+	return mgr.HasPermissionsAnd(ctx, loginID, permissions)
+}
+
 // HasPermissionsOr checks if has any permission (OR logic) | 检查是否拥有任一权限（OR逻辑）
 func HasPermissionsOr(ctx context.Context, loginID interface{}, permissions []string, authType ...string) bool {
 	mgr, err := GetManager(authType...)
@@ -387,6 +524,21 @@ func HasPermissionsOr(ctx context.Context, loginID interface{}, permissions []st
 	} else {
 		return mgr.HasPermissionsOr(ctx, id, permissions)
 	}
+}
+
+// HasPermissionsOrByToken checks if the token has any of the specified permissions | 检查Token是否拥有任一指定权限
+func HasPermissionsOrByToken(ctx context.Context, tokenValue string, permissions []string, authType ...string) bool {
+	mgr, err := GetManager(authType...)
+	if err != nil {
+		return false
+	}
+
+	loginID, err := mgr.GetLoginIDNotCheck(context.WithValue(ctx, config.CtxTokenValue, tokenValue))
+	if err != nil {
+		return false
+	}
+
+	return mgr.HasPermissionsOr(ctx, loginID, permissions)
 }
 
 // ============ Role Management | 角色管理 ============
@@ -405,6 +557,23 @@ func SetRoles(ctx context.Context, loginID interface{}, roles []string, authType
 	}
 }
 
+// SetRolesByToken sets roles by token | 根据 Token 设置对应账号的角色
+func SetRolesByToken(ctx context.Context, tokenValue string, roles []string, authType ...string) error {
+	mgr, err := GetManager(authType...)
+	if err != nil {
+		return err
+	}
+
+	loginID, err := mgr.GetLoginIDNotCheck(
+		context.WithValue(ctx, config.CtxTokenValue, tokenValue),
+	)
+	if err != nil {
+		return err
+	}
+
+	return mgr.SetRoles(ctx, loginID, roles)
+}
+
 // RemoveRoles removes specified roles for a login ID | 删除用户指定角色
 func RemoveRoles(ctx context.Context, loginID interface{}, roles []string, authType ...string) error {
 	mgr, err := GetManager(authType...)
@@ -417,6 +586,23 @@ func RemoveRoles(ctx context.Context, loginID interface{}, roles []string, authT
 	} else {
 		return mgr.RemoveRoles(ctx, id, roles)
 	}
+}
+
+// RemoveRolesByToken removes specified roles by token | 根据 Token 删除对应账号的指定角色
+func RemoveRolesByToken(ctx context.Context, tokenValue string, roles []string, authType ...string) error {
+	mgr, err := GetManager(authType...)
+	if err != nil {
+		return err
+	}
+
+	loginID, err := mgr.GetLoginIDNotCheck(
+		context.WithValue(ctx, config.CtxTokenValue, tokenValue),
+	)
+	if err != nil {
+		return err
+	}
+
+	return mgr.RemoveRoles(ctx, loginID, roles)
 }
 
 // GetRoles gets role list | 获取角色列表
@@ -433,6 +619,23 @@ func GetRoles(ctx context.Context, loginID interface{}, authType ...string) ([]s
 	}
 }
 
+// GetRolesByToken gets role list by token | 根据 Token 获取对应账号的角色列表
+func GetRolesByToken(ctx context.Context, tokenValue string, authType ...string) ([]string, error) {
+	mgr, err := GetManager(authType...)
+	if err != nil {
+		return nil, err
+	}
+
+	loginID, err := mgr.GetLoginIDNotCheck(
+		context.WithValue(ctx, config.CtxTokenValue, tokenValue),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return mgr.GetRoles(ctx, loginID)
+}
+
 // HasRole checks if has specified role | 检查是否拥有指定角色
 func HasRole(ctx context.Context, loginID interface{}, role string, authType ...string) bool {
 	mgr, err := GetManager(authType...)
@@ -445,6 +648,23 @@ func HasRole(ctx context.Context, loginID interface{}, role string, authType ...
 	} else {
 		return mgr.HasRole(ctx, id, role)
 	}
+}
+
+// HasRoleByToken checks if the token has the specified role | 检查 Token 是否拥有指定角色
+func HasRoleByToken(ctx context.Context, tokenValue string, role string, authType ...string) bool {
+	mgr, err := GetManager(authType...)
+	if err != nil {
+		return false
+	}
+
+	loginID, err := mgr.GetLoginIDNotCheck(
+		context.WithValue(ctx, config.CtxTokenValue, tokenValue),
+	)
+	if err != nil {
+		return false
+	}
+
+	return mgr.HasRole(ctx, loginID, role)
 }
 
 // HasRolesAnd checks if has all roles (AND logic) | 检查是否拥有所有角色（AND逻辑）
@@ -461,6 +681,23 @@ func HasRolesAnd(ctx context.Context, loginID interface{}, roles []string, authT
 	}
 }
 
+// HasRolesAndByToken checks if the token has all specified roles | 检查 Token 是否拥有所有指定角色
+func HasRolesAndByToken(ctx context.Context, tokenValue string, roles []string, authType ...string) bool {
+	mgr, err := GetManager(authType...)
+	if err != nil {
+		return false
+	}
+
+	loginID, err := mgr.GetLoginIDNotCheck(
+		context.WithValue(ctx, config.CtxTokenValue, tokenValue),
+	)
+	if err != nil {
+		return false
+	}
+
+	return mgr.HasRolesAnd(ctx, loginID, roles)
+}
+
 // HasRolesOr 检查是否拥有任一角色（OR）
 func HasRolesOr(ctx context.Context, loginID interface{}, roles []string, authType ...string) bool {
 	mgr, err := GetManager(authType...)
@@ -473,6 +710,23 @@ func HasRolesOr(ctx context.Context, loginID interface{}, roles []string, authTy
 	} else {
 		return mgr.HasRolesOr(ctx, id, roles)
 	}
+}
+
+// HasRolesOrByToken checks if the token has any of the specified roles | 检查 Token 是否拥有任一指定角色
+func HasRolesOrByToken(ctx context.Context, tokenValue string, roles []string, authType ...string) bool {
+	mgr, err := GetManager(authType...)
+	if err != nil {
+		return false
+	}
+
+	loginID, err := mgr.GetLoginIDNotCheck(
+		context.WithValue(ctx, config.CtxTokenValue, tokenValue),
+	)
+	if err != nil {
+		return false
+	}
+
+	return mgr.HasRolesOr(ctx, loginID, roles)
 }
 
 // ============ Token标签 ============
@@ -812,121 +1066,120 @@ func GetOAuth2Server(ctx context.Context, authType ...string) *oauth2.OAuth2Serv
 // ============ Check Functions for Token-based operations | 基于Token的检查函数 ============
 
 // CheckDisable checks if the account associated with the token is disabled | 检查Token对应账号是否被封禁
-func CheckDisable(tokenValue string) error {
-	loginID, err := GetLoginID(tokenValue)
-	if err != nil {
-		return err
-	}
-	if IsDisable(loginID) {
-		return fmt.Errorf("account is disabled")
-	}
-	return nil
-}
+//func CheckDisable(ctx context.Context, tokenValue string, authType ...string) error {
+//	loginID, err := GetLoginID(tokenValue)
+//	if err != nil {
+//		return err
+//	}
+//	if IsDisable(loginID) {
+//		return fmt.Errorf("account is disabled")
+//	}
+//	return nil
+//}
 
 // CheckPermission checks if the token has the specified permission | 检查Token是否拥有指定权限
-func CheckPermission(tokenValue string, permission string) error {
-	loginID, err := GetLoginID(tokenValue)
-	if err != nil {
-		return err
-	}
-	if !HasPermission(loginID, permission) {
-		return fmt.Errorf("permission denied: %s", permission)
-	}
-	return nil
-}
+//func CheckPermission(tokenValue string, permission string) error {
+//	loginID, err := GetLoginID(tokenValue)
+//	if err != nil {
+//		return err
+//	}
+//	if !HasPermission(loginID, permission) {
+//		return fmt.Errorf("permission denied: %s", permission)
+//	}
+//	return nil
+//}
 
 // CheckPermissionAnd checks if the token has all specified permissions | 检查Token是否拥有所有指定权限
-func CheckPermissionAnd(tokenValue string, permissions []string) error {
-	loginID, err := GetLoginID(tokenValue)
-	if err != nil {
-		return err
-	}
-	if !HasPermissionsAnd(loginID, permissions) {
-		return fmt.Errorf("permission denied: %v", permissions)
-	}
-	return nil
-}
+//func CheckPermissionAnd(tokenValue string, permissions []string) error {
+//	loginID, err := GetLoginID(tokenValue)
+//	if err != nil {
+//		return err
+//	}
+//	if !HasPermissionsAnd(loginID, permissions) {
+//		return fmt.Errorf("permission denied: %v", permissions)
+//	}
+//	return nil
+//}
 
 // CheckPermissionOr checks if the token has any of the specified permissions | 检查Token是否拥有任一指定权限
-func CheckPermissionOr(tokenValue string, permissions []string) error {
-	loginID, err := GetLoginID(tokenValue)
-	if err != nil {
-		return err
-	}
-	if !HasPermissionsOr(loginID, permissions) {
-		return fmt.Errorf("permission denied: %v", permissions)
-	}
-	return nil
-}
+//func CheckPermissionOr(tokenValue string, permissions []string) error {
+//	loginID, err := GetLoginID(tokenValue)
+//	if err != nil {
+//		return err
+//	}
+//	if !HasPermissionsOr(loginID, permissions) {
+//		return fmt.Errorf("permission denied: %v", permissions)
+//	}
+//	return nil
+//}
 
 // GetPermissionList gets permission list for the token | 获取Token对应的权限列表
-func GetPermissionList(tokenValue string) ([]string, error) {
-	loginID, err := GetLoginID(tokenValue)
-	if err != nil {
-		return nil, err
-	}
-	return GetPermissions(loginID)
-}
+//func GetPermissionList(tokenValue string) ([]string, error) {
+//	loginID, err := GetLoginID(tokenValue)
+//	if err != nil {
+//		return nil, err
+//	}
+//	return GetPermissions(loginID)
+//}
 
 // CheckRole checks if the token has the specified role | 检查Token是否拥有指定角色
-func CheckRole(tokenValue string, role string) error {
-	loginID, err := GetLoginID(tokenValue)
-	if err != nil {
-		return err
-	}
-	if !HasRole(loginID, role) {
-		return fmt.Errorf("role denied: %s", role)
-	}
-	return nil
-}
+//func CheckRole(tokenValue string, role string) error {
+//	loginID, err := GetLoginID(tokenValue)
+//	if err != nil {
+//		return err
+//	}
+//	if !HasRole(loginID, role) {
+//		return fmt.Errorf("role denied: %s", role)
+//	}
+//	return nil
+//}
 
 // CheckRoleAnd checks if the token has all specified roles | 检查Token是否拥有所有指定角色
-func CheckRoleAnd(tokenValue string, roles []string) error {
-	loginID, err := GetLoginID(tokenValue)
-	if err != nil {
-		return err
-	}
-	if !HasRolesAnd(loginID, roles) {
-		return fmt.Errorf("role denied: %v", roles)
-	}
-	return nil
-}
+//func CheckRoleAnd(tokenValue string, roles []string) error {
+//	loginID, err := GetLoginID(tokenValue)
+//	if err != nil {
+//		return err
+//	}
+//	if !HasRolesAnd(loginID, roles) {
+//		return fmt.Errorf("role denied: %v", roles)
+//	}
+//	return nil
+//}
 
 // CheckRoleOr checks if the token has any of the specified roles | 检查Token是否拥有任一指定角色
-func CheckRoleOr(tokenValue string, roles []string) error {
-	loginID, err := GetLoginID(tokenValue)
-	if err != nil {
-		return err
-	}
-	if !HasRolesOr(loginID, roles) {
-		return fmt.Errorf("role denied: %v", roles)
-	}
-	return nil
-}
+//func CheckRoleOr(tokenValue string, roles []string) error {
+//	loginID, err := GetLoginID(tokenValue)
+//	if err != nil {
+//		return err
+//	}
+//	if !HasRolesOr(loginID, roles) {
+//		return fmt.Errorf("role denied: %v", roles)
+//	}
+//	return nil
+//}
 
 // GetRoleList gets role list for the token | 获取Token对应的角色列表
-func GetRoleList(tokenValue string) ([]string, error) {
-	loginID, err := GetLoginID(tokenValue)
-	if err != nil {
-		return nil, err
-	}
-	return GetRoles(loginID)
-}
+//func GetRoleList(tokenValue string) ([]string, error) {
+//	loginID, err := GetLoginID(tokenValue)
+//	if err != nil {
+//		return nil, err
+//	}
+//	return GetRoles(loginID)
+//}
 
 // GetTokenSession gets session for the token | 获取Token对应的Session
-func GetTokenSession(tokenValue string) (*session.Session, error) {
-	return GetSessionByToken(tokenValue)
-}
+//func GetTokenSession(tokenValue string) (*session.Session, error) {
+//	return GetSessionByToken(tokenValue)
+//}
 
 // ============ Internal Helper Methods | 内部辅助方法 ============
 
 // SetManager stores the manager in the global map using the specified autoType | 使用指定的 autoType 将管理器存储在全局 map 中
-func SetManager(mgr *manager.Manager) error {
+func SetManager(mgr *manager.Manager) {
 	// Validate and get the autoType value | 验证并获取 autoType 值
 	validAutoType := getAutoType(mgr.GetConfig().AuthType) // 获取 autoType，默认为 config.DefaultAuthType
 	// Store the manager in the global map with the valid autoType | 使用有效的 autoType 将管理器存储在全局 map 中
 	globalManagerMap.Store(validAutoType, mgr)
-	return nil
 }
 
 // GetManager retrieves the manager from the global map using the specified autoType | 使用指定的 autoType 从全局 map 中获取管理器
@@ -938,9 +1191,9 @@ func GetManager(autoType ...string) (*manager.Manager, error) {
 }
 
 // DeleteManager delete the specific manager for the given autoType and releases resources | 删除指定的管理器并释放资源
-func DeleteManager(autoType string) error {
+func DeleteManager(autoType ...string) error {
 	// Validate and get the autoType value | 验证并获取 autoType 值
-	validAutoType := getAutoType(autoType) // 获取 autoType，默认为 config.DefaultAuthType
+	validAutoType := getAutoType(autoType...) // 获取 autoType，默认为 config.DefaultAuthType
 	// Load the manager from global map | 从全局 map 中加载管理器
 	mgr, err := loadManager(validAutoType)
 	if err != nil {

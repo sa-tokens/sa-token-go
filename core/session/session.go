@@ -5,7 +5,6 @@ import (
 	"fmt"
 	codec_json "github.com/click33/sa-token-go/codec/json"
 	"github.com/click33/sa-token-go/core/manager"
-	"github.com/click33/sa-token-go/core/serror"
 	"github.com/click33/sa-token-go/core/utils"
 	"github.com/click33/sa-token-go/storage/memory"
 	"sync"
@@ -222,7 +221,7 @@ func (s *Session) getStorageKey() string {
 func (s *Session) save(ttl ...time.Duration) error {
 	data, err := s.serializer.Encode(s)
 	if err != nil {
-		return fmt.Errorf("%w: %v", serror.ErrCommonEncode, err)
+		return fmt.Errorf("%w: %v", fmt.Errorf("failed to encode data"), err)
 	}
 
 	key := s.getStorageKey()
@@ -240,7 +239,7 @@ func (s *Session) save(ttl ...time.Duration) error {
 func (s *Session) saveKeepTTL() error {
 	data, err := s.serializer.Encode(s)
 	if err != nil {
-		return fmt.Errorf("%w: %v", serror.ErrCommonEncode, err)
+		return fmt.Errorf("%w: %v", fmt.Errorf("failed to encode data"), err)
 	}
 
 	key := s.getStorageKey()
@@ -282,7 +281,7 @@ func Load(_ context.Context, id string, m *manager.Manager) (*Session, error) {
 
 	var session Session
 	if err = m.GetCodec().Decode(raw, &session); err != nil {
-		return nil, fmt.Errorf("%w: %v", serror.ErrCommonDecode, err)
+		return nil, fmt.Errorf("%w: %v", fmt.Errorf("failed to decode data"), err)
 	}
 
 	session.storage = m.GetStorage()

@@ -5,11 +5,9 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/click33/sa-token-go/core"
 	"github.com/click33/sa-token-go/core/config"
 )
-
-// Version version number | 版本号 (此配置项需与satoken中的同步)
-const Version = "0.1.3"
 
 // Banner startup banner | 启动横幅
 const Banner = `
@@ -33,7 +31,7 @@ const (
 
 // Print prints startup banner | 打印启动横幅
 func Print() {
-	fmt.Printf(Banner, Version)
+	fmt.Printf(Banner, core.Version)
 	fmt.Printf(":: Go Version ::                                 %s\n", runtime.Version())
 	fmt.Printf(":: GOOS/GOARCH ::                                %s/%s\n", runtime.GOOS, runtime.GOARCH)
 	fmt.Println()

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	codec_json "github.com/click33/sa-token-go/codec/json"
 	"github.com/click33/sa-token-go/core/adapter"
-	"github.com/click33/sa-token-go/core/serror"
 	"github.com/click33/sa-token-go/generator/sgenerator"
 	"github.com/click33/sa-token-go/storage/memory"
 	"time"
@@ -88,7 +87,7 @@ func NewRefreshTokenManager(
 // GenerateTokenPair Create access + refresh token | 生成访问令牌和刷新令牌
 func (rtm *RefreshTokenManager) GenerateTokenPair(loginID, device string) (*RefreshTokenInfo, error) {
 	if loginID == "" {
-		return nil, serror.ErrInvalidLoginIDEmpty
+		return nil, ErrInvalidLoginIDEmpty
 	}
 
 	// Generate access token | 生成访问令牌
@@ -121,13 +120,13 @@ func (rtm *RefreshTokenManager) GenerateTokenPair(loginID, device string) (*Refr
 		Device:  device,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", serror.ErrCommonEncode, err)
+		return nil, fmt.Errorf("%w: %v", fmt.Errorf("failed to encode data"), err)
 	}
 
 	// Encode refresh token info | 编码刷新令牌信息
 	refreshData, err := rtm.serializer.Encode(info)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", serror.ErrCommonEncode, err)
+		return nil, fmt.Errorf("%w: %v", fmt.Errorf("failed to encode data"), err)
 	}
 
 	// Store access token | 存储访问令牌
@@ -179,7 +178,7 @@ func (rtm *RefreshTokenManager) VerifyAccessTokenAndGetInfo(accessToken string) 
 // RefreshAccessToken Refresh access token by refresh token | 使用刷新令牌刷新访问令牌
 func (rtm *RefreshTokenManager) RefreshAccessToken(refreshToken string) (*RefreshTokenInfo, error) {
 	if refreshToken == "" {
-		return nil, serror.ErrInvalidRefreshToken
+		return nil, ErrInvalidRefreshToken
 	}
 
 	refreshKey := rtm.getRefreshKey(refreshToken)
@@ -187,7 +186,7 @@ func (rtm *RefreshTokenManager) RefreshAccessToken(refreshToken string) (*Refres
 	// Load refresh token | 读取刷新令牌
 	data, err := rtm.storage.Get(refreshKey)
 	if err != nil || data == nil {
-		return nil, serror.ErrInvalidRefreshToken
+		return nil, ErrInvalidRefreshToken
 	}
 	bytes, err := utils.ToBytes(data)
 	if err != nil {
@@ -202,7 +201,7 @@ func (rtm *RefreshTokenManager) RefreshAccessToken(refreshToken string) (*Refres
 	// Check expiration | 检查过期
 	if time.Now().Unix() > info.ExpireTime {
 		_ = rtm.storage.Delete(refreshKey)
-		return nil, serror.ErrRefreshTokenExpired
+		return nil, ErrRefreshTokenExpired
 	}
 
 	// Remove old access token | 删除旧访问令牌
@@ -223,7 +222,7 @@ func (rtm *RefreshTokenManager) RefreshAccessToken(refreshToken string) (*Refres
 		Device:  info.Device,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", serror.ErrCommonEncode, err)
+		return nil, fmt.Errorf("%w: %v", fmt.Errorf("failed to encode data"), err)
 	}
 	if err := rtm.storage.Set(
 		rtm.getTokenKey(newAccessToken),
@@ -236,7 +235,7 @@ func (rtm *RefreshTokenManager) RefreshAccessToken(refreshToken string) (*Refres
 	// Update refresh token without extending TTL | 更新刷新令牌但不续期
 	refreshData, err := rtm.serializer.Encode(&info)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", serror.ErrCommonEncode, err)
+		return nil, fmt.Errorf("%w: %v", fmt.Errorf("failed to encode data"), err)
 	}
 	if err = rtm.storage.SetKeepTTL(refreshKey, refreshData); err != nil {
 		return nil, err
@@ -248,7 +247,7 @@ func (rtm *RefreshTokenManager) RefreshAccessToken(refreshToken string) (*Refres
 // GetRefreshTokenInfo Get refresh token info by token | 根据刷新令牌获取刷新令牌信息
 func (rtm *RefreshTokenManager) GetRefreshTokenInfo(refreshToken string) (*RefreshTokenInfo, error) {
 	if refreshToken == "" {
-		return nil, serror.ErrInvalidRefreshToken
+		return nil, ErrInvalidRefreshToken
 	}
 
 	refreshKey := rtm.getRefreshKey(refreshToken)
@@ -256,7 +255,7 @@ func (rtm *RefreshTokenManager) GetRefreshTokenInfo(refreshToken string) (*Refre
 	// Load refresh token | 读取刷新令牌
 	data, err := rtm.storage.Get(refreshKey)
 	if err != nil || data == nil {
-		return nil, serror.ErrInvalidRefreshToken
+		return nil, ErrInvalidRefreshToken
 	}
 
 	bytes, err := utils.ToBytes(data)
@@ -266,7 +265,7 @@ func (rtm *RefreshTokenManager) GetRefreshTokenInfo(refreshToken string) (*Refre
 
 	var info RefreshTokenInfo
 	if err = rtm.serializer.Decode(bytes, &info); err != nil {
-		return nil, fmt.Errorf("%w: %v", serror.ErrCommonDecode, err)
+		return nil, fmt.Errorf("%w: %v", fmt.Errorf("failed to decode data"), err)
 	}
 
 	return &info, nil

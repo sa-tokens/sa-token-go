@@ -1,7 +1,10 @@
 // @Author daixk 2025/12/11 22:20:00
 package security
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 // Constants for nonce | Nonce常量
 const (
@@ -16,4 +19,12 @@ const (
 	DefaultAccessTTL   = 2 * time.Hour       // 2 hours | 2小时
 	RefreshTokenLength = 32                  // Refresh token byte length | 刷新令牌字节长度
 	RefreshKeySuffix   = "refresh:"          // Key suffix after prefix | 前缀后的键后缀
+)
+
+var (
+	ErrInvalidNonce        = fmt.Errorf("invalid or expired nonce") // invalid or expired nonce | Nonce 无效或已过期
+	ErrInvalidLoginIDEmpty = fmt.Errorf("loginID cannot be empty")  // loginID is empty | 登录ID不能为空
+
+	ErrRefreshTokenExpired = fmt.Errorf("refresh token expired") // refresh token expired | 刷新令牌已过期
+	ErrInvalidRefreshToken = fmt.Errorf("invalid refresh token") // invalid refresh token | 刷新令牌无效
 )

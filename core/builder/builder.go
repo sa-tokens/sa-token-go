@@ -5,6 +5,7 @@ import (
 	codec_json "github.com/click33/sa-token-go/codec/json"
 	"github.com/click33/sa-token-go/generator/sgenerator"
 	"github.com/click33/sa-token-go/log/nop"
+	"github.com/click33/sa-token-go/log/slog"
 	"github.com/click33/sa-token-go/pool/ants"
 	"strings"
 	"time"
@@ -484,6 +485,12 @@ func (b *Builder) SetLog(log adapter.Log) *Builder {
 	return b
 }
 
+// SetPool sets the goroutine pool for async task execution | 设置用于异步任务执行的协程池
+func (b *Builder) SetPool(pool adapter.Pool) *Builder {
+	b.pool = pool
+	return b
+}
+
 // SetCustomPermissionListFunc sets the custom permission provider | 设置自定义权限获取函数
 func (b *Builder) SetCustomPermissionListFunc(f func(ctx context.Context, loginID string) ([]string, error)) *Builder {
 	b.customPermissionListFunc = f
@@ -530,6 +537,10 @@ func (b *Builder) Clone() *Builder {
 
 // Build builds Manager and prints startup banner | 构建Manager并打印启动Banner
 func (b *Builder) Build() *manager.Manager {
+	if b.cookieConfig == nil {
+		b.cookieConfig = config.DefaultCookieConfig()
+	}
+
 	// 初始化config
 	cfg := &config.Config{
 		TokenName:              b.tokenName,
@@ -572,25 +583,24 @@ func (b *Builder) Build() *manager.Manager {
 	if b.codec == nil {
 		b.codec = codec_json.NewJSONSerializer()
 	}
-	// 如果log为nil，则初始化默认log
-	if b.log == nil {
+
+	// 日志
+	if b.isLog {
+		if b.logConfig == nil {
+			b.logConfig = config.DefaultLoggerConfig()
+		}
+		b.log, err = slog.NewLoggerWithConfig(b.logConfig)
+		if err != nil {
+			panic("Invalid LoggerConfig: " + err.Error())
+		}
+	} else {
 		b.log = nop.NewNopLogger()
 	}
-	// 如果pool为nil，则初始化默认pool
+
+	// 续期池
 	if b.autoRenew && b.pool == nil {
 		if b.renewPoolConfig == nil {
-			// 初始化RenewPoolConfig
-			b.renewPoolConfig = &config.RenewPoolConfig{
-				MinSize:             b.renewPoolConfig.MinSize,
-				MaxSize:             b.renewPoolConfig.MaxSize,
-				ScaleUpRate:         b.renewPoolConfig.ScaleUpRate,
-				ScaleDownRate:       b.renewPoolConfig.ScaleDownRate,
-				CheckInterval:       b.renewPoolConfig.CheckInterval,
-				Expiry:              b.renewPoolConfig.Expiry,
-				PrintStatusInterval: b.renewPoolConfig.PrintStatusInterval,
-				PreAlloc:            b.renewPoolConfig.PreAlloc,
-				NonBlocking:         b.renewPoolConfig.NonBlocking,
-			}
+			b.renewPoolConfig = config.DefaultRenewPoolConfig()
 		}
 		// Validate configuration | 验证配置
 		err = b.renewPoolConfig.Validate()

@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"github.com/click33/sa-token-go/core/config"
-	"github.com/click33/sa-token-go/core/serror"
 	"github.com/click33/sa-token-go/core/utils"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
@@ -132,7 +131,7 @@ func (g *Generator) ParseJWT(tokenStr string) (jwt.MapClaims, error) {
 	token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (any, error) {
 		// Verify signing method | 验证签名方法
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("%w: %v", serror.ErrUnexpectedSigningMethod, token.Header["alg"])
+			return nil, fmt.Errorf("%w: %v", fmt.Errorf("unexpected signing method"), token.Header["alg"])
 		}
 		return []byte(secretKey), nil
 	})
@@ -145,7 +144,7 @@ func (g *Generator) ParseJWT(tokenStr string) (jwt.MapClaims, error) {
 		return claims, nil
 	}
 
-	return nil, serror.ErrInvalidToken
+	return nil, fmt.Errorf("invalid token")
 }
 
 // ValidateJWT Validates JWT token | 验证JWT Token
