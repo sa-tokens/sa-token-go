@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"github.com/click33/sa-token-go/core/adapter"
-	"github.com/click33/sa-token-go/core/serror"
 	"github.com/click33/sa-token-go/storage/memory"
 	"sync"
 	"time"
@@ -88,7 +87,7 @@ func (nm *NonceManager) Verify(nonce string) bool {
 // VerifyAndConsume Verifies and consumes nonce, returns error if invalid | 验证并消费nonce，无效时返回错误
 func (nm *NonceManager) VerifyAndConsume(nonce string) error {
 	if !nm.Verify(nonce) {
-		return serror.ErrInvalidNonce // Invalid nonce error | 无效nonce错误
+		return ErrInvalidNonce // Invalid nonce error | 无效nonce错误
 	}
 	return nil
 }

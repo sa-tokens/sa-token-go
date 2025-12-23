@@ -6,7 +6,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"github.com/click33/sa-token-go/core/config"
 	"github.com/click33/sa-token-go/core/utils"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
@@ -16,16 +15,26 @@ import (
 
 // Generator Token generator | Token生成器
 type Generator struct {
-	config *config.Config
+	timeout      int64
+	tokenStyle   TokenStyle
+	jwtSecretKey string
 }
 
 // NewGenerator Creates a new token generator | 创建新的Token生成器
-func NewGenerator(cfg *config.Config) *Generator {
-	if cfg == nil {
-		cfg = config.DefaultConfig()
-	}
+func NewGenerator(timeout int64, tokenStyle TokenStyle, jwtSecretKey string) *Generator {
 	return &Generator{
-		config: cfg,
+		timeout:      timeout,
+		tokenStyle:   tokenStyle,
+		jwtSecretKey: jwtSecretKey,
+	}
+}
+
+// NewDefaultGenerator Creates a new token generator | 创建新的默认的Token生成器
+func NewDefaultGenerator() *Generator {
+	return &Generator{
+		timeout:      DefaultTimeout,
+		tokenStyle:   TokenStyleUUID,
+		jwtSecretKey: TikCharset,
 	}
 }
 
@@ -37,24 +46,24 @@ func (g *Generator) Generate(loginID string, device string) (string, error) {
 		return "", fmt.Errorf("loginID cannot be empty")
 	}
 
-	switch g.config.TokenStyle {
-	case config.TokenStyleUUID:
+	switch g.tokenStyle {
+	case TokenStyleUUID:
 		return g.generateUUID()
-	case config.TokenStyleSimple:
-		return g.generateSimple(config.DefaultSimpleLength)
-	case config.TokenStyleRandom32:
+	case TokenStyleSimple:
+		return g.generateSimple(DefaultSimpleLength)
+	case TokenStyleRandom32:
 		return g.generateSimple(32)
-	case config.TokenStyleRandom64:
+	case TokenStyleRandom64:
 		return g.generateSimple(64)
-	case config.TokenStyleRandom128:
+	case TokenStyleRandom128:
 		return g.generateSimple(128)
-	case config.TokenStyleJWT:
+	case TokenStyleJWT:
 		return g.generateJWT(loginID, device)
-	case config.TokenStyleHash:
+	case TokenStyleHash:
 		return g.generateHash(loginID, device)
-	case config.TokenStyleTimestamp:
+	case TokenStyleTimestamp:
 		return g.generateTimestamp(loginID, device)
-	case config.TokenStyleTik:
+	case TokenStyleTik:
 		return g.generateTik()
 	default:
 		return g.generateUUID()
@@ -75,7 +84,7 @@ func (g *Generator) generateUUID() (string, error) {
 // generateSimple Generates simple random string token | 生成简单随机字符串Token
 func (g *Generator) generateSimple(length int) (string, error) {
 	if length <= 0 {
-		length = config.DefaultSimpleLength
+		length = DefaultSimpleLength
 	}
 
 	token := utils.RandomString(length)
@@ -95,8 +104,8 @@ func (g *Generator) generateJWT(loginID string, device string) (string, error) {
 	}
 
 	// Add expiration if timeout is configured | 如果配置了超时时间则添加过期时间
-	if g.config.Timeout > 0 {
-		claims["exp"] = now.Add(time.Duration(g.config.Timeout) * time.Second).Unix()
+	if g.timeout > 0 {
+		claims["exp"] = now.Add(time.Duration(g.timeout) * time.Second).Unix()
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
@@ -112,10 +121,10 @@ func (g *Generator) generateJWT(loginID string, device string) (string, error) {
 
 // getJWTSecret Gets JWT secret key with fallback | 获取JWT密钥（带默认值）
 func (g *Generator) getJWTSecret() string {
-	if g.config.JwtSecretKey != "" {
-		return g.config.JwtSecretKey
+	if g.jwtSecretKey != "" {
+		return g.jwtSecretKey
 	}
-	return config.DefaultJWTSecret
+	return DefaultJWTSecret
 }
 
 // ============ JWT Helper Methods | JWT辅助方法 ============
@@ -171,7 +180,7 @@ func (g *Generator) GetLoginIDFromJWT(tokenStr string) (string, error) {
 // generateHash Generates SHA256 hash-based token | 生成SHA256哈希风格Token
 func (g *Generator) generateHash(loginID string, device string) (string, error) {
 	// Combine loginID, device, timestamp and random bytes | 组合 loginID、device、时间戳和随机字节
-	randomBytes := make([]byte, config.HashRandomBytesLen)
+	randomBytes := make([]byte, HashRandomBytesLen)
 	if _, err := rand.Read(randomBytes); err != nil {
 		return "", fmt.Errorf("failed to generate random bytes: %w", err)
 	}
@@ -190,7 +199,7 @@ func (g *Generator) generateHash(loginID string, device string) (string, error) 
 // generateTimestamp Generates timestamp-based token | 生成时间戳风格Token
 func (g *Generator) generateTimestamp(loginID string, device string) (string, error) {
 	// Format: timestamp_loginID_random | 格式：时间戳_loginID_随机数
-	randomBytes := make([]byte, config.TimestampRandomLen)
+	randomBytes := make([]byte, TimestampRandomLen)
 	if _, err := rand.Read(randomBytes); err != nil {
 		return "", fmt.Errorf("failed to generate random bytes: %w", err)
 	}
@@ -202,15 +211,15 @@ func (g *Generator) generateTimestamp(loginID string, device string) (string, er
 
 // generateTik Generates short ID style token (like TikTok) | 生成Tik风格短ID Token（类似抖音）
 func (g *Generator) generateTik() (string, error) {
-	result := make([]byte, config.TikTokenLength)
-	charsetLen := int64(len(config.TikCharset))
+	result := make([]byte, TikTokenLength)
+	charsetLen := int64(len(TikCharset))
 
 	for i := range result {
 		num, err := rand.Int(rand.Reader, big.NewInt(charsetLen))
 		if err != nil {
 			return "", fmt.Errorf("failed to generate random number: %w", err)
 		}
-		result[i] = config.TikCharset[num.Int64()]
+		result[i] = TikCharset[num.Int64()]
 	}
 
 	return string(result), nil

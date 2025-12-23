@@ -4,7 +4,6 @@ package slog
 import (
 	"bytes"
 	"fmt"
-	"github.com/click33/sa-token-go/core/config"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -20,8 +19,8 @@ import (
 type Logger struct {
 
 	// ---- Config & State ----
-	cfg   *config.LoggerConfig // Logger configuration | 日志配置
-	cfgMu sync.RWMutex         // Config lock | 配置锁
+	cfg   *LoggerConfig // Logger configuration | 日志配置
+	cfgMu sync.RWMutex  // Config lock | 配置锁
 
 	// ---- File IO ----
 	fileMu     sync.Mutex // File write lock | 文件写锁
@@ -47,7 +46,7 @@ type Logger struct {
 }
 
 // NewLoggerWithConfig creates a logger instance | 使用配置创建日志器
-func NewLoggerWithConfig(cfg *config.LoggerConfig) (*Logger, error) {
+func NewLoggerWithConfig(cfg *LoggerConfig) (*Logger, error) {
 	newCfg, err := prepareConfig(cfg)
 	if err != nil {
 		return nil, err
@@ -71,7 +70,7 @@ func NewLoggerWithConfig(cfg *config.LoggerConfig) (*Logger, error) {
 }
 
 // write handles simple log output | 输出普通日志
-func (l *Logger) write(level config.LogLevel, args ...any) {
+func (l *Logger) write(level LogLevel, args ...any) {
 	if atomic.LoadUint32(&l.closed) != 0 {
 		return
 	}
@@ -83,7 +82,7 @@ func (l *Logger) write(level config.LogLevel, args ...any) {
 }
 
 // writef handles formatted log output | 输出格式化日志
-func (l *Logger) writef(level config.LogLevel, format string, args ...any) {
+func (l *Logger) writef(level LogLevel, format string, args ...any) {
 	if atomic.LoadUint32(&l.closed) != 0 {
 		return
 	}
@@ -114,7 +113,7 @@ func (l *Logger) enqueue(b []byte) {
 // ---- Build Log Line ----
 
 // buildLine builds complete log line | 构建完整日志行
-func (l *Logger) buildLine(level config.LogLevel, args ...any) []byte {
+func (l *Logger) buildLine(level LogLevel, args ...any) []byte {
 	cfg := l.currentCfg()
 	buf := getBuf()
 
@@ -183,10 +182,10 @@ func (l *Logger) appendValue(buf *bytes.Buffer, v any) {
 		}
 
 	case time.Time:
-		buf.WriteString(val.Format(config.DefaultTimeFormat))
+		buf.WriteString(val.Format(DefaultTimeFormat))
 
 	default:
-		fmt.Fprint(buf, val)
+		_, _ = fmt.Fprint(buf, val)
 	}
 }
 
@@ -257,7 +256,7 @@ func (l *Logger) writeToFile(b []byte) {
 // ---- File Handling ----
 
 // ensureLogFile ensures a log file is open | 确保日志文件存在
-func (l *Logger) ensureLogFile(now time.Time, cfg config.LoggerConfig) error {
+func (l *Logger) ensureLogFile(now time.Time, cfg LoggerConfig) error {
 	if l.curFile == nil {
 		return l.openNewFile(now, cfg)
 	}
@@ -268,7 +267,7 @@ func (l *Logger) ensureLogFile(now time.Time, cfg config.LoggerConfig) error {
 }
 
 // openNewFile opens a new log file | 打开新日志文件
-func (l *Logger) openNewFile(now time.Time, cfg config.LoggerConfig) error {
+func (l *Logger) openNewFile(now time.Time, cfg LoggerConfig) error {
 	name := l.formatFileName(now, cfg)
 	path := filepath.Join(cfg.Path, name)
 
@@ -285,7 +284,7 @@ func (l *Logger) openNewFile(now time.Time, cfg config.LoggerConfig) error {
 }
 
 // shouldRotate checks rotation conditions | 检查是否需要切分
-func (l *Logger) shouldRotate(now time.Time, cfg config.LoggerConfig) bool {
+func (l *Logger) shouldRotate(now time.Time, cfg LoggerConfig) bool {
 	if cfg.RotateSize > 0 && l.curSize >= cfg.RotateSize {
 		return true
 	}
@@ -296,7 +295,7 @@ func (l *Logger) shouldRotate(now time.Time, cfg config.LoggerConfig) bool {
 }
 
 // rotate rotates the current log file | 日志切分逻辑
-func (l *Logger) rotate(cfg config.LoggerConfig) error {
+func (l *Logger) rotate(cfg LoggerConfig) error {
 	if l.curFile == nil {
 		return nil
 	}
@@ -326,11 +325,11 @@ func (l *Logger) rotate(cfg config.LoggerConfig) error {
 }
 
 // cleanup removes expired logs | 清理过期/多余日志文件
-func (l *Logger) cleanup(cfg config.LoggerConfig) {
+func (l *Logger) cleanup(cfg LoggerConfig) {
 	// base is the fixed prefix of log files for this logger | base 为该 Logger 对应日志文件的固定前缀
 	base := normalizeBaseName(cfg.FileFormat)
 	if base == "" {
-		base = config.DefaultBaseName
+		base = DefaultBaseName
 	}
 
 	files, _ := filepath.Glob(filepath.Join(cfg.Path, "*.log"))
@@ -390,10 +389,10 @@ func (l *Logger) cleanup(cfg config.LoggerConfig) {
 }
 
 // formatFileName generates filename | 生成日志文件名
-func (l *Logger) formatFileName(t time.Time, cfg config.LoggerConfig) string {
+func (l *Logger) formatFileName(t time.Time, cfg LoggerConfig) string {
 	name := cfg.FileFormat
 	if name == "" {
-		return fmt.Sprintf("%s_%s.log", config.DefaultBaseName, t.Format("2006-01-02"))
+		return fmt.Sprintf("%s_%s.log", DefaultBaseName, t.Format("2006-01-02"))
 	}
 
 	r := strings.NewReplacer(
@@ -412,7 +411,7 @@ func (l *Logger) formatFileName(t time.Time, cfg config.LoggerConfig) string {
 // ---- Runtime Control ----
 
 // SetLevel updates minimum level | 动态更新日志级别
-func (l *Logger) SetLevel(level config.LogLevel) {
+func (l *Logger) SetLevel(level LogLevel) {
 	l.cfgMu.Lock()
 	if l.cfg != nil {
 		l.cfg.Level = level
@@ -439,7 +438,7 @@ func (l *Logger) SetStdout(enable bool) {
 }
 
 // SetConfig replaces config and reopens log file | 动态替换配置并重新创建日志文件
-func (l *Logger) SetConfig(cfg *config.LoggerConfig) {
+func (l *Logger) SetConfig(cfg *LoggerConfig) {
 	newCfg, err := prepareConfig(cfg)
 	if err != nil {
 		return
@@ -534,30 +533,30 @@ func getFileSize(f *os.File) int64 {
 }
 
 // prepareConfig applies defaults and ensures directory | 应用默认配置并确保目录存在
-func prepareConfig(cfg *config.LoggerConfig) (*config.LoggerConfig, error) {
+func prepareConfig(cfg *LoggerConfig) (*LoggerConfig, error) {
 	if cfg == nil {
-		cfg = &config.LoggerConfig{}
+		cfg = &LoggerConfig{}
 	}
 
 	c := *cfg // copy
 
 	if c.TimeFormat == "" {
-		c.TimeFormat = config.DefaultTimeFormat
+		c.TimeFormat = DefaultTimeFormat
 	}
 	if c.FileFormat == "" {
-		c.FileFormat = config.DefaultFileFormat
+		c.FileFormat = DefaultFileFormat
 	}
 	if c.Prefix == "" {
-		c.Prefix = config.DefaultPrefix
+		c.Prefix = DefaultPrefix
 	}
 	if c.RotateSize <= 0 {
-		c.RotateSize = config.DefaultRotateSize
+		c.RotateSize = DefaultRotateSize
 	}
 	if c.RotateExpire < 0 {
 		c.RotateExpire = 0
 	}
 	if c.RotateBackupLimit <= 0 {
-		c.RotateBackupLimit = config.DefaultRotateBackupLimit
+		c.RotateBackupLimit = DefaultRotateBackupLimit
 	}
 	if c.RotateBackupDays < 0 {
 		c.RotateBackupDays = 0
@@ -573,26 +572,26 @@ func prepareConfig(cfg *config.LoggerConfig) (*config.LoggerConfig, error) {
 }
 
 // currentCfg returns a config snapshot | 返回当前配置快照
-func (l *Logger) currentCfg() config.LoggerConfig {
+func (l *Logger) currentCfg() LoggerConfig {
 	l.cfgMu.RLock()
 	defer l.cfgMu.RUnlock()
 
 	if l.cfg == nil {
-		return config.LoggerConfig{}
+		return LoggerConfig{}
 	}
 	return *l.cfg
 }
 
 // levelString converts log level to string | 将日志级别转换为字符串
-func (l *Logger) levelString(level config.LogLevel) string {
+func (l *Logger) levelString(level LogLevel) string {
 	switch level {
-	case config.LevelDebug:
+	case LevelDebug:
 		return "DEBUG"
-	case config.LevelInfo:
+	case LevelInfo:
 		return "INFO"
-	case config.LevelWarn:
+	case LevelWarn:
 		return "WARN"
-	case config.LevelError:
+	case LevelError:
 		return "ERROR"
 	default:
 		return "UNKNOWN"
@@ -602,7 +601,7 @@ func (l *Logger) levelString(level config.LogLevel) string {
 // normalizeBaseName extracts static name | 提取基础日志文件名前缀
 func normalizeBaseName(format string) string {
 	if format == "" {
-		return config.DefaultBaseName
+		return DefaultBaseName
 	}
 
 	// 去掉 .log 后缀 | strip ".log" suffix
@@ -617,13 +616,13 @@ func normalizeBaseName(format string) string {
 
 	name = strings.TrimSpace(name)
 	if name == "" {
-		return config.DefaultBaseName
+		return DefaultBaseName
 	}
 	return name
 }
 
 // ensureDefaultPath ensures the log directory exists; if not set, uses the log path | 确保日志目录存在；如果未设置则使用默认路径
-func ensureDefaultPath(cfg *config.LoggerConfig) string {
+func ensureDefaultPath(cfg *LoggerConfig) string {
 	if cfg.Path != "" {
 		return cfg.Path
 	}
@@ -631,20 +630,20 @@ func ensureDefaultPath(cfg *config.LoggerConfig) string {
 	if err != nil {
 		wd = "."
 	}
-	path := filepath.Join(wd, config.DefaultDirName)
+	path := filepath.Join(wd, DefaultDirName)
 	_ = os.MkdirAll(path, 0755)
 	return path
 }
 
 // ---- Logging API ----
 
-func (l *Logger) Print(v ...any)            { l.write(config.LevelInfo, v...) }
-func (l *Logger) Printf(f string, v ...any) { l.writef(config.LevelInfo, f, v...) }
-func (l *Logger) Debug(v ...any)            { l.write(config.LevelDebug, v...) }
-func (l *Logger) Debugf(f string, v ...any) { l.writef(config.LevelDebug, f, v...) }
-func (l *Logger) Info(v ...any)             { l.write(config.LevelInfo, v...) }
-func (l *Logger) Infof(f string, v ...any)  { l.writef(config.LevelInfo, f, v...) }
-func (l *Logger) Warn(v ...any)             { l.write(config.LevelWarn, v...) }
-func (l *Logger) Warnf(f string, v ...any)  { l.writef(config.LevelWarn, f, v...) }
-func (l *Logger) Error(v ...any)            { l.write(config.LevelError, v...) }
-func (l *Logger) Errorf(f string, v ...any) { l.writef(config.LevelError, f, v...) }
+func (l *Logger) Print(v ...any)            { l.write(LevelInfo, v...) }
+func (l *Logger) Printf(f string, v ...any) { l.writef(LevelInfo, f, v...) }
+func (l *Logger) Debug(v ...any)            { l.write(LevelDebug, v...) }
+func (l *Logger) Debugf(f string, v ...any) { l.writef(LevelDebug, f, v...) }
+func (l *Logger) Info(v ...any)             { l.write(LevelInfo, v...) }
+func (l *Logger) Infof(f string, v ...any)  { l.writef(LevelInfo, f, v...) }
+func (l *Logger) Warn(v ...any)             { l.write(LevelWarn, v...) }
+func (l *Logger) Warnf(f string, v ...any)  { l.writef(LevelWarn, f, v...) }
+func (l *Logger) Error(v ...any)            { l.write(LevelError, v...) }
+func (l *Logger) Errorf(f string, v ...any) { l.writef(LevelError, f, v...) }

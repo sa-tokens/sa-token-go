@@ -6,8 +6,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/click33/sa-token-go/core/adapter"
 )
 
 var (
@@ -37,12 +35,12 @@ type Storage struct {
 }
 
 // NewStorage 创建内存存储
-func NewStorage() adapter.Storage {
+func NewStorage() *Storage {
 	return NewStorageWithCleanupInterval(time.Minute)
 }
 
 // NewStorageWithCleanupInterval 创建内存存储
-func NewStorageWithCleanupInterval(interval time.Duration) adapter.Storage {
+func NewStorageWithCleanupInterval(interval time.Duration) *Storage {
 	ctx, cancel := context.WithCancel(context.Background())
 	s := &Storage{
 		data:       make(map[string]*item),

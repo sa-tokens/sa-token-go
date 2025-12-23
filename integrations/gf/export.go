@@ -4,6 +4,8 @@ import (
 	"github.com/click33/sa-token-go/core/builder"
 	"github.com/click33/sa-token-go/core/config"
 	"github.com/click33/sa-token-go/core/manager"
+	"github.com/click33/sa-token-go/log/slog"
+	"github.com/click33/sa-token-go/pool/ants"
 	"github.com/click33/sa-token-go/stputil"
 )
 
@@ -31,10 +33,10 @@ func NewDefaultConfig() *config.Config {
 	return config.DefaultConfig()
 }
 
-func DefaultLoggerConfig() *config.LoggerConfig {
-	return config.DefaultLoggerConfig()
+func DefaultLoggerConfig() *slog.LoggerConfig {
+	return slog.DefaultLoggerConfig()
 }
 
-func DefaultDefaultRenewPoolConfig() *config.RenewPoolConfig {
-	return config.DefaultRenewPoolConfig()
+func DefaultDefaultRenewPoolConfig() *ants.RenewPoolConfig {
+	return ants.DefaultRenewPoolConfig()
 }

@@ -1,11 +1,8 @@
 package session
 
 import (
-	"context"
 	"fmt"
 	codec_json "github.com/click33/sa-token-go/codec/json"
-	"github.com/click33/sa-token-go/core/manager"
-	"github.com/click33/sa-token-go/core/utils"
 	"github.com/click33/sa-token-go/storage/memory"
 	"sync"
 	"time"
@@ -253,38 +250,4 @@ func (s *Session) saveKeepTTL() error {
 	}
 
 	return s.storage.Set(key, data, ttl)
-}
-
-// ============ Static Methods | 静态方法 ============
-
-// Load Loads session from storage | 从存储加载
-func Load(_ context.Context, id string, m *manager.Manager) (*Session, error) {
-	if id == "" {
-		return nil, fmt.Errorf("session id cannot be empty")
-	}
-	if m == nil {
-		return nil, fmt.Errorf("manager cannot be empty")
-	}
-
-	data, err := m.GetStorage().Get(m.GetConfig().KeyPrefix + m.GetConfig().AuthType + SessionKeyPrefix + id)
-	if err != nil {
-		return nil, err
-	}
-	if data == nil {
-		return nil, fmt.Errorf("session not found")
-	}
-
-	raw, err := utils.ToBytes(data)
-	if err != nil {
-		return nil, err
-	}
-
-	var session Session
-	if err = m.GetCodec().Decode(raw, &session); err != nil {
-		return nil, fmt.Errorf("%w: %v", fmt.Errorf("failed to decode data"), err)
-	}
-
-	session.storage = m.GetStorage()
-	session.serializer = m.GetCodec()
-	return &session, nil
 }

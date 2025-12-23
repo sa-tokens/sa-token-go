@@ -3,7 +3,6 @@ package ants
 
 import (
 	"fmt"
-	"github.com/click33/sa-token-go/core/config"
 	"github.com/panjf2000/ants/v2"
 	"sync"
 	"time"
@@ -11,17 +10,16 @@ import (
 
 // RenewPoolManager manages a dynamic scaling goroutine pool for token renewal tasks | 续期任务协程池管理器
 type RenewPoolManager struct {
-	pool         *ants.Pool              // ants pool instance | ants 协程池实例
-	config       *config.RenewPoolConfig // Configuration object | 池配置对象
-	globalConfig *config.Config          // Global authentication configuration | 全局认证配置
-	mu           sync.Mutex              // Synchronization lock | 互斥锁
-	stopCh       chan struct{}           // Stop signal channel | 停止信号通道
-	started      bool                    // Indicates if pool manager is running | 是否已启动
+	pool    *ants.Pool       // ants pool instance | ants 协程池实例
+	config  *RenewPoolConfig // Configuration object | 池配置对象
+	mu      sync.Mutex       // Synchronization lock | 互斥锁
+	stopCh  chan struct{}    // Stop signal channel | 停止信号通道
+	started bool             // Indicates if pool manager is running | 是否已启动
 }
 
 func NewRenewPoolManagerWithDefaultConfig() *RenewPoolManager {
 	mgr := &RenewPoolManager{
-		config:  config.DefaultRenewPoolConfig(),
+		config:  DefaultRenewPoolConfig(),
 		stopCh:  make(chan struct{}),
 		started: true,
 	}
@@ -32,12 +30,12 @@ func NewRenewPoolManagerWithDefaultConfig() *RenewPoolManager {
 }
 
 // NewRenewPoolManagerWithConfig creates manager with config | 使用配置创建续期池管理器
-func NewRenewPoolManagerWithConfig(cfg *config.RenewPoolConfig) (*RenewPoolManager, error) {
+func NewRenewPoolManagerWithConfig(cfg *RenewPoolConfig) (*RenewPoolManager, error) {
 	if cfg == nil {
-		cfg = config.DefaultRenewPoolConfig()
+		cfg = DefaultRenewPoolConfig()
 	}
 	if cfg.MinSize <= 0 {
-		cfg.MinSize = config.DefaultMinSize
+		cfg.MinSize = DefaultMinSize
 	}
 	if cfg.MaxSize < cfg.MinSize {
 		cfg.MaxSize = cfg.MinSize

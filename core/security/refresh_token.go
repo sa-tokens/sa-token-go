@@ -60,7 +60,7 @@ func NewRefreshTokenManager(
 ) *RefreshTokenManager {
 
 	if tokenGen == nil {
-		tokenGen = sgenerator.NewGenerator(nil)
+		tokenGen = sgenerator.NewDefaultGenerator()
 	}
 	if accessTTL == 0 {
 		accessTTL = DefaultAccessTTL

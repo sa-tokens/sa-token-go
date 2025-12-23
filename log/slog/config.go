@@ -1,5 +1,5 @@
-// @Author daixk 2025/12/12 11:23:00
-package config
+// @Author daixk 2025/12/22 15:55:00
+package slog
 
 import (
 	"time"
@@ -26,7 +26,7 @@ func DefaultLoggerConfig() *LoggerConfig {
 		FileFormat:        DefaultFileFormat,
 		Prefix:            DefaultPrefix,
 		Level:             LevelInfo,
-		Stdout:            true,
+		Stdout:            false,
 		RotateSize:        DefaultRotateSize,
 		RotateExpire:      DefaultRotateExpire,
 		RotateBackupLimit: DefaultRotateBackupLimit,

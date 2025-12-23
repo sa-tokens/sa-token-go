@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"github.com/click33/sa-token-go/generator/sgenerator"
 	"strings"
 )
 
@@ -41,7 +42,7 @@ type Config struct {
 	IsReadCookie bool
 
 	// TokenStyle Token generation style | Token生成风格
-	TokenStyle TokenStyle
+	TokenStyle sgenerator.TokenStyle
 
 	// TokenSessionCheckLogin Whether to check if Token-Session is kicked out when logging in (true=check, false=skip) | 登录时是否检查Token-Session是否被踢下线（true=检查，false=不检查）
 	TokenSessionCheckLogin bool
@@ -103,7 +104,7 @@ func DefaultConfig() *Config {
 		IsReadBody:             false,
 		IsReadHeader:           true,
 		IsReadCookie:           false,
-		TokenStyle:             TokenStyleUUID,
+		TokenStyle:             sgenerator.TokenStyleUUID,
 		TokenSessionCheckLogin: true,
 		AutoRenew:              true,
 		JwtSecretKey:           "",
@@ -133,7 +134,7 @@ func (c *Config) Validate() error {
 	}
 
 	// Check JwtSecretKey if TokenStyle is JWT | 如果 Token 风格为 JWT，则检查密钥是否设置
-	if c.TokenStyle == TokenStyleJWT && c.JwtSecretKey == "" {
+	if c.TokenStyle == sgenerator.TokenStyleJWT && c.JwtSecretKey == "" {
 		return fmt.Errorf("JwtSecretKey is required when TokenStyle is JWT")
 	}
 
@@ -277,7 +278,7 @@ func (c *Config) SetIsReadCookie(isReadCookie bool) *Config {
 }
 
 // SetTokenStyle Set Token generation style | 设置Token风格
-func (c *Config) SetTokenStyle(style TokenStyle) *Config {
+func (c *Config) SetTokenStyle(style sgenerator.TokenStyle) *Config {
 	c.TokenStyle = style
 	return c
 }
@@ -358,18 +359,6 @@ func (c *Config) checkNoLimits() error {
 
 	// All numeric fields are valid | 所有数值字段均验证通过
 	return nil
-}
-
-// IsValidTokenStyle checks if the TokenStyle is valid | 检查TokenStyle是否有效
-func (ts TokenStyle) IsValidTokenStyle() bool {
-	switch ts {
-	case TokenStyleUUID, TokenStyleSimple, TokenStyleRandom32,
-		TokenStyleRandom64, TokenStyleRandom128, TokenStyleJWT,
-		TokenStyleHash, TokenStyleTimestamp, TokenStyleTik:
-		return true
-	default:
-		return false
-	}
 }
 
 // DefaultCookieConfig returns the log Cookie configuration | 返回默认的 Cookie 配置

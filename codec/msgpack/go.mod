@@ -2,8 +2,6 @@ module github.com/click33/sa-token-go/codec/msgpack
 
 go 1.23.0
 
-replace github.com/click33/sa-token-go/core => ../../core
-
 require github.com/vmihailenco/msgpack/v5 v5.4.1
 
 require (

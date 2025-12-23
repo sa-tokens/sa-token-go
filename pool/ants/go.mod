@@ -2,6 +2,6 @@ module github.com/click33/sa-token-go/pool/ants
 
 go 1.23.0
 
-require github.com/click33/sa-token-go/core v0.1.5
+require github.com/panjf2000/ants/v2 v2.11.3
 
-replace github.com/click33/sa-token-go/core => ../../core
+require golang.org/x/sync v0.11.0 // indirect

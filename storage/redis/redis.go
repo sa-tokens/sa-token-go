@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/click33/sa-token-go/core/adapter"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -33,7 +32,7 @@ type Config struct {
 }
 
 // NewStorage 通过Redis URL创建存储
-func NewStorage(url string) (adapter.Storage, error) {
+func NewStorage(url string) (*Storage, error) {
 	opts, err := redis.ParseURL(url)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse redis url: %w", err)
@@ -55,7 +54,7 @@ func NewStorage(url string) (adapter.Storage, error) {
 }
 
 // NewStorageFromConfig 通过配置创建存储
-func NewStorageFromConfig(cfg *Config) (adapter.Storage, error) {
+func NewStorageFromConfig(cfg *Config) (*Storage, error) {
 	client := redis.NewClient(&redis.Options{
 		Addr:         fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
 		Password:     cfg.Password,
@@ -86,7 +85,7 @@ func NewStorageFromConfig(cfg *Config) (adapter.Storage, error) {
 }
 
 // NewStorageFromClient 从已有的Redis客户端创建存储
-func NewStorageFromClient(client *redis.Client) adapter.Storage {
+func NewStorageFromClient(client *redis.Client) *Storage {
 	return &Storage{
 		client:    client,
 		ctx:       context.Background(),
@@ -326,7 +325,7 @@ func (b *Builder) PoolSize(poolSize int) *Builder {
 }
 
 // Build 构建存储
-func (b *Builder) Build() (adapter.Storage, error) {
+func (b *Builder) Build() (*Storage, error) {
 	return NewStorageFromConfig(&Config{
 		Host:     b.host,
 		Port:     b.port,

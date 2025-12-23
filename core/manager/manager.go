@@ -58,7 +58,7 @@ func NewManager(cfg *config.Config, generator adapter.Generator, storage adapter
 
 	// generator
 	if generator == nil {
-		generator = sgenerator.NewGenerator(cfg)
+		generator = sgenerator.NewGenerator(cfg.Timeout, cfg.TokenStyle, cfg.JwtSecretKey)
 	}
 
 	// Use in-memory storage if storage is nil | 如果未传入存储实现，则使用内存存储
@@ -565,10 +565,35 @@ func (m *Manager) GetDisableTime(ctx context.Context, loginID string) (int64, er
 
 // ============ Session Management | Session管理 ============
 
-// GetSession Gets session by login ID | 获取Session
-func (m *Manager) GetSession(ctx context.Context, loginID string) (*session.Session, error) {
-	sess, err := session.Load(ctx, loginID, m)
+// GetSession gets session by login ID | 获取 Session
+func (m *Manager) GetSession(_ context.Context, loginID string) (*session.Session, error) {
+	if loginID == "" {
+		return nil, fmt.Errorf("session id cannot be empty")
+	}
+
+	key := m.config.KeyPrefix + m.config.AuthType + session.SessionKeyPrefix + loginID
+	data, err := m.GetStorage().Get(key)
 	if err != nil {
+		return nil, err
+	}
+
+	// 如果找到数据，解码到新分配的 session 对象
+	var sess *session.Session
+	if data != nil {
+		raw, err := utils.ToBytes(data)
+		if err != nil {
+			return nil, err
+		}
+
+		// 直接初始化对象再解码
+		sess = &session.Session{}
+		if err := m.GetCodec().Decode(raw, sess); err != nil {
+			return nil, fmt.Errorf("failed to decode session: %w", err)
+		}
+	}
+
+	// 没找到就创建新的
+	if sess == nil {
 		sess = session.NewSession(m.config.AuthType, m.config.KeyPrefix, loginID, m.storage, m.serializer)
 	}
 

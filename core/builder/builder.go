@@ -19,29 +19,29 @@ import (
 
 // Builder provides fluent configuration for Sa-Token | Sa-Token 构建器用于流式配置
 type Builder struct {
-	tokenName              string            // Token name used by client | 客户端 Token 名称
-	timeout                int64             // Token timeout seconds | Token 过期时间（秒）
-	maxRefresh             int64             // Max auto-refresh duration | 最大无感刷新时间
-	renewInterval          int64             // Min renewal interval seconds | 最小续期间隔（秒）
-	activeTimeout          int64             // Force offline when idle | 活跃超时时间（秒）
-	isConcurrent           bool              // Allow concurrent login | 是否允许并发登录
-	isShare                bool              // Share same token among devices | 是否共用 Token
-	maxLoginCount          int64             // Max concurrent login count | 最大并发登录数
-	isReadBody             bool              // Read token from body | 是否从 Body 读取 Token
-	isReadHeader           bool              // Read token from header | 是否从 Header 读取 Token
-	isReadCookie           bool              // Read token from cookie | 是否从 Cookie 读取 Token
-	tokenStyle             config.TokenStyle // Token generation style | Token 生成方式
-	tokenSessionCheckLogin bool              // Check login before Session | 读取 Session 时是否检查登录
-	autoRenew              bool              // Enable renewal | 是否启用自动续期
-	jwtSecretKey           string            // JWT secret key | JWT 密钥
-	isLog                  bool              // Enable log output | 是否启用日志
-	isPrintBanner          bool              // Print startup banner | 是否打印启动 Banner
-	keyPrefix              string            // Storage key prefix | 存储键前缀
-	authType               string            // Authentication system type | 认证体系类型
+	tokenName              string                // Token name used by client | 客户端 Token 名称
+	timeout                int64                 // Token timeout seconds | Token 过期时间（秒）
+	maxRefresh             int64                 // Max auto-refresh duration | 最大无感刷新时间
+	renewInterval          int64                 // Min renewal interval seconds | 最小续期间隔（秒）
+	activeTimeout          int64                 // Force offline when idle | 活跃超时时间（秒）
+	isConcurrent           bool                  // Allow concurrent login | 是否允许并发登录
+	isShare                bool                  // Share same token among devices | 是否共用 Token
+	maxLoginCount          int64                 // Max concurrent login count | 最大并发登录数
+	isReadBody             bool                  // Read token from body | 是否从 Body 读取 Token
+	isReadHeader           bool                  // Read token from header | 是否从 Header 读取 Token
+	isReadCookie           bool                  // Read token from cookie | 是否从 Cookie 读取 Token
+	tokenStyle             sgenerator.TokenStyle // Token generation style | Token 生成方式
+	tokenSessionCheckLogin bool                  // Check login before Session | 读取 Session 时是否检查登录
+	autoRenew              bool                  // Enable renewal | 是否启用自动续期
+	jwtSecretKey           string                // JWT secret key | JWT 密钥
+	isLog                  bool                  // Enable log output | 是否启用日志
+	isPrintBanner          bool                  // Print startup banner | 是否打印启动 Banner
+	keyPrefix              string                // Storage key prefix | 存储键前缀
+	authType               string                // Authentication system type | 认证体系类型
 
-	cookieConfig    *config.CookieConfig    // Cookie config | Cookie 配置
-	renewPoolConfig *config.RenewPoolConfig // Renew pool config | 续期协程池配置
-	logConfig       *config.LoggerConfig    // 日志配置
+	cookieConfig    *config.CookieConfig  // Cookie config | Cookie 配置
+	renewPoolConfig *ants.RenewPoolConfig // Renew pool config | 续期协程池配置
+	logConfig       *slog.LoggerConfig    // 日志配置
 
 	generator adapter.Generator // Token generator | Token 生成器
 	storage   adapter.Storage   // Storage adapter | 存储适配器
@@ -67,7 +67,7 @@ func NewBuilder() *Builder {
 		isReadBody:             false,
 		isReadHeader:           true,
 		isReadCookie:           false,
-		tokenStyle:             config.TokenStyleUUID,
+		tokenStyle:             sgenerator.TokenStyleUUID,
 		tokenSessionCheckLogin: true,
 		autoRenew:              true,
 		jwtSecretKey:           config.DefaultJwtSecretKey,
@@ -77,8 +77,8 @@ func NewBuilder() *Builder {
 		authType:               config.DefaultAuthType,
 
 		cookieConfig:    config.DefaultCookieConfig(),
-		renewPoolConfig: config.DefaultRenewPoolConfig(),
-		logConfig:       config.DefaultLoggerConfig(),
+		renewPoolConfig: ants.DefaultRenewPoolConfig(),
+		logConfig:       slog.DefaultLoggerConfig(),
 	}
 }
 
@@ -155,7 +155,7 @@ func (b *Builder) IsReadCookie(isRead bool) *Builder {
 }
 
 // TokenStyle sets token generation style | 设置Token风格
-func (b *Builder) TokenStyle(style config.TokenStyle) *Builder {
+func (b *Builder) TokenStyle(style sgenerator.TokenStyle) *Builder {
 	b.tokenStyle = style
 	return b
 }
@@ -281,7 +281,7 @@ func (b *Builder) CookieConfig(cfg *config.CookieConfig) *Builder {
 // RenewPoolMinSize sets the minimum pool size | 设置最小协程数
 func (b *Builder) RenewPoolMinSize(size int) *Builder {
 	if b.renewPoolConfig == nil {
-		b.renewPoolConfig = &config.RenewPoolConfig{}
+		b.renewPoolConfig = &ants.RenewPoolConfig{}
 	}
 	b.renewPoolConfig.MinSize = size
 	return b
@@ -290,7 +290,7 @@ func (b *Builder) RenewPoolMinSize(size int) *Builder {
 // RenewPoolMaxSize sets the maximum pool size | 设置最大协程数
 func (b *Builder) RenewPoolMaxSize(size int) *Builder {
 	if b.renewPoolConfig == nil {
-		b.renewPoolConfig = &config.RenewPoolConfig{}
+		b.renewPoolConfig = &ants.RenewPoolConfig{}
 	}
 	b.renewPoolConfig.MaxSize = size
 	return b
@@ -299,7 +299,7 @@ func (b *Builder) RenewPoolMaxSize(size int) *Builder {
 // RenewPoolScaleUpRate sets the scale-up threshold | 设置扩容阈值
 func (b *Builder) RenewPoolScaleUpRate(rate float64) *Builder {
 	if b.renewPoolConfig == nil {
-		b.renewPoolConfig = &config.RenewPoolConfig{}
+		b.renewPoolConfig = &ants.RenewPoolConfig{}
 	}
 	b.renewPoolConfig.ScaleUpRate = rate
 	return b
@@ -308,7 +308,7 @@ func (b *Builder) RenewPoolScaleUpRate(rate float64) *Builder {
 // RenewPoolScaleDownRate sets the scale-down threshold | 设置缩容阈值
 func (b *Builder) RenewPoolScaleDownRate(rate float64) *Builder {
 	if b.renewPoolConfig == nil {
-		b.renewPoolConfig = &config.RenewPoolConfig{}
+		b.renewPoolConfig = &ants.RenewPoolConfig{}
 	}
 	b.renewPoolConfig.ScaleDownRate = rate
 	return b
@@ -317,7 +317,7 @@ func (b *Builder) RenewPoolScaleDownRate(rate float64) *Builder {
 // RenewPoolCheckInterval sets the interval for auto-scale checking | 设置自动扩缩容检查间隔
 func (b *Builder) RenewPoolCheckInterval(interval time.Duration) *Builder {
 	if b.renewPoolConfig == nil {
-		b.renewPoolConfig = &config.RenewPoolConfig{}
+		b.renewPoolConfig = &ants.RenewPoolConfig{}
 	}
 	b.renewPoolConfig.CheckInterval = interval
 	return b
@@ -326,7 +326,7 @@ func (b *Builder) RenewPoolCheckInterval(interval time.Duration) *Builder {
 // RenewPoolExpiry sets the idle worker expiry duration | 设置空闲协程过期时间
 func (b *Builder) RenewPoolExpiry(duration time.Duration) *Builder {
 	if b.renewPoolConfig == nil {
-		b.renewPoolConfig = &config.RenewPoolConfig{}
+		b.renewPoolConfig = &ants.RenewPoolConfig{}
 	}
 	b.renewPoolConfig.Expiry = duration
 	return b
@@ -335,7 +335,7 @@ func (b *Builder) RenewPoolExpiry(duration time.Duration) *Builder {
 // RenewPoolPrintStatusInterval sets the status printing interval | 设置状态打印间隔
 func (b *Builder) RenewPoolPrintStatusInterval(interval time.Duration) *Builder {
 	if b.renewPoolConfig == nil {
-		b.renewPoolConfig = &config.RenewPoolConfig{}
+		b.renewPoolConfig = &ants.RenewPoolConfig{}
 	}
 	b.renewPoolConfig.PrintStatusInterval = interval
 	return b
@@ -344,7 +344,7 @@ func (b *Builder) RenewPoolPrintStatusInterval(interval time.Duration) *Builder 
 // RenewPoolPreAlloc sets whether to pre-allocate memory | 设置是否预分配内存
 func (b *Builder) RenewPoolPreAlloc(preAlloc bool) *Builder {
 	if b.renewPoolConfig == nil {
-		b.renewPoolConfig = &config.RenewPoolConfig{}
+		b.renewPoolConfig = &ants.RenewPoolConfig{}
 	}
 	b.renewPoolConfig.PreAlloc = preAlloc
 	return b
@@ -353,14 +353,14 @@ func (b *Builder) RenewPoolPreAlloc(preAlloc bool) *Builder {
 // RenewPoolNonBlocking sets whether the pool works in non-blocking mode | 设置是否为非阻塞模式
 func (b *Builder) RenewPoolNonBlocking(nonBlocking bool) *Builder {
 	if b.renewPoolConfig == nil {
-		b.renewPoolConfig = &config.RenewPoolConfig{}
+		b.renewPoolConfig = &ants.RenewPoolConfig{}
 	}
 	b.renewPoolConfig.NonBlocking = nonBlocking
 	return b
 }
 
 // RenewPoolConfig sets the token renewal pool configuration | 设置完整的Token续期池配置
-func (b *Builder) RenewPoolConfig(cfg *config.RenewPoolConfig) *Builder {
+func (b *Builder) RenewPoolConfig(cfg *ants.RenewPoolConfig) *Builder {
 	b.renewPoolConfig = cfg
 	return b
 }
@@ -368,7 +368,7 @@ func (b *Builder) RenewPoolConfig(cfg *config.RenewPoolConfig) *Builder {
 // LoggerPath sets the log directory path | 设置日志文件目录
 func (b *Builder) LoggerPath(path string) *Builder {
 	if b.logConfig == nil {
-		b.logConfig = &config.LoggerConfig{}
+		b.logConfig = &slog.LoggerConfig{}
 	}
 	b.logConfig.Path = path
 	return b
@@ -377,7 +377,7 @@ func (b *Builder) LoggerPath(path string) *Builder {
 // LoggerFileFormat sets the log file naming format | 设置日志文件命名格式
 func (b *Builder) LoggerFileFormat(format string) *Builder {
 	if b.logConfig == nil {
-		b.logConfig = &config.LoggerConfig{}
+		b.logConfig = &slog.LoggerConfig{}
 	}
 	b.logConfig.FileFormat = format
 	return b
@@ -386,16 +386,16 @@ func (b *Builder) LoggerFileFormat(format string) *Builder {
 // LoggerPrefix sets the log line prefix | 设置日志前缀
 func (b *Builder) LoggerPrefix(prefix string) *Builder {
 	if b.logConfig == nil {
-		b.logConfig = &config.LoggerConfig{}
+		b.logConfig = &slog.LoggerConfig{}
 	}
 	b.logConfig.Prefix = prefix
 	return b
 }
 
 // LoggerLevel sets the minimum output log level | 设置日志最低输出级别
-func (b *Builder) LoggerLevel(level config.LogLevel) *Builder {
+func (b *Builder) LoggerLevel(level slog.LogLevel) *Builder {
 	if b.logConfig == nil {
-		b.logConfig = &config.LoggerConfig{}
+		b.logConfig = &slog.LoggerConfig{}
 	}
 	b.logConfig.Level = level
 	return b
@@ -404,7 +404,7 @@ func (b *Builder) LoggerLevel(level config.LogLevel) *Builder {
 // LoggerTimeFormat sets the timestamp format | 设置时间戳格式
 func (b *Builder) LoggerTimeFormat(format string) *Builder {
 	if b.logConfig == nil {
-		b.logConfig = &config.LoggerConfig{}
+		b.logConfig = &slog.LoggerConfig{}
 	}
 	b.logConfig.TimeFormat = format
 	return b
@@ -413,7 +413,7 @@ func (b *Builder) LoggerTimeFormat(format string) *Builder {
 // LoggerStdout sets whether to print logs to console | 设置是否输出到控制台
 func (b *Builder) LoggerStdout(stdout bool) *Builder {
 	if b.logConfig == nil {
-		b.logConfig = &config.LoggerConfig{}
+		b.logConfig = &slog.LoggerConfig{}
 	}
 	b.logConfig.Stdout = stdout
 	return b
@@ -422,7 +422,7 @@ func (b *Builder) LoggerStdout(stdout bool) *Builder {
 // LoggerRotateSize sets the file size threshold for log rotation (bytes) | 设置日志文件大小滚动阈值（字节）
 func (b *Builder) LoggerRotateSize(size int64) *Builder {
 	if b.logConfig == nil {
-		b.logConfig = &config.LoggerConfig{}
+		b.logConfig = &slog.LoggerConfig{}
 	}
 	b.logConfig.RotateSize = size
 	return b
@@ -431,7 +431,7 @@ func (b *Builder) LoggerRotateSize(size int64) *Builder {
 // LoggerRotateExpire sets the rotation interval by time duration | 设置文件时间滚动间隔
 func (b *Builder) LoggerRotateExpire(expire time.Duration) *Builder {
 	if b.logConfig == nil {
-		b.logConfig = &config.LoggerConfig{}
+		b.logConfig = &slog.LoggerConfig{}
 	}
 	b.logConfig.RotateExpire = expire
 	return b
@@ -440,7 +440,7 @@ func (b *Builder) LoggerRotateExpire(expire time.Duration) *Builder {
 // LoggerRotateBackupLimit sets the maximum number of rotated backup files | 设置最大备份文件数量
 func (b *Builder) LoggerRotateBackupLimit(limit int) *Builder {
 	if b.logConfig == nil {
-		b.logConfig = &config.LoggerConfig{}
+		b.logConfig = &slog.LoggerConfig{}
 	}
 	b.logConfig.RotateBackupLimit = limit
 	return b
@@ -449,14 +449,14 @@ func (b *Builder) LoggerRotateBackupLimit(limit int) *Builder {
 // LoggerRotateBackupDays sets the retention days for old log files | 设置备份文件保留天数
 func (b *Builder) LoggerRotateBackupDays(days int) *Builder {
 	if b.logConfig == nil {
-		b.logConfig = &config.LoggerConfig{}
+		b.logConfig = &slog.LoggerConfig{}
 	}
 	b.logConfig.RotateBackupDays = days
 	return b
 }
 
 // LoggerConfig sets complete logger configuration | 设置完整的日志配置
-func (b *Builder) LoggerConfig(cfg *config.LoggerConfig) *Builder {
+func (b *Builder) LoggerConfig(cfg *slog.LoggerConfig) *Builder {
 	b.logConfig = cfg
 	return b
 }
@@ -505,7 +505,7 @@ func (b *Builder) SetCustomRoleListFunc(f func(ctx context.Context, loginID stri
 
 // Jwt sets TokenStyle to JWT and sets secret key | 设置为JWT模式并指定密钥
 func (b *Builder) Jwt(secret string) *Builder {
-	b.tokenStyle = config.TokenStyleJWT
+	b.tokenStyle = sgenerator.TokenStyleJWT
 	b.jwtSecretKey = secret
 	return b
 }
@@ -573,7 +573,7 @@ func (b *Builder) Build() *manager.Manager {
 
 	// 如果generator为nil，则初始化默认generator
 	if b.generator == nil {
-		b.generator = sgenerator.NewGenerator(cfg)
+		b.generator = sgenerator.NewGenerator(b.timeout, b.tokenStyle, b.jwtSecretKey)
 	}
 	// 如果storage为nil，则初始化默认storage
 	if b.storage == nil {
@@ -587,7 +587,7 @@ func (b *Builder) Build() *manager.Manager {
 	// 日志
 	if b.isLog {
 		if b.logConfig == nil {
-			b.logConfig = config.DefaultLoggerConfig()
+			b.logConfig = slog.DefaultLoggerConfig()
 		}
 		b.log, err = slog.NewLoggerWithConfig(b.logConfig)
 		if err != nil {
@@ -600,7 +600,7 @@ func (b *Builder) Build() *manager.Manager {
 	// 续期池
 	if b.autoRenew && b.pool == nil {
 		if b.renewPoolConfig == nil {
-			b.renewPoolConfig = config.DefaultRenewPoolConfig()
+			b.renewPoolConfig = ants.DefaultRenewPoolConfig()
 		}
 		// Validate configuration | 验证配置
 		err = b.renewPoolConfig.Validate()
