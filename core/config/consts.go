@@ -27,5 +27,4 @@ const (
 	DefaultMaxLoginCount = 12                 // Maximum concurrent logins | 最大并发登录数
 	DefaultCookiePath    = "/"                // Default cookie path | 默认Cookie路径
 	NoLimit              = -1                 // No limit flag | 不限制标志
-	DefaultJwtSecretKey  = ""
 )

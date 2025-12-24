@@ -26,7 +26,7 @@ func DefaultLoggerConfig() *LoggerConfig {
 		FileFormat:        DefaultFileFormat,
 		Prefix:            DefaultPrefix,
 		Level:             LevelInfo,
-		Stdout:            false,
+		Stdout:            true,
 		RotateSize:        DefaultRotateSize,
 		RotateExpire:      DefaultRotateExpire,
 		RotateBackupLimit: DefaultRotateBackupLimit,

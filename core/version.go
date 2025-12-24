@@ -2,4 +2,4 @@
 package core
 
 // Version Sa-Token-Go version | Sa-Token-Go版本
-const Version = "0.1.3"
+const Version = "0.1.6"

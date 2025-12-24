@@ -1,7 +1,6 @@
 package context
 
 import (
-	"context"
 	"strings"
 
 	"github.com/click33/sa-token-go/core/adapter"
@@ -15,15 +14,13 @@ const (
 
 // SaTokenContext Sa-Token context for current request | Sa-Token上下文，用于当前请求
 type SaTokenContext struct {
-	ctx     context.Context
 	reqCtx  adapter.RequestContext
 	manager *manager.Manager
 }
 
 // NewContext creates a new Sa-Token context | 创建新的Sa-Token上下文
-func NewContext(ctx context.Context, reqCtx adapter.RequestContext, mgr *manager.Manager) *SaTokenContext {
+func NewContext(reqCtx adapter.RequestContext, mgr *manager.Manager) *SaTokenContext {
 	return &SaTokenContext{
-		ctx:     ctx,
 		reqCtx:  reqCtx,
 		manager: mgr,
 	}
@@ -71,11 +68,6 @@ func (c *SaTokenContext) GetRequestContext() adapter.RequestContext {
 // GetManager 获取管理器
 func (c *SaTokenContext) GetManager() *manager.Manager {
 	return c.manager
-}
-
-// GetCtx 获取全局Ctx
-func (c *SaTokenContext) GetCtx() context.Context {
-	return c.ctx
 }
 
 //// IsLogin 检查当前请求是否已登录

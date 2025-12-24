@@ -33,7 +33,7 @@ type AuthOptions struct {
 }
 
 func defaultAuthOptions() *AuthOptions {
-	return &AuthOptions{}
+	return &AuthOptions{LogicType: LogicAnd} // 默认 AND
 }
 
 // WithAuthType sets auth type | 设置认证类型
@@ -56,6 +56,8 @@ func WithAuthFailFunc(fn func(r *ghttp.Request, err error)) AuthOption {
 	}
 }
 
+// ========== Middlewares ==========
+
 // AuthMiddleware authentication middleware | 认证中间件
 func AuthMiddleware(opts ...AuthOption) ghttp.HandlerFunc {
 	options := defaultAuthOptions()
@@ -68,13 +70,13 @@ func AuthMiddleware(opts ...AuthOption) ghttp.HandlerFunc {
 		if err != nil {
 			if options.AuthFailFunc != nil {
 				options.AuthFailFunc(r, err)
-				return
+			} else {
+				writeErrorResponse(r, err)
 			}
-			writeErrorResponse(r, err)
 			return
 		}
 
-		saCtx := saContext.NewContext(r.Context(), NewGFContext(r), mgr)
+		saCtx := getSaContext(r, mgr)
 		err = mgr.CheckLogin(
 			context.WithValue(
 				r.Context(),
@@ -85,18 +87,17 @@ func AuthMiddleware(opts ...AuthOption) ghttp.HandlerFunc {
 		if err != nil {
 			if options.AuthFailFunc != nil {
 				options.AuthFailFunc(r, err)
-				return
+			} else {
+				writeErrorResponse(r, err)
 			}
-			writeErrorResponse(r, err)
 			return
 		}
 
-		r.SetCtxVar(SaTokenCtxKey, saCtx)
 		r.Middleware.Next()
 	}
 }
 
-// AuthWithStateMiddleware authentication middleware | 认证中间件
+// AuthWithStateMiddleware with state authentication middleware | 带状态返回的认证中间件
 func AuthWithStateMiddleware(opts ...AuthOption) ghttp.HandlerFunc {
 	options := defaultAuthOptions()
 	for _, opt := range opts {
@@ -104,37 +105,50 @@ func AuthWithStateMiddleware(opts ...AuthOption) ghttp.HandlerFunc {
 	}
 
 	return func(r *ghttp.Request) {
+		// 获取 Manager | Get Manager
 		mgr, err := stputil.GetManager(options.AuthType)
 		if err != nil {
 			if options.AuthFailFunc != nil {
 				options.AuthFailFunc(r, err)
-				return
+			} else {
+				writeErrorResponse(r, err)
 			}
-			writeErrorResponse(r, err)
 			return
 		}
 
-		saCtx := saContext.NewContext(r.Context(), NewGFContext(r), mgr)
-		_, err = mgr.CheckLoginWithState(context.WithValue(r.Context(), config.CtxTokenValue, saCtx.GetTokenValue()))
+		// 构建 Sa-Token 上下文 | Build Sa-Token context
+		saCtx := getSaContext(r, mgr)
+
+		// 检查登录并返回状态 | Check login with state
+		_, err = mgr.CheckLoginWithState(
+			context.WithValue(
+				r.Context(),
+				config.CtxTokenValue,
+				saCtx.GetTokenValue(),
+			),
+		)
+
 		if err != nil {
+			// 映射错误为标准 Sa-Token 错误
+			switch {
+			case errors.Is(err, manager.ErrTokenKickout):
+				err = core.ErrTokenKickout
+			case errors.Is(err, manager.ErrTokenReplaced):
+				err = core.ErrTokenReplaced
+			default:
+				err = core.ErrNotLogin
+			}
+
+			// 用户自定义回调优先
 			if options.AuthFailFunc != nil {
 				options.AuthFailFunc(r, err)
-				return
-			}
-
-			switch err {
-			case manager.ErrTokenKickout:
-				writeErrorResponse(r, core.ErrTokenKickout)
-			case manager.ErrTokenReplaced:
-				writeErrorResponse(r, core.ErrTokenReplaced)
-			default:
-				writeErrorResponse(r, core.ErrNotLogin)
+			} else {
+				writeErrorResponse(r, err)
 			}
 
 			return
 		}
 
-		r.SetCtxVar(SaTokenCtxKey, saCtx)
 		r.Middleware.Next()
 	}
 }
@@ -162,41 +176,37 @@ func PermissionMiddleware(
 		if err != nil {
 			if options.AuthFailFunc != nil {
 				options.AuthFailFunc(r, err)
-				return
+			} else {
+				writeErrorResponse(r, err)
 			}
-			writeErrorResponse(r, err)
 			return
 		}
 
-		// Build Sa-Token context | 构建 Sa-Token 上下文
-		saCtx := saContext.NewContext(
-			r.Context(),
-			NewGFContext(r),
-			mgr,
-		)
+		// 构建 Sa-Token 上下文 | Build Sa-Token context
+		saCtx := getSaContext(r, mgr)
+		ctx := context.WithValue(r.Context(), config.CtxTokenValue, saCtx.GetTokenValue())
 
 		// Permission check | 权限校验
 		var ok bool
-
 		switch {
 		// Single permission | 单权限判断
 		case len(permissions) == 1:
 			ok = mgr.HasPermissionByToken(
-				context.WithValue(r.Context(), config.CtxTokenValue, saCtx.GetTokenValue()),
+				ctx,
 				permissions[0],
 			)
 
 		// AND logic | AND 逻辑
 		case options.LogicType == LogicAnd:
 			ok = mgr.HasPermissionsAndByToken(
-				context.WithValue(r.Context(), config.CtxTokenValue, saCtx.GetTokenValue()),
+				ctx,
 				permissions,
 			)
 
 		// OR logic (default) | OR 逻辑（默认）
 		default:
 			ok = mgr.HasPermissionsOrByToken(
-				context.WithValue(r.Context(), config.CtxTokenValue, saCtx.GetTokenValue()),
+				ctx,
 				permissions,
 			)
 		}
@@ -204,14 +214,11 @@ func PermissionMiddleware(
 		if !ok {
 			if options.AuthFailFunc != nil {
 				options.AuthFailFunc(r, core.ErrPermissionDenied)
-				return
+			} else {
+				writeErrorResponse(r, core.ErrPermissionDenied)
 			}
-			writeErrorResponse(r, core.ErrPermissionDenied)
 			return
 		}
-
-		// Store Sa-Token context | 保存 Sa-Token 上下文
-		r.SetCtxVar(SaTokenCtxKey, saCtx)
 
 		r.Middleware.Next()
 	}
@@ -240,18 +247,15 @@ func RoleMiddleware(
 		if err != nil {
 			if options.AuthFailFunc != nil {
 				options.AuthFailFunc(r, err)
-				return
+			} else {
+				writeErrorResponse(r, err)
 			}
-			writeErrorResponse(r, err)
 			return
 		}
 
-		// Build Sa-Token context | 构建 Sa-Token 上下文
-		saCtx := saContext.NewContext(
-			r.Context(),
-			NewGFContext(r),
-			mgr,
-		)
+		// 构建 Sa-Token 上下文 | Build Sa-Token context
+		saCtx := getSaContext(r, mgr)
+		ctx := context.WithValue(r.Context(), config.CtxTokenValue, saCtx.GetTokenValue())
 
 		// Role check | 角色校验
 		var ok bool
@@ -259,28 +263,25 @@ func RoleMiddleware(
 		switch {
 		// Single role | 单角色判断
 		case len(roles) == 1:
-			ok = mgr.HasRoleByToken(context.WithValue(r.Context(), config.CtxTokenValue, saCtx.GetTokenValue()), roles[0])
+			ok = mgr.HasRoleByToken(ctx, roles[0])
 
 		// AND logic | AND 逻辑
 		case options.LogicType == LogicAnd:
-			ok = mgr.HasRolesAndByToken(context.WithValue(r.Context(), config.CtxTokenValue, saCtx.GetTokenValue()), roles)
+			ok = mgr.HasRolesAndByToken(ctx, roles)
 
 		// OR logic (default) | OR 逻辑（默认）
 		default:
-			ok = mgr.HasRolesOrByToken(context.WithValue(r.Context(), config.CtxTokenValue, saCtx.GetTokenValue()), roles)
+			ok = mgr.HasRolesOrByToken(ctx, roles)
 		}
 
 		if !ok {
 			if options.AuthFailFunc != nil {
 				options.AuthFailFunc(r, core.ErrRoleDenied)
-				return
+			} else {
+				writeErrorResponse(r, core.ErrRoleDenied)
 			}
-			writeErrorResponse(r, core.ErrRoleDenied)
 			return
 		}
-
-		// Store Sa-Token context | 保存 Sa-Token 上下文
-		r.SetCtxVar(SaTokenCtxKey, saCtx)
 
 		r.Middleware.Next()
 	}
@@ -295,6 +296,22 @@ func GetSaTokenContext(r *ghttp.Request) (*saContext.SaTokenContext, bool) {
 
 	ctx, ok := v.Val().(*saContext.SaTokenContext)
 	return ctx, ok
+}
+
+func getSaContext(r *ghttp.Request, mgr *manager.Manager) *saContext.SaTokenContext {
+	// Try get from context | 尝试从 ctx 取值
+	if v := r.GetCtxVar(SaTokenCtxKey); v != nil {
+		// gvar.Var -> interface{} -> *SaTokenContext
+		if saCtx, ok := v.Val().(*saContext.SaTokenContext); ok {
+			return saCtx
+		}
+	}
+
+	// Create new context | 创建并缓存 SaTokenContext
+	saCtx := saContext.NewContext(NewGFContext(r), mgr)
+	r.SetCtxVar(SaTokenCtxKey, saCtx)
+
+	return saCtx
 }
 
 // ============ Error Handling Helpers | 错误处理辅助函数 ============
@@ -321,7 +338,7 @@ func writeErrorResponse(r *ghttp.Request, err error) {
 	r.Response.WriteStatusExit(httpStatus, g.Map{
 		"code":    code,
 		"message": message,
-		"error":   err.Error(),
+		"data":    err.Error(),
 	})
 }
 

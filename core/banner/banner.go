@@ -37,6 +37,53 @@ func Print() {
 	fmt.Println()
 }
 
+// PrintWithConfig prints startup banner with essential configuration | 打印启动横幅和核心配置信息
+func PrintWithConfig(cfg *config.Config) {
+	Print()
+
+	fmt.Println("┌─────────────────────────────────────────────────────────┐")
+	fmt.Println("│                   Configuration                         │")
+	fmt.Println("├─────────────────────────────────────────────────────────┤")
+
+	// Basic Token Settings | Token 基础设置
+	fmt.Print(formatConfigLine("Token Name", cfg.TokenName))
+	fmt.Print(formatConfigLine("Token Style", cfg.TokenStyle))
+	fmt.Print(formatConfigLine("Key Prefix", cfg.KeyPrefix))
+	fmt.Print(formatConfigLine("AuthType", cfg.AuthType))
+
+	// Login Control | 登录控制
+	fmt.Println("├─────────────────────────────────────────────────────────┤")
+	fmt.Print(formatConfigLine("Concurrent Login", cfg.IsConcurrent))
+	fmt.Print(formatConfigLine("Share Token", cfg.IsShare))
+	fmt.Print(formatConfigLine("Max Login Count", formatCount(cfg.MaxLoginCount)))
+
+	// Timeout & Activity | 超时与活跃控制
+	fmt.Println("├─────────────────────────────────────────────────────────┤")
+	fmt.Print(formatConfigLine("Token Timeout", formatTimeout(cfg.Timeout)))
+	fmt.Print(formatConfigLine("Active Timeout", formatTimeout(cfg.ActiveTimeout)))
+
+	// Renewal & Refresh Strategy | 续期与刷新策略
+	fmt.Println("├─────────────────────────────────────────────────────────┤")
+	fmt.Print(formatConfigLine("Auto Renew", cfg.AutoRenew))
+	fmt.Print(formatConfigLine("Max Refresh", formatTimeout(cfg.MaxRefresh)))
+	fmt.Print(formatConfigLine("Renew Interval", formatTimeout(cfg.RenewInterval)))
+
+	// Token Read Sources (compact) | Token 读取来源（紧凑显示）
+	fmt.Println("├─────────────────────────────────────────────────────────┤")
+	fmt.Print(formatConfigLine("Read From", tokenReadSources(cfg)))
+
+	// Security & Storage | 安全与存储
+	fmt.Println("├─────────────────────────────────────────────────────────┤")
+	if cfg.TokenStyle == "jwt" || cfg.TokenStyle == "JWT" {
+		fmt.Print(formatConfigLine("JWT Secret Key", configured))
+	} else {
+		fmt.Print(formatConfigLine("JWT Secret Key", "(not used)"))
+	}
+
+	fmt.Println("└─────────────────────────────────────────────────────────┘")
+	fmt.Println()
+}
+
 // formatConfigLine formats configuration line with alignment and truncation | 格式化配置行（自动截断过长文本并保持对齐）
 func formatConfigLine(label string, value any) string {
 	if len(label) > labelWidth {
@@ -90,51 +137,4 @@ func tokenReadSources(cfg *config.Config) string {
 		return "(none)"
 	}
 	return strings.Join(parts, ", ")
-}
-
-// PrintWithConfig prints startup banner with essential configuration | 打印启动横幅和核心配置信息
-func PrintWithConfig(cfg *config.Config) {
-	Print()
-
-	fmt.Println("┌─────────────────────────────────────────────────────────┐")
-	fmt.Println("│                   Configuration                         │")
-	fmt.Println("├─────────────────────────────────────────────────────────┤")
-
-	// Basic Token Settings | Token 基础设置
-	fmt.Print(formatConfigLine("Token Name", cfg.TokenName))
-	fmt.Print(formatConfigLine("Token Style", cfg.TokenStyle))
-	fmt.Print(formatConfigLine("Key Prefix", cfg.KeyPrefix))
-	fmt.Print(formatConfigLine("AuthType", cfg.AuthType))
-
-	// Login Control | 登录控制
-	fmt.Println("├─────────────────────────────────────────────────────────┤")
-	fmt.Print(formatConfigLine("Concurrent Login", cfg.IsConcurrent))
-	fmt.Print(formatConfigLine("Share Token", cfg.IsShare))
-	fmt.Print(formatConfigLine("Max Login Count", formatCount(cfg.MaxLoginCount)))
-
-	// Timeout & Activity | 超时与活跃控制
-	fmt.Println("├─────────────────────────────────────────────────────────┤")
-	fmt.Print(formatConfigLine("Token Timeout", formatTimeout(cfg.Timeout)))
-	fmt.Print(formatConfigLine("Active Timeout", formatTimeout(cfg.ActiveTimeout)))
-
-	// Renewal & Refresh Strategy | 续期与刷新策略
-	fmt.Println("├─────────────────────────────────────────────────────────┤")
-	fmt.Print(formatConfigLine("Auto Renew", cfg.AutoRenew))
-	fmt.Print(formatConfigLine("Max Refresh", formatTimeout(cfg.MaxRefresh)))
-	fmt.Print(formatConfigLine("Renew Interval", formatTimeout(cfg.RenewInterval)))
-
-	// Token Read Sources (compact) | Token 读取来源（紧凑显示）
-	fmt.Println("├─────────────────────────────────────────────────────────┤")
-	fmt.Print(formatConfigLine("Read From", tokenReadSources(cfg)))
-
-	// Security & Storage | 安全与存储
-	fmt.Println("├─────────────────────────────────────────────────────────┤")
-	if cfg.TokenStyle == "jwt" || cfg.TokenStyle == "JWT" {
-		fmt.Print(formatConfigLine("JWT Secret Key", configured))
-	} else {
-		fmt.Print(formatConfigLine("JWT Secret Key", "(not used)"))
-	}
-
-	fmt.Println("└─────────────────────────────────────────────────────────┘")
-	fmt.Println()
 }

@@ -64,8 +64,7 @@ func (nm *NonceManager) Generate() (string, error) {
 	return nonce, nil
 }
 
-// Verify Verifies nonce and consumes it (one-time use) | 验证nonce并消费它（一次性使用）
-// Returns false if nonce doesn't exist or already used | 如果nonce不存在或已使用则返回false
+// Verify Verifies nonce and consumes it (one-time use) Returns false if nonce doesn't exist or already used | 验证nonce并消费它（一次性使用）如果nonce不存在或已使用则返回false
 func (nm *NonceManager) Verify(nonce string) bool {
 	if nonce == "" {
 		return false // Empty nonce invalid | 空nonce无效

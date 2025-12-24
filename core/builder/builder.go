@@ -41,7 +41,7 @@ type Builder struct {
 
 	cookieConfig    *config.CookieConfig  // Cookie config | Cookie 配置
 	renewPoolConfig *ants.RenewPoolConfig // Renew pool config | 续期协程池配置
-	logConfig       *slog.LoggerConfig    // 日志配置
+	logConfig       *slog.LoggerConfig    // log config | 日志配置
 
 	generator adapter.Generator // Token generator | Token 生成器
 	storage   adapter.Storage   // Storage adapter | 存储适配器
@@ -70,7 +70,7 @@ func NewBuilder() *Builder {
 		tokenStyle:             sgenerator.TokenStyleUUID,
 		tokenSessionCheckLogin: true,
 		autoRenew:              true,
-		jwtSecretKey:           config.DefaultJwtSecretKey,
+		jwtSecretKey:           sgenerator.DefaultJWTSecret,
 		isLog:                  false,
 		isPrintBanner:          true,
 		keyPrefix:              config.DefaultKeyPrefix,
