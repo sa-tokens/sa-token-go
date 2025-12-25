@@ -1,7 +1,6 @@
 package builder
 
 import (
-	"context"
 	codec_json "github.com/click33/sa-token-go/codec/json"
 	"github.com/click33/sa-token-go/generator/sgenerator"
 	"github.com/click33/sa-token-go/log/nop"
@@ -49,8 +48,8 @@ type Builder struct {
 	log       adapter.Log       // log Log adapter for logging operations | 日志记录操作的适配器
 	pool      adapter.Pool      // Async task pool component | 异步任务协程池组件
 
-	customPermissionListFunc func(ctx context.Context, loginID string) ([]string, error) // Custom permission provider | 自定义权限获取函数
-	customRoleListFunc       func(ctx context.Context, loginID string) ([]string, error) // Custom role provider | 自定义角色获取函数
+	customPermissionListFunc func(loginID string) ([]string, error) // Custom permission provider | 自定义权限获取函数
+	customRoleListFunc       func(loginID string) ([]string, error) // Custom role provider | 自定义角色获取函数
 }
 
 // NewBuilder creates a new builder with log configuration | 创建新的构建器（使用默认配置）
@@ -492,13 +491,13 @@ func (b *Builder) SetPool(pool adapter.Pool) *Builder {
 }
 
 // SetCustomPermissionListFunc sets the custom permission provider | 设置自定义权限获取函数
-func (b *Builder) SetCustomPermissionListFunc(f func(ctx context.Context, loginID string) ([]string, error)) *Builder {
+func (b *Builder) SetCustomPermissionListFunc(f func(loginID string) ([]string, error)) *Builder {
 	b.customPermissionListFunc = f
 	return b
 }
 
 // SetCustomRoleListFunc sets the custom role provider | 设置自定义角色获取函数
-func (b *Builder) SetCustomRoleListFunc(f func(ctx context.Context, loginID string) ([]string, error)) *Builder {
+func (b *Builder) SetCustomRoleListFunc(f func(loginID string) ([]string, error)) *Builder {
 	b.customRoleListFunc = f
 	return b
 }
