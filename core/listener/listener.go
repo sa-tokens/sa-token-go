@@ -101,7 +101,7 @@ func NewManager(loggers ...adapter.Log) *Manager {
 	// panicHandler 绑定“已经确定好的 logger”
 	m.panicHandler = func(event Event, data *EventData, recovered any) {
 		logger.Errorf(
-			"[listener] listener panic recovered: event=%s, panic=%v",
+			"Listener listener panic recovered: event=%s, panic=%v",
 			event, recovered,
 		)
 	}

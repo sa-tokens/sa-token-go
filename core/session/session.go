@@ -3,6 +3,7 @@ package session
 import (
 	"fmt"
 	codec_json "github.com/click33/sa-token-go/codec/json"
+	"github.com/click33/sa-token-go/core"
 	"github.com/click33/sa-token-go/storage/memory"
 	"sync"
 	"time"
@@ -12,10 +13,11 @@ import (
 
 // Session Session object for storing user data | 会话对象，用于存储用户数据
 type Session struct {
-	AuthType   string          `json:"authType"`      // Authentication system type | 认证体系类型
-	ID         string          `json:"id"`            // Session ID | Session标识
-	CreateTime int64           `json:"createTime"`    // Creation time | 创建时间
-	Data       map[string]any  `json:"data"`          // Session data | 数据
+	AuthType   string         `json:"authType"`   // Authentication system type | 认证体系类型
+	ID         string         `json:"id"`         // Session ID | Session标识
+	CreateTime int64          `json:"createTime"` // Creation time | 创建时间
+	Data       map[string]any `json:"data"`       // Session data | 数据
+
 	prefix     string          `json:"-" msgpack:"-"` // Key prefix | 键前缀
 	mu         sync.RWMutex    `json:"-" msgpack:"-"` // Read-write lock | 读写锁
 	storage    adapter.Storage `json:"-" msgpack:"-"` // Storage adapter (Redis, Memory, etc.) | 存储适配器（如 Redis、Memory）
@@ -47,7 +49,7 @@ func NewSession(authType, prefix, id string, storage adapter.Storage, serializer
 // Set Sets value | 设置值
 func (s *Session) Set(key string, value any, ttl ...time.Duration) error {
 	if key == "" {
-		return fmt.Errorf("session key cannot empty")
+		return core.ErrSessionInvalidDataKey
 	}
 
 	s.mu.Lock()
@@ -69,7 +71,7 @@ func (s *Session) SetMulti(valueMap map[string]any, ttl ...time.Duration) error 
 
 	for key, value := range valueMap {
 		if key == "" {
-			return fmt.Errorf("session id cannot be empty")
+			return core.ErrSessionInvalidDataKey
 		}
 		s.Data[key] = value
 	}
@@ -218,36 +220,55 @@ func (s *Session) getStorageKey() string {
 func (s *Session) save(ttl ...time.Duration) error {
 	data, err := s.serializer.Encode(s)
 	if err != nil {
-		return fmt.Errorf("%w: %v", fmt.Errorf("failed to encode data"), err)
+		return fmt.Errorf("%w: %v", core.ErrSerializeFailed, err)
 	}
 
 	key := s.getStorageKey()
 
 	// Default to 0 (no expiration) | 默认使用 0（无过期时间）
 	if len(ttl) == 0 || ttl[0] <= 0 {
-		return s.storage.Set(key, data, 0)
+		err = s.storage.Set(key, data, 0)
+		if err != nil {
+			return fmt.Errorf("%w: %v", core.ErrStorageUnavailable, err)
+		}
+		return nil
 	}
 
 	// Save with provided TTL | 使用指定 TTL 保存
-	return s.storage.Set(key, data, ttl[0])
+	err = s.storage.Set(key, data, ttl[0])
+	if err != nil {
+		return fmt.Errorf("%w: %v", core.ErrStorageUnavailable, err)
+	}
+
+	return nil
 }
 
 // saveKeepTTL saves session while preserving its TTL | 保存 Session 并保留现有 TTL
 func (s *Session) saveKeepTTL() error {
 	data, err := s.serializer.Encode(s)
 	if err != nil {
-		return fmt.Errorf("%w: %v", fmt.Errorf("failed to encode data"), err)
+		return fmt.Errorf("%w: %v", core.ErrSerializeFailed, err)
 	}
 
 	key := s.getStorageKey()
 
 	// Try to get current TTL | 获取当前 TTL
-	ttl, err := s.storage.TTL(key)
+	// -1: never expires | 永不过期
+	// -2: key not found | key不存在
+	// >0: remaining TTL | 剩余时间
+	ttl, _ := s.storage.TTL(key)
+
+	// ttl <= 0 means: not found(-2), never expires(-1), or expired
+	// All these cases should save with no expiration | 这些情况都保存为永久
+	if ttl <= 0 {
+		ttl = 0
+	}
+	// ttl > 0: use original TTL | 使用原有TTL
+
+	err = s.storage.Set(key, data, ttl)
 	if err != nil {
-		return err
-	} else if ttl <= 0 {
-		ttl = 0 // Default to permanent if no TTL exists | 无 TTL 默认永久保存
+		return fmt.Errorf("%w: %v", core.ErrStorageUnavailable, err)
 	}
 
-	return s.storage.Set(key, data, ttl)
+	return nil
 }

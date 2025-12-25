@@ -18,11 +18,6 @@ import (
 
 var (
 	globalManagerMap sync.Map
-
-	ErrTokenKickout       = manager.ErrTokenKickout       // token has been kicked out | Token 已被踢下线
-	ErrTokenReplaced      = manager.ErrTokenReplaced      // token has been replaced | Token 已被顶下线
-	ErrAccountDisabled    = manager.ErrAccountDisabled    // account is disabled | 账号已被禁用
-	ErrLoginLimitExceeded = manager.ErrLoginLimitExceeded // login count exceeds the maximum limit | 超出最大登录数量限制
 )
 
 // ============ Authentication | 登录认证 ============

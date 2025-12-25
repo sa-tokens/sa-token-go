@@ -178,7 +178,7 @@ func (rtm *RefreshTokenManager) VerifyAccessTokenAndGetInfo(accessToken string) 
 // RefreshAccessToken Refresh access token by refresh token | 使用刷新令牌刷新访问令牌
 func (rtm *RefreshTokenManager) RefreshAccessToken(refreshToken string) (*RefreshTokenInfo, error) {
 	if refreshToken == "" {
-		return nil, core.ErrInvalidRefreshToken
+		return nil, core.ErrNonceInvalidRefreshToken
 	}
 
 	refreshKey := rtm.getRefreshKey(refreshToken)

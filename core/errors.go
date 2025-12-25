@@ -128,6 +128,16 @@ var (
 	ErrInvalidScope = fmt.Errorf("invalid scope: requested scope is not allowed for this client")
 )
 
+// ============ Session Errors | Session 错误 ============
+
+var (
+	// ErrSessionInvalidDataKey indicates a session data key is empty or invalid | Session 数据的 key 为空或非法
+	ErrSessionInvalidDataKey = fmt.Errorf("invalid session data key: key cannot be empty")
+
+	// ErrSessionIDEmpty indicates that a session ID is empty or missing | Session ID 为空或缺失
+	ErrSessionIDEmpty = errors.New("session id cannot be empty")
+)
+
 // ============ System Errors | 系统错误 ============
 
 var (
