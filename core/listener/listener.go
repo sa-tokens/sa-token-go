@@ -339,9 +339,9 @@ func (m *Manager) Trigger(data *EventData) {
 
 	m.mu.RUnlock()
 
-	// log
-	m.logger.Debugf(
-		"[listener] auth event triggered: event=%s, authType=%s, loginID=%s, device=%s, listeners=%d",
+	// 日志
+	m.logger.Infof(
+		"Listener auth event triggered: event=%s, authType=%s, loginID=%s, device=%s, listeners=%d",
 		data.Event,
 		data.AuthType,
 		data.LoginID,

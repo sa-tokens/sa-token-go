@@ -34,7 +34,7 @@ func NewDefaultGenerator() *Generator {
 	return &Generator{
 		timeout:      DefaultTimeout,
 		tokenStyle:   TokenStyleUUID,
-		jwtSecretKey: TikCharset,
+		jwtSecretKey: DefaultJWTSecret,
 	}
 }
 

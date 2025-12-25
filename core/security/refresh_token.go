@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	codec_json "github.com/click33/sa-token-go/codec/json"
+	"github.com/click33/sa-token-go/core"
 	"github.com/click33/sa-token-go/core/adapter"
 	"github.com/click33/sa-token-go/generator/sgenerator"
 	"github.com/click33/sa-token-go/storage/memory"
@@ -87,7 +88,7 @@ func NewRefreshTokenManager(
 // GenerateTokenPair Create access + refresh token | 生成访问令牌和刷新令牌
 func (rtm *RefreshTokenManager) GenerateTokenPair(loginID, device string) (*RefreshTokenInfo, error) {
 	if loginID == "" {
-		return nil, ErrInvalidLoginIDEmpty
+		return nil, core.ErrInvalidLoginIDEmpty
 	}
 
 	// Generate access token | 生成访问令牌
@@ -96,15 +97,15 @@ func (rtm *RefreshTokenManager) GenerateTokenPair(loginID, device string) (*Refr
 		return nil, err
 	}
 
-	// Generate refresh token | 生成刷新令牌
 	random := make([]byte, RefreshTokenLength)
 	if _, err := rand.Read(random); err != nil {
 		return nil, err
 	}
+
+	// Generate refresh token | 生成刷新令牌
 	refreshToken := hex.EncodeToString(random)
 
 	now := time.Now()
-
 	info := &RefreshTokenInfo{
 		RefreshToken: refreshToken,
 		AccessToken:  accessToken,
@@ -113,6 +114,11 @@ func (rtm *RefreshTokenManager) GenerateTokenPair(loginID, device string) (*Refr
 		CreateTime:   now.Unix(),
 		ExpireTime:   now.Add(rtm.refreshTTL).Unix(),
 	}
+	// Encode refresh token info | 编码刷新令牌信息
+	refreshData, err := rtm.serializer.Encode(info)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", core.ErrSerializeFailed, err)
+	}
 
 	// Encode access token info | 编码访问令牌信息
 	accessData, err := rtm.serializer.Encode(&AccessTokenInfo{
@@ -120,22 +126,16 @@ func (rtm *RefreshTokenManager) GenerateTokenPair(loginID, device string) (*Refr
 		Device:  device,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", fmt.Errorf("failed to encode data"), err)
-	}
-
-	// Encode refresh token info | 编码刷新令牌信息
-	refreshData, err := rtm.serializer.Encode(info)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %v", fmt.Errorf("failed to encode data"), err)
+		return nil, fmt.Errorf("%w: %v", core.ErrSerializeFailed, err)
 	}
 
 	// Store access token | 存储访问令牌
-	if err := rtm.storage.Set(
+	if err = rtm.storage.Set(
 		rtm.getTokenKey(accessToken),
 		accessData,
 		rtm.accessTTL,
 	); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: %v", core.ErrStorageUnavailable, err)
 	}
 
 	// Store refresh token | 存储刷新令牌
@@ -144,7 +144,7 @@ func (rtm *RefreshTokenManager) GenerateTokenPair(loginID, device string) (*Refr
 		refreshData,
 		rtm.refreshTTL,
 	); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: %v", core.ErrStorageUnavailable, err)
 	}
 
 	return info, nil
@@ -178,30 +178,34 @@ func (rtm *RefreshTokenManager) VerifyAccessTokenAndGetInfo(accessToken string) 
 // RefreshAccessToken Refresh access token by refresh token | 使用刷新令牌刷新访问令牌
 func (rtm *RefreshTokenManager) RefreshAccessToken(refreshToken string) (*RefreshTokenInfo, error) {
 	if refreshToken == "" {
-		return nil, ErrInvalidRefreshToken
+		return nil, core.ErrInvalidRefreshToken
 	}
 
 	refreshKey := rtm.getRefreshKey(refreshToken)
 
 	// Load refresh token | 读取刷新令牌
 	data, err := rtm.storage.Get(refreshKey)
-	if err != nil || data == nil {
-		return nil, ErrInvalidRefreshToken
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", core.ErrStorageUnavailable, err)
 	}
+	if data == nil {
+		return nil, core.ErrInvalidRefreshToken
+	}
+
 	bytes, err := utils.ToBytes(data)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: %v", core.ErrTypeConvert, err)
 	}
 
 	var info RefreshTokenInfo
 	if err := rtm.serializer.Decode(bytes, &info); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: %v", core.ErrDeserializeFailed, err)
 	}
 
 	// Check expiration | 检查过期
 	if time.Now().Unix() > info.ExpireTime {
 		_ = rtm.storage.Delete(refreshKey)
-		return nil, ErrRefreshTokenExpired
+		return nil, core.ErrRefreshTokenExpired
 	}
 
 	// Remove old access token | 删除旧访问令牌
@@ -222,23 +226,23 @@ func (rtm *RefreshTokenManager) RefreshAccessToken(refreshToken string) (*Refres
 		Device:  info.Device,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", fmt.Errorf("failed to encode data"), err)
+		return nil, fmt.Errorf("%w: %v", core.ErrSerializeFailed, err)
 	}
 	if err := rtm.storage.Set(
 		rtm.getTokenKey(newAccessToken),
 		accessData,
 		rtm.accessTTL,
 	); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: %v", core.ErrStorageUnavailable, err)
 	}
 
 	// Update refresh token without extending TTL | 更新刷新令牌但不续期
 	refreshData, err := rtm.serializer.Encode(&info)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", fmt.Errorf("failed to encode data"), err)
+		return nil, fmt.Errorf("%w: %v", core.ErrSerializeFailed, err)
 	}
 	if err = rtm.storage.SetKeepTTL(refreshKey, refreshData); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: %v", core.ErrStorageUnavailable, err)
 	}
 
 	return &info, nil
@@ -247,25 +251,28 @@ func (rtm *RefreshTokenManager) RefreshAccessToken(refreshToken string) (*Refres
 // GetRefreshTokenInfo Get refresh token info by token | 根据刷新令牌获取刷新令牌信息
 func (rtm *RefreshTokenManager) GetRefreshTokenInfo(refreshToken string) (*RefreshTokenInfo, error) {
 	if refreshToken == "" {
-		return nil, ErrInvalidRefreshToken
+		return nil, core.ErrInvalidRefreshToken
 	}
 
 	refreshKey := rtm.getRefreshKey(refreshToken)
 
 	// Load refresh token | 读取刷新令牌
 	data, err := rtm.storage.Get(refreshKey)
-	if err != nil || data == nil {
-		return nil, ErrInvalidRefreshToken
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", core.ErrStorageUnavailable, err)
+	}
+	if data == nil {
+		return nil, core.ErrInvalidRefreshToken
 	}
 
 	bytes, err := utils.ToBytes(data)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: %v", core.ErrTypeConvert, err)
 	}
 
 	var info RefreshTokenInfo
 	if err = rtm.serializer.Decode(bytes, &info); err != nil {
-		return nil, fmt.Errorf("%w: %v", fmt.Errorf("failed to decode data"), err)
+		return nil, fmt.Errorf("%w: %v", core.ErrDeserializeFailed, err)
 	}
 
 	return &info, nil
@@ -276,7 +283,13 @@ func (rtm *RefreshTokenManager) RevokeRefreshToken(refreshToken string) error {
 	if refreshToken == "" {
 		return nil
 	}
-	return rtm.storage.Delete(rtm.getRefreshKey(refreshToken))
+
+	err := rtm.storage.Delete(rtm.getRefreshKey(refreshToken))
+	if err != nil {
+		return fmt.Errorf("%w: %v", core.ErrStorageUnavailable, err)
+	}
+
+	return nil
 }
 
 // IsValid Check refresh token valid | 判断刷新令牌是否有效
@@ -285,6 +298,7 @@ func (rtm *RefreshTokenManager) IsValid(refreshToken string) bool {
 	if err != nil || data == nil {
 		return false
 	}
+
 	bytes, err := utils.ToBytes(data)
 	if err != nil {
 		return false
@@ -294,6 +308,7 @@ func (rtm *RefreshTokenManager) IsValid(refreshToken string) bool {
 	if err = rtm.serializer.Decode(bytes, &info); err != nil {
 		return false
 	}
+
 	return time.Now().Unix() <= info.ExpireTime
 }
 

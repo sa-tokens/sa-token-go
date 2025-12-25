@@ -2,17 +2,13 @@
 package manager
 
 import (
-	"fmt"
 	"time"
 )
 
 // Constants for storage keys and log values | 存储键和默认值常量
 const (
-	DefaultDevice     = "default"       // Default device type | 默认设备类型
-	DefaultPrefix     = "satoken"       // Default key prefix | 默认键前缀
-	DisableValue      = "1"             // Disabled flag value | 被禁用标记值
-	DefaultRenewValue = "1"             // Default renew flag value | 默认续期标记值
-	DefaultNonceTTL   = 5 * time.Minute // Default nonce expiration time | 默认随机令牌有效期
+	DefaultDevice   = "default"       // Default device type | 默认设备类型
+	DefaultNonceTTL = 5 * time.Minute // Default nonce expiration time | 默认随机令牌有效期
 
 	// Key prefixes | 键前缀
 	TokenKeyPrefix        = "token:"   // Token storage prefix | Token 存储前缀
@@ -40,13 +36,4 @@ const (
 	TokenStateLogout   TokenState = "LOGOUT"      // Logout state | 主动登出
 	TokenStateKickout  TokenState = "KICK_OUT"    // Kickout state | 被踢下线
 	TokenStateReplaced TokenState = "BE_REPLACED" // Replaced state | 被顶下线
-)
-
-var (
-	ErrTokenNotFound      = fmt.Errorf("token not found")                       // token not found | Token 不存在
-	ErrTokenKickout       = fmt.Errorf("token has been kicked out")             // token has been kicked out | Token 已被踢下线
-	ErrTokenReplaced      = fmt.Errorf("token has been replaced")               // token has been replaced | Token 已被顶下线
-	ErrNotLogin           = fmt.Errorf("not login")                             // not login | 未登录
-	ErrAccountDisabled    = fmt.Errorf("account is disabled")                   // account is disabled | 账号已被禁用
-	ErrLoginLimitExceeded = fmt.Errorf("login count exceeds the maximum limit") // login count exceeds the maximum limit | 超出最大登录数量限制
 )

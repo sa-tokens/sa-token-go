@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"github.com/click33/sa-token-go/core"
 	"github.com/click33/sa-token-go/core/adapter"
 	"github.com/click33/sa-token-go/storage/memory"
 	"sync"
@@ -50,15 +51,18 @@ func NewNonceManager(authType, prefix string, storage adapter.Storage, ttl time.
 
 // Generate Generates a new nonce and stores it | 生成新的nonce并存储
 func (nm *NonceManager) Generate() (string, error) {
-	bytes := make([]byte, NonceLength) // Create byte slice for nonce | 创建字节切片生成nonce
+	// Create byte slice for nonce | 创建字节切片生成nonce
+	bytes := make([]byte, NonceLength)
 	if _, err := rand.Read(bytes); err != nil {
-		return "", fmt.Errorf("failed to generate random bytes: %w", err) // Random generation failed | 随机生成失败
+		return "", err
 	}
-	nonce := hex.EncodeToString(bytes) // Encode bytes to hex string | 编码为16进制字符串
+	// Encode bytes to hex string | 编码为16进制字符串
+	nonce := hex.EncodeToString(bytes)
 
-	key := nm.getNonceKey(nonce) // Build storage key | 构建存储键
+	// Build storage key | 构建存储键
+	key := nm.getNonceKey(nonce)
 	if err := nm.storage.Set(key, time.Now().Unix(), nm.ttl); err != nil {
-		return "", fmt.Errorf("failed to store nonce: %w", err) // Storage failed | 存储失败
+		return "", fmt.Errorf("%w: %v", core.ErrStorageUnavailable, err)
 	}
 
 	return nonce, nil
@@ -67,26 +71,30 @@ func (nm *NonceManager) Generate() (string, error) {
 // Verify Verifies nonce and consumes it (one-time use) Returns false if nonce doesn't exist or already used | 验证nonce并消费它（一次性使用）如果nonce不存在或已使用则返回false
 func (nm *NonceManager) Verify(nonce string) bool {
 	if nonce == "" {
-		return false // Empty nonce invalid | 空nonce无效
+		return false
 	}
 
-	key := nm.getNonceKey(nonce) // Build storage key | 构建存储键
+	// Build storage key | 构建存储键
+	key := nm.getNonceKey(nonce)
 
 	nm.mu.Lock()         // Acquire write lock | 获取写锁
 	defer nm.mu.Unlock() // Release lock after function | 函数结束释放锁
 
+	// Nonce not found | 未找到nonce
 	if !nm.storage.Exists(key) {
-		return false // Nonce not found | 未找到nonce
+		return false
 	}
 
-	_ = nm.storage.Delete(key) // Consume nonce | 消耗nonce
+	// Consume nonce | 消耗nonce
+	_ = nm.storage.Delete(key)
+
 	return true
 }
 
 // VerifyAndConsume Verifies and consumes nonce, returns error if invalid | 验证并消费nonce，无效时返回错误
 func (nm *NonceManager) VerifyAndConsume(nonce string) error {
 	if !nm.Verify(nonce) {
-		return ErrInvalidNonce // Invalid nonce error | 无效nonce错误
+		return core.ErrInvalidNonce
 	}
 	return nil
 }
@@ -94,18 +102,20 @@ func (nm *NonceManager) VerifyAndConsume(nonce string) error {
 // IsValid Checks if nonce is valid without consuming it | 检查nonce是否有效（不消费）
 func (nm *NonceManager) IsValid(nonce string) bool {
 	if nonce == "" {
-		return false // Empty nonce invalid | 空nonce无效
+		return false
 	}
 
-	key := nm.getNonceKey(nonce) // Build storage key | 构建存储键
+	// Build storage key | 构建存储键
+	key := nm.getNonceKey(nonce)
 
 	nm.mu.RLock()         // Acquire read lock | 获取读锁
 	defer nm.mu.RUnlock() // Release read lock | 释放读锁
 
-	return nm.storage.Exists(key) // Return existence | 返回是否存在
+	// Return existence | 返回是否存在
+	return nm.storage.Exists(key)
 }
 
 // getNonceKey Gets storage key for nonce | 获取nonce的存储键
 func (nm *NonceManager) getNonceKey(nonce string) string {
-	return nm.keyPrefix + nm.authType + NonceKeySuffix + nonce // Construct full key | 构建完整存储键
+	return nm.keyPrefix + nm.authType + NonceKeySuffix + nonce
 }

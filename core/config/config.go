@@ -20,7 +20,7 @@ type Config struct {
 	// RenewInterval Minimum interval (in seconds) between two renewals for the same token; -1 means no limit | 同一Token两次续期的最小间隔时间（单位：秒，-1代表不限制）
 	RenewInterval int64
 
-	// ActiveTimeout Maximum inactivity duration (in seconds); if the Token is not accessed within this time, it will be frozen. -1 means no limit | Token最大不活跃时长（单位：秒），超过此时间未访问则被冻结，-1代表不限制
+	// ActiveTimeout Maximum inactivity duration (in seconds); if the Token is not accessed within this time, it will be frozen. -1 means no limit | Token最大不活跃时长（单位：秒），超过此时间未访问则被踢出，-1代表不限制
 	ActiveTimeout int64
 
 	// IsConcurrent Allow concurrent login for the same account (true=allow, false=new login kicks old) | 是否允许同一账号并发登录（true=允许并发，false=新登录挤掉旧登录）

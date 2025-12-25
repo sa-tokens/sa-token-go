@@ -20,17 +20,20 @@ var (
 	// ErrTokenExpired indicates the token has expired | Token已过期
 	ErrTokenExpired = fmt.Errorf("token expired: please login again to get a new token")
 
-	// ErrTokenKickout token has been kicked out | Token 已被踢下线
-	ErrTokenKickout = fmt.Errorf("token has been kicked out")
+	// ErrTokenKickout indicates the token has been kicked out | Token 已被踢下线
+	ErrTokenKickout = fmt.Errorf("authentication required: token has been kicked out")
 
-	// ErrTokenReplaced token has been replaced | Token 已被顶下线
-	ErrTokenReplaced = fmt.Errorf("token has been replaced")
+	// ErrTokenReplaced indicates the token has been replaced | Token 已被顶下线
+	ErrTokenReplaced = fmt.Errorf("authentication required: token has been replaced")
 
 	// ErrInvalidLoginID indicates the login ID is invalid | 登录ID无效
 	ErrInvalidLoginID = fmt.Errorf("invalid login ID: the login identifier cannot be empty")
 
 	// ErrInvalidDevice indicates the device identifier is invalid | 设备标识无效
 	ErrInvalidDevice = fmt.Errorf("invalid device: the device identifier is not valid")
+
+	// ErrTokenNotFound indicates the token does not exist | Token 不存在
+	ErrTokenNotFound = fmt.Errorf("authentication required: token not found")
 )
 
 // ============ Authorization Errors | 授权错误 ============
@@ -59,14 +62,70 @@ var (
 	// ErrSessionNotFound indicates the session doesn't exist | Session不存在
 	ErrSessionNotFound = fmt.Errorf("session not found: the session may have expired or been deleted")
 
-	// ErrKickedOut indicates the user has been kicked out | 用户已被踢下线
-	ErrKickedOut = fmt.Errorf("kicked out: this session has been forcibly terminated")
-
 	// ErrActiveTimeout indicates the session has been inactive for too long | Session活跃超时
 	ErrActiveTimeout = fmt.Errorf("session inactive: the session has exceeded the inactivity timeout")
 
-	// ErrMaxLoginCount indicates maximum concurrent login limit reached | 达到最大登录数量限制
-	ErrMaxLoginCount = fmt.Errorf("max login limit: maximum number of concurrent logins reached")
+	// ErrLoginLimitExceeded indicates login count exceeds the maximum limit | 超出最大登录数量限制
+	ErrLoginLimitExceeded = fmt.Errorf("account error: login count exceeds the maximum limit")
+)
+
+// ============ Security Errors | Security 错误 ============
+
+var (
+	// ErrInvalidNonce indicates the nonce is invalid or expired | Nonce 无效或已过期
+	ErrInvalidNonce = fmt.Errorf("invalid nonce: nonce is invalid or expired")
+
+	// ErrRefreshTokenExpired indicates the refresh token has expired | 刷新令牌已过期
+	ErrRefreshTokenExpired = fmt.Errorf("refresh token expired: please request a new token")
+
+	// ErrNonceInvalidRefreshToken indicates the refresh token is invalid | 刷新令牌无效
+	ErrNonceInvalidRefreshToken = fmt.Errorf("invalid refresh token: token is malformed or does not exist")
+
+	// ErrInvalidLoginIDEmpty indicates loginID is empty | 登录ID不能为空
+	ErrInvalidLoginIDEmpty = fmt.Errorf("invalid loginID: loginID cannot be empty")
+)
+
+// ============ OAuth2 Errors | OAuth2 错误 ============
+
+var (
+	// ErrClientOrClientIDEmpty indicates client or clientID is empty | 客户端或客户端ID为空
+	ErrClientOrClientIDEmpty = fmt.Errorf("invalid client: clientID is required")
+
+	// ErrClientNotFound indicates the client does not exist | 客户端不存在
+	ErrClientNotFound = fmt.Errorf("client error: client not found")
+
+	// ErrUserIDEmpty indicates userID is empty | 用户ID不能为空
+	ErrUserIDEmpty = fmt.Errorf("invalid user: userID cannot be empty")
+
+	// ErrInvalidRedirectURI indicates redirect URI is invalid | 回调URI非法
+	ErrInvalidRedirectURI = fmt.Errorf("invalid redirect uri: redirectUri is not allowed")
+
+	// ErrInvalidClientCredentials indicates incorrect client credentials | 客户端凭证无效
+	ErrInvalidClientCredentials = fmt.Errorf("invalid client credentials: authentication failed")
+
+	// ErrInvalidAuthCode indicates an invalid authorization code | 授权码无效
+	ErrInvalidAuthCode = fmt.Errorf("invalid authorization code: code is malformed or does not exist")
+
+	// ErrAuthCodeUsed indicates the authorization code has already been used | 授权码已被使用
+	ErrAuthCodeUsed = fmt.Errorf("authorization code error: code already used")
+
+	// ErrAuthCodeExpired indicates the authorization code has expired | 授权码已过期
+	ErrAuthCodeExpired = fmt.Errorf("authorization code expired: please restart authorization process")
+
+	// ErrClientMismatch indicates client mismatch | 客户端不匹配
+	ErrClientMismatch = fmt.Errorf("client mismatch: clientID does not match the authorization code")
+
+	// ErrRedirectURIMismatch indicates redirect URI mismatch | 回调URI不匹配
+	ErrRedirectURIMismatch = fmt.Errorf("redirect uri mismatch: callback URL does not match registered value")
+
+	// ErrInvalidAccessToken indicates access token invalid | 访问令牌无效
+	ErrInvalidAccessToken = fmt.Errorf("invalid access token: token is malformed or expired")
+
+	// ErrInvalidRefreshToken indicates refresh token invalid | 刷新令牌无效
+	ErrInvalidRefreshToken = fmt.Errorf("invalid refresh token: token is malformed or expired")
+
+	// ErrInvalidScope indicates requested scope is not allowed | 请求的权限范围不被允许
+	ErrInvalidScope = fmt.Errorf("invalid scope: requested scope is not allowed for this client")
 )
 
 // ============ System Errors | 系统错误 ============
@@ -74,6 +133,15 @@ var (
 var (
 	// ErrStorageUnavailable indicates the storage backend is unavailable | 存储后端不可用
 	ErrStorageUnavailable = fmt.Errorf("storage unavailable: unable to connect to storage backend")
+
+	// ErrSerializeFailed indicates serialization failed | 序列化失败
+	ErrSerializeFailed = fmt.Errorf("serialize failed: unable to encode data")
+
+	// ErrDeserializeFailed indicates deserialization failed | 反序列化失败
+	ErrDeserializeFailed = fmt.Errorf("deserialize failed: unable to decode data")
+
+	// ErrTypeConvert indicates a type conversion failed | 类型转换失败
+	ErrTypeConvert = fmt.Errorf("type conversion failed: unable to convert value to target type")
 )
 
 // ============ Custom Error Type | 自定义错误类型 ============
