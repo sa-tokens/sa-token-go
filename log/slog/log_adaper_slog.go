@@ -1,10 +1,11 @@
-// @Author daixk
+// @Author daixk 2025-12-26 14:14:15
 package slog
 
 import (
 	"bytes"
+	"crypto/rand"
 	"fmt"
-	"math/rand"
+	"math/big"
 	"os"
 	"path/filepath"
 	"sort"
@@ -17,7 +18,6 @@ import (
 
 // Logger implements ILogger + LoggerControl | 日志核心实现
 type Logger struct {
-
 	// ---- Config & State ----
 	cfg   *LoggerConfig // Logger configuration | 日志配置
 	cfgMu sync.RWMutex  // Config lock | 配置锁
@@ -35,14 +35,19 @@ type Logger struct {
 	wg    sync.WaitGroup
 
 	// ---- Time Cache ----
-	cacheSec int64        // Cached timestamp seconds | 缓存秒级时间戳
-	cacheStr atomic.Value // Cached formatted timestamp | 缓存格式化后的时间字符串
+	timeCache atomic.Value // Cached time info | 缓存的时间信息
 
 	// ---- State ----
 	closed    uint32 // Closed flag | 关闭标记
 	dropCount uint64 // Dropped log counter | 队列满时丢弃日志计数
 
 	closeOnce sync.Once // Ensure Close only executes once | 确保 Close 只执行一次
+}
+
+// timeCacheEntry stores cached timestamp | 时间缓存条目
+type timeCacheEntry struct {
+	sec int64  // Unix seconds | Unix 秒
+	str string // Formatted string | 格式化字符串
 }
 
 // NewLoggerWithConfig creates a logger instance | 使用配置创建日志器
@@ -52,15 +57,26 @@ func NewLoggerWithConfig(cfg *LoggerConfig) (*Logger, error) {
 		return nil, err
 	}
 
+	queueSize := newCfg.QueueSize
+	if queueSize <= 0 {
+		queueSize = DefaultQueueSize
+	}
+
 	l := &Logger{
 		cfg:        newCfg,
-		queue:      make(chan []byte, 4096),
+		queue:      make(chan []byte, queueSize),
 		quit:       make(chan struct{}),
 		lastRotate: time.Now(),
 	}
 
-	l.wg.Add(1)
+	// Initialize time cache | 初始化时间缓存
+	now := time.Now()
+	l.timeCache.Store(&timeCacheEntry{
+		sec: now.Unix(),
+		str: now.Format(newCfg.TimeFormat),
+	})
 
+	l.wg.Add(1)
 	go func() {
 		defer l.wg.Done()
 		l.writerLoop()
@@ -78,7 +94,7 @@ func (l *Logger) write(level LogLevel, args ...any) {
 	if level < cfg.Level {
 		return
 	}
-	l.enqueue(l.buildLine(level, args...))
+	l.enqueue(l.buildLine(level, cfg, args...))
 }
 
 // writef handles formatted log output | 输出格式化日志
@@ -92,7 +108,7 @@ func (l *Logger) writef(level LogLevel, format string, args ...any) {
 	}
 	buf := getBuf()
 	_, _ = fmt.Fprintf(buf, format, args...)
-	line := l.buildLine(level, buf.String())
+	line := l.buildLine(level, cfg, buf.String())
 	putBuf(buf)
 	l.enqueue(line)
 }
@@ -113,28 +129,18 @@ func (l *Logger) enqueue(b []byte) {
 // ---- Build Log Line ----
 
 // buildLine builds complete log line | 构建完整日志行
-func (l *Logger) buildLine(level LogLevel, args ...any) []byte {
-	cfg := l.currentCfg()
+func (l *Logger) buildLine(level LogLevel, cfg LoggerConfig, args ...any) []byte {
 	buf := getBuf()
 
-	// timestamp caching | 时间戳缓存
+	// Get cached timestamp or format new one | 获取缓存时间戳或格式化新的
 	now := time.Now()
 	sec := now.Unix()
 
-	if atomic.LoadInt64(&l.cacheSec) != sec {
-		atomic.StoreInt64(&l.cacheSec, sec)
-		l.cacheStr.Store(now.Format(cfg.TimeFormat))
-	}
-
-	// write time prefix | 写入时间前缀
-	if ts, ok := l.cacheStr.Load().(string); ok {
-		buf.WriteString(ts)
-	} else {
-		buf.WriteString(now.Format(cfg.TimeFormat))
-	}
+	ts := l.getTimeString(now, sec, cfg.TimeFormat)
+	buf.WriteString(ts)
 
 	buf.WriteString(" [")
-	buf.WriteString(l.levelString(level))
+	buf.WriteString(levelString(level))
 	buf.WriteString("] ")
 
 	buf.WriteString(cfg.Prefix)
@@ -143,7 +149,7 @@ func (l *Logger) buildLine(level LogLevel, args ...any) []byte {
 		if i > 0 {
 			buf.WriteByte(' ')
 		}
-		l.appendValue(buf, arg)
+		appendValue(buf, arg)
 	}
 
 	buf.WriteByte('\n')
@@ -154,20 +160,59 @@ func (l *Logger) buildLine(level LogLevel, args ...any) []byte {
 	return out
 }
 
-// appendValue writes a single value | 写入单个参数
-func (l *Logger) appendValue(buf *bytes.Buffer, v any) {
+// getTimeString returns cached or formatted time string | 返回缓存或格式化的时间字符串
+func (l *Logger) getTimeString(now time.Time, sec int64, format string) string {
+	// Try to load from cache | 尝试从缓存加载
+	if cached, ok := l.timeCache.Load().(*timeCacheEntry); ok && cached.sec == sec {
+		return cached.str
+	}
+
+	// Format new string and update cache (atomic, no race) | 格式化新字符串并更新缓存
+	str := now.Format(format)
+	l.timeCache.Store(&timeCacheEntry{sec: sec, str: str})
+	return str
+}
+
+// appendValue writes a single value with optimized type handling | 写入单个参数（优化类型处理）
+func appendValue(buf *bytes.Buffer, v any) {
+	if v == nil {
+		buf.WriteString("<nil>")
+		return
+	}
+
 	switch val := v.(type) {
 	case string:
 		buf.WriteString(val)
 	case []byte:
 		buf.Write(val)
 	case error:
-		buf.WriteString(val.Error())
+		if val != nil {
+			buf.WriteString(val.Error())
+		} else {
+			buf.WriteString("<nil>")
+		}
 
-	case int, int8, int16, int32, int64:
-		buf.WriteString(fmt.Sprintf("%d", val))
-	case uint, uint8, uint16, uint32, uint64:
-		buf.WriteString(fmt.Sprintf("%d", val))
+	// Optimized integer handling | 优化整数处理
+	case int:
+		buf.WriteString(strconv.FormatInt(int64(val), 10))
+	case int8:
+		buf.WriteString(strconv.FormatInt(int64(val), 10))
+	case int16:
+		buf.WriteString(strconv.FormatInt(int64(val), 10))
+	case int32:
+		buf.WriteString(strconv.FormatInt(int64(val), 10))
+	case int64:
+		buf.WriteString(strconv.FormatInt(val, 10))
+	case uint:
+		buf.WriteString(strconv.FormatUint(uint64(val), 10))
+	case uint8:
+		buf.WriteString(strconv.FormatUint(uint64(val), 10))
+	case uint16:
+		buf.WriteString(strconv.FormatUint(uint64(val), 10))
+	case uint32:
+		buf.WriteString(strconv.FormatUint(uint64(val), 10))
+	case uint64:
+		buf.WriteString(strconv.FormatUint(val, 10))
 
 	case float32:
 		buf.WriteString(strconv.FormatFloat(float64(val), 'g', -1, 32))
@@ -203,14 +248,14 @@ func (l *Logger) writerLoop() {
 			if !ok {
 				return
 			}
-			l.writeToFile(b)
+			l.writeToOutput(b)
 
 		case <-l.quit:
 			// drain queue | 退出前清空队列
 			for {
 				select {
 				case b := <-l.queue:
-					l.writeToFile(b)
+					l.writeToOutput(b)
 				default:
 					return
 				}
@@ -219,9 +264,18 @@ func (l *Logger) writerLoop() {
 	}
 }
 
-// writeToFile writes to current file | 写入文件
-func (l *Logger) writeToFile(b []byte) {
+// writeToOutput writes to file and/or stdout | 写入文件和/或控制台
+func (l *Logger) writeToOutput(b []byte) {
 	cfg := l.currentCfg()
+
+	// StdoutOnly mode: only print to console | 仅控制台模式
+	if cfg.StdoutOnly {
+		if cfg.Stdout {
+			_, _ = os.Stdout.Write(b)
+		}
+		return
+	}
+
 	now := time.Now()
 
 	l.fileMu.Lock()
@@ -229,6 +283,10 @@ func (l *Logger) writeToFile(b []byte) {
 
 	// open file if needed | 无文件则打开
 	if err := l.ensureLogFile(now, cfg); err != nil {
+		// File open failed, fallback to stdout | 文件打开失败，回退到控制台
+		if cfg.Stdout {
+			_, _ = os.Stdout.Write(b)
+		}
 		return
 	}
 
@@ -237,7 +295,11 @@ func (l *Logger) writeToFile(b []byte) {
 		if err != nil {
 			_ = l.curFile.Close()
 			l.curFile = nil
-			_ = l.openNewFile(now, cfg)
+			// Retry once with new file | 重试一次新文件
+			if retryErr := l.openNewFile(now, cfg); retryErr == nil && l.curFile != nil {
+				n, _ = l.curFile.Write(b)
+				l.curSize += int64(n)
+			}
 		} else {
 			l.curSize += int64(n)
 		}
@@ -313,19 +375,30 @@ func (l *Logger) rotate(cfg LoggerConfig) error {
 	newPath := filepath.Join(cfg.Path, newName)
 
 	if err := os.Rename(old, newPath); err != nil {
-		_ = os.Rename(old, filepath.Join(cfg.Path, base+fmt.Sprintf("_%06d.log", rand.Intn(1_000_000))))
+		// Use crypto/rand for secure random number | 使用加密安全的随机数
+		randNum := secureRandomInt(1_000_000)
+		_ = os.Rename(old, filepath.Join(cfg.Path, base+fmt.Sprintf("_%06d.log", randNum)))
 	}
 
 	l.curSize = 0
 	l.curName = ""
 	l.lastRotate = now
 
-	l.cleanup(cfg)
+	// Async cleanup to avoid blocking writes | 异步清理避免阻塞写入
+	go l.cleanup(cfg)
+
 	return l.openNewFile(now, cfg)
 }
 
 // cleanup removes expired logs | 清理过期/多余日志文件
 func (l *Logger) cleanup(cfg LoggerConfig) {
+	// Recover from panic to avoid crashing the program | 捕获 panic 避免程序崩溃
+	defer func() {
+		if r := recover(); r != nil {
+			// Silently ignore cleanup errors | 静默忽略清理错误
+		}
+	}()
+
 	// base is the fixed prefix of log files for this logger | base 为该 Logger 对应日志文件的固定前缀
 	base := normalizeBaseName(cfg.FileFormat)
 	if base == "" {
@@ -368,7 +441,7 @@ func (l *Logger) cleanup(cfg LoggerConfig) {
 		}
 
 		// 当前正在写入的文件此时尚未创建（在 rotate 之后），
-		// 这里收集到的全是“备份文件”，后续按数量进行裁剪
+		// 这里收集到的全是"备份文件"，后续按数量进行裁剪
 		keep = append(keep, struct {
 			path string
 			t    time.Time
@@ -413,28 +486,28 @@ func (l *Logger) formatFileName(t time.Time, cfg LoggerConfig) string {
 // SetLevel updates minimum level | 动态更新日志级别
 func (l *Logger) SetLevel(level LogLevel) {
 	l.cfgMu.Lock()
+	defer l.cfgMu.Unlock()
 	if l.cfg != nil {
 		l.cfg.Level = level
 	}
-	l.cfgMu.Unlock()
 }
 
 // SetPrefix updates prefix | 动态更新日志前缀
 func (l *Logger) SetPrefix(prefix string) {
 	l.cfgMu.Lock()
+	defer l.cfgMu.Unlock()
 	if l.cfg != nil {
 		l.cfg.Prefix = prefix
 	}
-	l.cfgMu.Unlock()
 }
 
 // SetStdout enables/disables stdout | 开关控制台输出
 func (l *Logger) SetStdout(enable bool) {
 	l.cfgMu.Lock()
+	defer l.cfgMu.Unlock()
 	if l.cfg != nil {
 		l.cfg.Stdout = enable
 	}
-	l.cfgMu.Unlock()
 }
 
 // SetConfig replaces config and reopens log file | 动态替换配置并重新创建日志文件
@@ -444,8 +517,12 @@ func (l *Logger) SetConfig(cfg *LoggerConfig) {
 		return
 	}
 
-	l.cfgMu.Lock()
+	// Lock in consistent order: fileMu first, then cfgMu | 统一锁顺序：先 fileMu，再 cfgMu
 	l.fileMu.Lock()
+	defer l.fileMu.Unlock()
+
+	l.cfgMu.Lock()
+	defer l.cfgMu.Unlock()
 
 	l.cfg = newCfg
 
@@ -458,9 +535,6 @@ func (l *Logger) SetConfig(cfg *LoggerConfig) {
 	l.curName = ""
 	l.curSize = 0
 	l.lastRotate = time.Now()
-
-	l.fileMu.Unlock()
-	l.cfgMu.Unlock()
 }
 
 // Close stops logger | 关闭日志系统
@@ -543,11 +617,22 @@ func prepareConfig(cfg *LoggerConfig) (*LoggerConfig, error) {
 	if c.TimeFormat == "" {
 		c.TimeFormat = DefaultTimeFormat
 	}
-	if c.FileFormat == "" {
-		c.FileFormat = DefaultFileFormat
-	}
 	if c.Prefix == "" {
 		c.Prefix = DefaultPrefix
+	}
+	if c.QueueSize <= 0 {
+		c.QueueSize = DefaultQueueSize
+	}
+
+	// StdoutOnly mode doesn't need file config | 仅控制台模式不需要文件配置
+	if c.StdoutOnly {
+		c.Stdout = true
+		return &c, nil
+	}
+
+	// File mode: apply file-related defaults | 文件模式：应用文件相关默认值
+	if c.FileFormat == "" {
+		c.FileFormat = DefaultFileFormat
 	}
 	if c.RotateSize <= 0 {
 		c.RotateSize = DefaultRotateSize
@@ -562,7 +647,14 @@ func prepareConfig(cfg *LoggerConfig) (*LoggerConfig, error) {
 		c.RotateBackupDays = 0
 	}
 
-	c.Path = ensureDefaultPath(&c)
+	// Ensure path exists | 确保路径存在
+	if c.Path == "" {
+		wd, err := os.Getwd()
+		if err != nil {
+			wd = "."
+		}
+		c.Path = filepath.Join(wd, DefaultDirName)
+	}
 
 	if err := os.MkdirAll(c.Path, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create log directory: %w", err)
@@ -583,19 +675,8 @@ func (l *Logger) currentCfg() LoggerConfig {
 }
 
 // levelString converts log level to string | 将日志级别转换为字符串
-func (l *Logger) levelString(level LogLevel) string {
-	switch level {
-	case LevelDebug:
-		return "DEBUG"
-	case LevelInfo:
-		return "INFO"
-	case LevelWarn:
-		return "WARN"
-	case LevelError:
-		return "ERROR"
-	default:
-		return "UNKNOWN"
-	}
+func levelString(level LogLevel) string {
+	return level.String()
 }
 
 // normalizeBaseName extracts static name | 提取基础日志文件名前缀
@@ -621,18 +702,13 @@ func normalizeBaseName(format string) string {
 	return name
 }
 
-// ensureDefaultPath ensures the log directory exists; if not set, uses the log path | 确保日志目录存在；如果未设置则使用默认路径
-func ensureDefaultPath(cfg *LoggerConfig) string {
-	if cfg.Path != "" {
-		return cfg.Path
-	}
-	wd, err := os.Getwd()
+// secureRandomInt returns a cryptographically secure random int | 返回加密安全的随机整数
+func secureRandomInt(max int) int {
+	n, err := rand.Int(rand.Reader, big.NewInt(int64(max)))
 	if err != nil {
-		wd = "."
+		return 0
 	}
-	path := filepath.Join(wd, DefaultDirName)
-	_ = os.MkdirAll(path, 0755)
-	return path
+	return int(n.Int64())
 }
 
 // ---- Logging API ----

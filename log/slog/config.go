@@ -13,6 +13,8 @@ type LoggerConfig struct {
 	Level             LogLevel      // Minimum output level | 最低输出级别
 	TimeFormat        string        // Timestamp format | 时间戳格式
 	Stdout            bool          // Print logs to console | 是否输出到控制台
+	StdoutOnly        bool          // Only print to console, skip file output | 仅输出到控制台，不写入文件
+	QueueSize         int           // Async write queue size | 异步写入队列大小
 	RotateSize        int64         // File size threshold before rotation (bytes) | 文件滚动大小阈值（字节）
 	RotateExpire      time.Duration // Rotation interval by time duration | 文件时间滚动间隔
 	RotateBackupLimit int           // Maximum number of rotated backup files | 最大备份文件数量
@@ -27,6 +29,8 @@ func DefaultLoggerConfig() *LoggerConfig {
 		Prefix:            DefaultPrefix,
 		Level:             LevelInfo,
 		Stdout:            true,
+		StdoutOnly:        false,
+		QueueSize:         DefaultQueueSize,
 		RotateSize:        DefaultRotateSize,
 		RotateExpire:      DefaultRotateExpire,
 		RotateBackupLimit: DefaultRotateBackupLimit,
@@ -67,6 +71,21 @@ func (c *LoggerConfig) SetTimeFormat(format string) *LoggerConfig {
 // SetStdout enables or disables console output | 设置是否输出到控制台
 func (c *LoggerConfig) SetStdout(enable bool) *LoggerConfig {
 	c.Stdout = enable
+	return c
+}
+
+// SetStdoutOnly enables console-only mode (no file output) | 设置仅输出到控制台模式
+func (c *LoggerConfig) SetStdoutOnly(enable bool) *LoggerConfig {
+	c.StdoutOnly = enable
+	if enable {
+		c.Stdout = true
+	}
+	return c
+}
+
+// SetQueueSize sets the async write queue size | 设置异步写入队列大小
+func (c *LoggerConfig) SetQueueSize(size int) *LoggerConfig {
+	c.QueueSize = size
 	return c
 }
 

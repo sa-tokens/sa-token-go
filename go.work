@@ -1,22 +1,52 @@
 go 1.25.3
 
 use (
+	// codec
 	./codec/json
-	./generator/sgenerator
 	./codec/msgpack
+
+	// core
 	./core
-	./examples/kratos/kratos-example
+	./stputil
+
+	// generator
+	./generator/sgenerator
+
+	// integrations
 	./integrations/chi
 	./integrations/echo
 	./integrations/fiber
 	./integrations/gf
 	./integrations/gin
 	./integrations/kratos
+
+	// log
 	./log/gf
 	./log/nop
 	./log/slog
+
+	// pool
 	./pool/ants
+
+	// storage
 	./storage/memory
 	./storage/redis
-	./stputil
+
+	// examples
+	./examples/gf
+	./examples/gin/gin-example
+	./examples/gin/gin-simple
+	./examples/kratos/kratos-example
+	./examples/chi/chi-example
+	./examples/echo/echo-example
+	./examples/fiber/fiber-example
+	./examples/quick-start/simple-example
+	./examples/redis-example
+	./examples/jwt-example
+	./examples/listener-example
+	./examples/oauth2-example
+	./examples/security-features
+	./examples/session-demo
+	./examples/token-styles
+	./examples/annotation/annotation-example
 )

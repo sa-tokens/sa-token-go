@@ -372,13 +372,13 @@ const (
 
 const (
 	// LogLevelDebug Debug level | 调试级别
-	LogLevelDebug = slog.LevelDebug
+	LogLevelDebug = adapter.LogLevelDebug
 	// LogLevelInfo Info level | 信息级别
-	LogLevelInfo = slog.LevelInfo
+	LogLevelInfo = adapter.LogLevelInfo
 	// LogLevelWarn Warn level | 警告级别
-	LogLevelWarn = slog.LevelWarn
+	LogLevelWarn = adapter.LogLevelWarn
 	// LogLevelError Error level | 错误级别
-	LogLevelError = slog.LevelError
+	LogLevelError = adapter.LogLevelError
 )
 
 // ============ Authentication | 登录认证 ============

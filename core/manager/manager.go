@@ -149,6 +149,12 @@ func NewManager(cfg *config.Config, generator adapter.Generator, storage adapter
 
 // CloseManager Closes the manager and releases all resources | 关闭管理器并释放所有资源
 func (m *Manager) CloseManager() {
+	// Close logger if it implements LogControl | 如果日志实现了 LogControl 接口，则关闭日志
+	if logControl, ok := m.logger.(adapter.LogControl); ok {
+		logControl.Flush()
+		logControl.Close()
+	}
+
 	if m.pool != nil {
 		// Safely close the renewPool | 安全关闭 renewPool
 		m.pool.Stop()
@@ -1383,6 +1389,14 @@ func (m *Manager) GetCodec() adapter.Codec {
 // GetLog returns the logger adapter | 获取 Manager 使用的日志适配器
 func (m *Manager) GetLog() adapter.Log {
 	return m.logger
+}
+
+// GetLogControl returns the logger control interface if available | 获取日志控制接口（如果支持）
+func (m *Manager) GetLogControl() adapter.LogControl {
+	if logControl, ok := m.logger.(adapter.LogControl); ok {
+		return logControl
+	}
+	return nil
 }
 
 // GetPool returns the goroutine pool | 获取 Manager 使用的协程池

@@ -418,6 +418,24 @@ func (b *Builder) LoggerStdout(stdout bool) *Builder {
 	return b
 }
 
+// LoggerStdoutOnly sets whether to only print to console (skip file output) | 设置是否仅输出到控制台（不写入文件）
+func (b *Builder) LoggerStdoutOnly(stdoutOnly bool) *Builder {
+	if b.logConfig == nil {
+		b.logConfig = &slog.LoggerConfig{}
+	}
+	b.logConfig.StdoutOnly = stdoutOnly
+	return b
+}
+
+// LoggerQueueSize sets the async write queue size | 设置异步写入队列大小
+func (b *Builder) LoggerQueueSize(size int) *Builder {
+	if b.logConfig == nil {
+		b.logConfig = &slog.LoggerConfig{}
+	}
+	b.logConfig.QueueSize = size
+	return b
+}
+
 // LoggerRotateSize sets the file size threshold for log rotation (bytes) | 设置日志文件大小滚动阈值（字节）
 func (b *Builder) LoggerRotateSize(size int64) *Builder {
 	if b.logConfig == nil {
@@ -584,7 +602,7 @@ func (b *Builder) Build() *manager.Manager {
 	}
 
 	// 日志
-	if b.isLog {
+	if b.isLog && b.log == nil {
 		if b.logConfig == nil {
 			b.logConfig = slog.DefaultLoggerConfig()
 		}
@@ -601,7 +619,6 @@ func (b *Builder) Build() *manager.Manager {
 		if b.renewPoolConfig == nil {
 			b.renewPoolConfig = ants.DefaultRenewPoolConfig()
 		}
-		// Validate configuration | 验证配置
 		err = b.renewPoolConfig.Validate()
 		if err != nil {
 			panic("Invalid RenewPoolConfig: " + err.Error())

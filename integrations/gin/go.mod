@@ -5,10 +5,9 @@ go 1.23.0
 toolchain go1.24.1
 
 require (
-	github.com/click33/sa-token-go/core v0.1.5
-	github.com/click33/sa-token-go/stputil v0.1.5
+	github.com/click33/sa-token-go/core v0.1.6
+	github.com/click33/sa-token-go/stputil v0.1.6
 	github.com/gin-gonic/gin v1.10.0
-	github.com/stretchr/testify v1.11.1
 )
 
 require (
