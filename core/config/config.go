@@ -2,7 +2,7 @@ package config
 
 import (
 	"fmt"
-	"github.com/click33/sa-token-go/generator/sgenerator"
+	"github.com/click33/sa-token-go/core/adapter"
 	"strings"
 )
 
@@ -42,7 +42,7 @@ type Config struct {
 	IsReadCookie bool
 
 	// TokenStyle Token generation style | Token生成风格
-	TokenStyle sgenerator.TokenStyle
+	TokenStyle adapter.TokenStyle
 
 	// TokenSessionCheckLogin Whether to check if Token-Session is kicked out when logging in (true=check, false=skip) | 登录时是否检查Token-Session是否被踢下线（true=检查，false=不检查）
 	TokenSessionCheckLogin bool
@@ -104,7 +104,7 @@ func DefaultConfig() *Config {
 		IsReadBody:             false,
 		IsReadHeader:           true,
 		IsReadCookie:           false,
-		TokenStyle:             sgenerator.TokenStyleUUID,
+		TokenStyle:             adapter.TokenStyleUUID,
 		TokenSessionCheckLogin: true,
 		AutoRenew:              true,
 		JwtSecretKey:           "",
@@ -119,7 +119,7 @@ func DefaultConfig() *Config {
 // Validate validates the configuration | 验证配置是否合理
 func (c *Config) Validate() error {
 	// Check TokenStyle validity | 检查 Token 风格是否合法
-	if !c.TokenStyle.IsValidTokenStyle() {
+	if !c.TokenStyle.IsValid() {
 		return fmt.Errorf("invalid TokenStyle: %s", c.TokenStyle)
 	}
 
@@ -134,7 +134,7 @@ func (c *Config) Validate() error {
 	}
 
 	// Check JwtSecretKey if TokenStyle is JWT | 如果 Token 风格为 JWT，则检查密钥是否设置
-	if c.TokenStyle == sgenerator.TokenStyleJWT && c.JwtSecretKey == "" {
+	if c.TokenStyle == adapter.TokenStyleJWT && c.JwtSecretKey == "" {
 		return fmt.Errorf("JwtSecretKey is required when TokenStyle is JWT")
 	}
 
@@ -278,7 +278,7 @@ func (c *Config) SetIsReadCookie(isReadCookie bool) *Config {
 }
 
 // SetTokenStyle Set Token generation style | 设置Token风格
-func (c *Config) SetTokenStyle(style sgenerator.TokenStyle) *Config {
+func (c *Config) SetTokenStyle(style adapter.TokenStyle) *Config {
 	c.TokenStyle = style
 	return c
 }

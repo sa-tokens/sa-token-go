@@ -14,7 +14,7 @@ type RenewPoolConfig struct {
 	ScaleDownRate       float64       // Scale-down threshold | 缩容阈值
 	CheckInterval       time.Duration // Auto-scale check interval | 检查间隔
 	Expiry              time.Duration // Idle worker expiry duration | 空闲协程过期时间
-	PrintStatusInterval time.Duration // Interval for periodic status printing (0 = disabled) | 定时打印池状态的间隔（0表示关闭）
+	PrintStatusInterval time.Duration // Interval for periodic status printing | 定时打印池状态的间隔
 	PreAlloc            bool          // Whether to pre-allocate memory | 是否预分配内存
 	NonBlocking         bool          // Whether to use non-blocking mode | 是否为非阻塞模式
 }

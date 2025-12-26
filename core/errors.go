@@ -126,6 +126,12 @@ var (
 
 	// ErrInvalidScope indicates requested scope is not allowed | 请求的权限范围不被允许
 	ErrInvalidScope = fmt.Errorf("invalid scope: requested scope is not allowed for this client")
+
+	// ErrInvalidGrantType indicates grant type is not allowed | 授权类型不被允许
+	ErrInvalidGrantType = fmt.Errorf("invalid grant type: this grant type is not allowed for this client")
+
+	// ErrInvalidUserCredentials indicates user credentials are incorrect | 用户凭证无效
+	ErrInvalidUserCredentials = fmt.Errorf("invalid user credentials: username or password is incorrect")
 )
 
 // ============ Session Errors | Session 错误 ============

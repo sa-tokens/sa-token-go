@@ -3,20 +3,23 @@ package ants
 
 import (
 	"fmt"
-	"github.com/panjf2000/ants/v2"
 	"sync"
 	"time"
+
+	"github.com/panjf2000/ants/v2"
 )
 
 // RenewPoolManager manages a dynamic scaling goroutine pool for token renewal tasks | 续期任务协程池管理器
 type RenewPoolManager struct {
-	pool    *ants.Pool       // ants pool instance | ants 协程池实例
-	config  *RenewPoolConfig // Configuration object | 池配置对象
-	mu      sync.Mutex       // Synchronization lock | 互斥锁
-	stopCh  chan struct{}    // Stop signal channel | 停止信号通道
-	started bool             // Indicates if pool manager is running | 是否已启动
+	pool      *ants.Pool       // ants pool instance | ants 协程池实例
+	config    *RenewPoolConfig // Configuration object | 池配置对象
+	mu        sync.Mutex       // Synchronization lock | 互斥锁
+	stopCh    chan struct{}    // Stop signal channel | 停止信号通道
+	started   bool             // Indicates if pool manager is running | 是否已启动
+	closeOnce sync.Once        // Ensure Stop only executes once | 确保 Stop 只执行一次
 }
 
+// NewRenewPoolManagerWithDefaultConfig creates manager with default config | 使用默认配置创建续期池管理器
 func NewRenewPoolManagerWithDefaultConfig() *RenewPoolManager {
 	mgr := &RenewPoolManager{
 		config:  DefaultRenewPoolConfig(),
@@ -25,6 +28,9 @@ func NewRenewPoolManagerWithDefaultConfig() *RenewPoolManager {
 	}
 
 	_ = mgr.initPool()
+
+	// Start auto-scaling routine | 启动自动扩缩容协程
+	go mgr.autoScale()
 
 	return mgr
 }
@@ -83,15 +89,17 @@ func (m *RenewPoolManager) Submit(task func()) error {
 
 // Stop stops the auto-scaling process | 停止自动扩缩容
 func (m *RenewPoolManager) Stop() {
-	if !m.started {
-		return
-	}
-	close(m.stopCh)
-	m.started = false
+	m.closeOnce.Do(func() {
+		if !m.started {
+			return
+		}
+		close(m.stopCh)
+		m.started = false
 
-	if m.pool != nil && !m.pool.IsClosed() {
-		_ = m.pool.ReleaseTimeout(5 * time.Second)
-	}
+		if m.pool != nil && !m.pool.IsClosed() {
+			_ = m.pool.ReleaseTimeout(3 * time.Second)
+		}
+	})
 }
 
 // Stats returns current pool statistics | 返回当前池状态
@@ -99,9 +107,11 @@ func (m *RenewPoolManager) Stats() (running, capacity int, usage float64) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	running = m.pool.Running()                   // Active tasks | 当前运行任务数
-	capacity = m.pool.Cap()                      // Pool capacity | 当前池容量
-	usage = float64(running) / float64(capacity) // Usage ratio | 当前使用率
+	running = m.pool.Running() // Active tasks | 当前运行任务数
+	capacity = m.pool.Cap()    // Pool capacity | 当前池容量
+	if capacity > 0 {
+		usage = float64(running) / float64(capacity) // Usage ratio | 当前使用率
+	}
 
 	return
 }
@@ -117,8 +127,15 @@ func (m *RenewPoolManager) autoScale() {
 			m.mu.Lock() // Protect concurrent access | 加锁防止并发冲突
 
 			// Get current pool stats | 获取当前运行状态
-			running := m.pool.Running()                   // Number of active goroutines | 当前正在执行的任务数
-			capacity := m.pool.Cap()                      // Current pool capacity | 当前协程池容量
+			running := m.pool.Running() // Number of active goroutines | 当前正在执行的任务数
+			capacity := m.pool.Cap()    // Current pool capacity | 当前协程池容量
+
+			// Skip if capacity is 0 to avoid division by zero | 容量为0时跳过，避免除零
+			if capacity <= 0 {
+				m.mu.Unlock()
+				continue
+			}
+
 			usage := float64(running) / float64(capacity) // Current usage ratio | 当前使用率（运行数 ÷ 总容量）
 
 			switch {

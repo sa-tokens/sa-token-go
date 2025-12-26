@@ -78,12 +78,10 @@ func NewManager(cfg *config.Config, generator adapter.Generator, storage adapter
 		serializer = codec_json.NewJSONSerializer()
 	}
 
-	// Use no-op logger if logger is nil | 如果未传入日志实现，则使用空日志（不输出）
-	if logger == nil {
+	if cfg.IsLog && logger == nil {
 		logger = nop.NewNopLogger()
 	}
 
-	// 如果启用了自动续期并且pool为nil
 	if cfg.AutoRenew && pool == nil {
 		// Use default goroutine pool if pool is nil | 如果未传入协程池，则使用默认协程池
 		pool = ants.NewRenewPoolManagerWithDefaultConfig()

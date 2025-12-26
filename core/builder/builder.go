@@ -18,25 +18,25 @@ import (
 
 // Builder provides fluent configuration for Sa-Token | Sa-Token 构建器用于流式配置
 type Builder struct {
-	tokenName              string                // Token name used by client | 客户端 Token 名称
-	timeout                int64                 // Token timeout seconds | Token 过期时间（秒）
-	maxRefresh             int64                 // Max auto-refresh duration | 最大无感刷新时间
-	renewInterval          int64                 // Min renewal interval seconds | 最小续期间隔（秒）
-	activeTimeout          int64                 // Force offline when idle | 活跃超时时间（秒）
-	isConcurrent           bool                  // Allow concurrent login | 是否允许并发登录
-	isShare                bool                  // Share same token among devices | 是否共用 Token
-	maxLoginCount          int64                 // Max concurrent login count | 最大并发登录数
-	isReadBody             bool                  // Read token from body | 是否从 Body 读取 Token
-	isReadHeader           bool                  // Read token from header | 是否从 Header 读取 Token
-	isReadCookie           bool                  // Read token from cookie | 是否从 Cookie 读取 Token
-	tokenStyle             sgenerator.TokenStyle // Token generation style | Token 生成方式
-	tokenSessionCheckLogin bool                  // Check login before Session | 读取 Session 时是否检查登录
-	autoRenew              bool                  // Enable renewal | 是否启用自动续期
-	jwtSecretKey           string                // JWT secret key | JWT 密钥
-	isLog                  bool                  // Enable log output | 是否启用日志
-	isPrintBanner          bool                  // Print startup banner | 是否打印启动 Banner
-	keyPrefix              string                // Storage key prefix | 存储键前缀
-	authType               string                // Authentication system type | 认证体系类型
+	tokenName              string             // Token name used by client | 客户端 Token 名称
+	timeout                int64              // Token timeout seconds | Token 过期时间（秒）
+	maxRefresh             int64              // Max auto-refresh duration | 最大无感刷新时间
+	renewInterval          int64              // Min renewal interval seconds | 最小续期间隔（秒）
+	activeTimeout          int64              // Force offline when idle | 活跃超时时间（秒）
+	isConcurrent           bool               // Allow concurrent login | 是否允许并发登录
+	isShare                bool               // Share same token among devices | 是否共用 Token
+	maxLoginCount          int64              // Max concurrent login count | 最大并发登录数
+	isReadBody             bool               // Read token from body | 是否从 Body 读取 Token
+	isReadHeader           bool               // Read token from header | 是否从 Header 读取 Token
+	isReadCookie           bool               // Read token from cookie | 是否从 Cookie 读取 Token
+	tokenStyle             adapter.TokenStyle // Token generation style | Token 生成方式
+	tokenSessionCheckLogin bool               // Check login before Session | 读取 Session 时是否检查登录
+	autoRenew              bool               // Enable renewal | 是否启用自动续期
+	jwtSecretKey           string             // JWT secret key | JWT 密钥
+	isLog                  bool               // Enable log output | 是否启用日志
+	isPrintBanner          bool               // Print startup banner | 是否打印启动 Banner
+	keyPrefix              string             // Storage key prefix | 存储键前缀
+	authType               string             // Authentication system type | 认证体系类型
 
 	cookieConfig    *config.CookieConfig  // Cookie config | Cookie 配置
 	renewPoolConfig *ants.RenewPoolConfig // Renew pool config | 续期协程池配置
@@ -66,7 +66,7 @@ func NewBuilder() *Builder {
 		isReadBody:             false,
 		isReadHeader:           true,
 		isReadCookie:           false,
-		tokenStyle:             sgenerator.TokenStyleUUID,
+		tokenStyle:             adapter.TokenStyleUUID,
 		tokenSessionCheckLogin: true,
 		autoRenew:              true,
 		jwtSecretKey:           sgenerator.DefaultJWTSecret,
@@ -154,7 +154,7 @@ func (b *Builder) IsReadCookie(isRead bool) *Builder {
 }
 
 // TokenStyle sets token generation style | 设置Token风格
-func (b *Builder) TokenStyle(style sgenerator.TokenStyle) *Builder {
+func (b *Builder) TokenStyle(style adapter.TokenStyle) *Builder {
 	b.tokenStyle = style
 	return b
 }
@@ -522,7 +522,7 @@ func (b *Builder) SetCustomRoleListFunc(f func(loginID string) ([]string, error)
 
 // Jwt sets TokenStyle to JWT and sets secret key | 设置为JWT模式并指定密钥
 func (b *Builder) Jwt(secret string) *Builder {
-	b.tokenStyle = sgenerator.TokenStyleJWT
+	b.tokenStyle = adapter.TokenStyleJWT
 	b.jwtSecretKey = secret
 	return b
 }
@@ -558,7 +558,7 @@ func (b *Builder) Build() *manager.Manager {
 		b.cookieConfig = config.DefaultCookieConfig()
 	}
 
-	// 初始化config
+	// Init config | 初始化config
 	cfg := &config.Config{
 		TokenName:              b.tokenName,
 		Timeout:                b.timeout,

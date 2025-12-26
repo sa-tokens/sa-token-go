@@ -192,6 +192,11 @@ func (s *OAuth2Server) ExchangeCodeForToken(ctx context.Context, code, clientID,
 		return nil, core.ErrInvalidClientCredentials
 	}
 
+	// Validate grant type | 验证授权类型
+	if !s.isValidGrantType(client, GrantTypeAuthorizationCode) {
+		return nil, core.ErrInvalidGrantType
+	}
+
 	// Get authorization code | 获取授权码
 	key := s.getCodeKey(code)
 	data, err := s.storage.Get(ctx, key)
@@ -290,6 +295,11 @@ func (s *OAuth2Server) RefreshAccessToken(ctx context.Context, clientID, refresh
 
 	if client.ClientSecret != clientSecret {
 		return nil, core.ErrInvalidClientCredentials
+	}
+
+	// Validate grant type | 验证授权类型
+	if !s.isValidGrantType(client, GrantTypeRefreshToken) {
+		return nil, core.ErrInvalidGrantType
 	}
 
 	// Get refresh token | 获取刷新令牌
@@ -414,6 +424,21 @@ func (s *OAuth2Server) isValidScopes(client *Client, scopes []string) bool {
 	return true
 }
 
+// isValidGrantType Checks if grant type is allowed for client | 检查授权类型是否被允许
+func (s *OAuth2Server) isValidGrantType(client *Client, grantType GrantType) bool {
+	// If client has no grant type restrictions, allow all | 如果客户端没有授权类型限制，允许所有
+	if len(client.GrantTypes) == 0 {
+		return true
+	}
+
+	for _, gt := range client.GrantTypes {
+		if gt == grantType {
+			return true
+		}
+	}
+	return false
+}
+
 // generateAccessToken Generates access token and refresh token | 生成访问令牌和刷新令牌
 func (s *OAuth2Server) generateAccessToken(ctx context.Context, userID, clientID string, scopes []string) (*AccessToken, error) {
 	// Generate access token | 生成访问令牌
@@ -458,4 +483,185 @@ func (s *OAuth2Server) generateAccessToken(ctx context.Context, userID, clientID
 	}
 
 	return token, nil
+}
+
+// ============ Client Credentials Grant | 客户端凭证模式 ============
+
+// ClientCredentialsToken Gets access token using client credentials grant
+// 使用客户端凭证模式获取访问令牌
+//
+// This grant type is used for server-to-server communication where no user is involved.
+// The client authenticates with its own credentials and receives an access token.
+// 此授权类型用于服务器间通信，无需用户参与。客户端使用自己的凭证进行认证并获取访问令牌。
+//
+// Usage | 用法:
+//
+//	token, err := server.ClientCredentialsToken(ctx, "client_id", "client_secret", []string{"read", "write"})
+func (s *OAuth2Server) ClientCredentialsToken(ctx context.Context, clientID, clientSecret string, scopes []string) (*AccessToken, error) {
+	// Verify client credentials | 验证客户端凭证
+	client, err := s.GetClient(clientID)
+	if err != nil {
+		return nil, err
+	}
+
+	if client.ClientSecret != clientSecret {
+		return nil, core.ErrInvalidClientCredentials
+	}
+
+	// Validate grant type | 验证授权类型
+	if !s.isValidGrantType(client, GrantTypeClientCredentials) {
+		return nil, core.ErrInvalidGrantType
+	}
+
+	// Validate scopes | 验证权限范围
+	if !s.isValidScopes(client, scopes) {
+		return nil, core.ErrInvalidScope
+	}
+
+	// For client credentials, userID is the clientID itself | 客户端凭证模式下，userID 就是 clientID
+	return s.generateAccessToken(ctx, clientID, clientID, scopes)
+}
+
+// ============ Password Grant | 密码模式 ============
+
+// UserValidator Function type for validating user credentials | 验证用户凭证的函数类型
+// Returns userID if validation succeeds, error otherwise | 验证成功返回 userID，否则返回错误
+type UserValidator func(username, password string) (userID string, err error)
+
+// PasswordGrantToken Gets access token using resource owner password credentials grant
+// 使用密码模式获取访问令牌
+//
+// This grant type is used when the application is highly trusted (e.g., official app).
+// The user provides their username and password directly to the client.
+// 此授权类型用于高度信任的应用（如官方App）。用户直接向客户端提供用户名和密码。
+//
+// SECURITY WARNING: This grant type should only be used when other flows are not viable.
+// 安全警告：仅在其他授权流程不可行时才应使用此授权类型。
+//
+// Usage | 用法:
+//
+//	validator := func(username, password string) (string, error) {
+//	    // Validate user credentials from your user store
+//	    if user := userService.Authenticate(username, password); user != nil {
+//	        return user.ID, nil
+//	    }
+//	    return "", errors.New("invalid credentials")
+//	}
+//	token, err := server.PasswordGrantToken(ctx, "client_id", "client_secret", "user", "pass", scopes, validator)
+func (s *OAuth2Server) PasswordGrantToken(ctx context.Context, clientID, clientSecret, username, password string, scopes []string, validateUser UserValidator) (*AccessToken, error) {
+	if validateUser == nil {
+		return nil, fmt.Errorf("%w: user validator function is required", core.ErrInvalidUserCredentials)
+	}
+
+	// Verify client credentials | 验证客户端凭证
+	client, err := s.GetClient(clientID)
+	if err != nil {
+		return nil, err
+	}
+
+	if client.ClientSecret != clientSecret {
+		return nil, core.ErrInvalidClientCredentials
+	}
+
+	// Validate grant type | 验证授权类型
+	if !s.isValidGrantType(client, GrantTypePassword) {
+		return nil, core.ErrInvalidGrantType
+	}
+
+	// Validate scopes | 验证权限范围
+	if !s.isValidScopes(client, scopes) {
+		return nil, core.ErrInvalidScope
+	}
+
+	// Validate user credentials | 验证用户凭证
+	userID, err := validateUser(username, password)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", core.ErrInvalidUserCredentials, err)
+	}
+
+	if userID == "" {
+		return nil, core.ErrUserIDEmpty
+	}
+
+	return s.generateAccessToken(ctx, userID, clientID, scopes)
+}
+
+// ============ Unified Token Endpoint | 统一令牌端点 ============
+
+// TokenRequest Unified token request structure | 统一的令牌请求结构
+type TokenRequest struct {
+	GrantType    GrantType // Required: grant type | 必需：授权类型
+	ClientID     string    // Required: client ID | 必需：客户端ID
+	ClientSecret string    // Required: client secret | 必需：客户端密钥
+	Code         string    // For authorization_code: authorization code | 授权码模式：授权码
+	RedirectURI  string    // For authorization_code: redirect URI | 授权码模式：回调URI
+	RefreshToken string    // For refresh_token: refresh token | 刷新令牌模式：刷新令牌
+	Username     string    // For password: username | 密码模式：用户名
+	Password     string    // For password: password | 密码模式：密码
+	Scopes       []string  // Optional: requested scopes | 可选：请求的权限范围
+}
+
+// Token Unified token endpoint that dispatches to appropriate handler based on grant type
+// 统一的令牌端点，根据授权类型分发到相应的处理逻辑
+//
+// This method provides a single entry point for all OAuth2 token operations.
+// 此方法为所有 OAuth2 令牌操作提供统一入口。
+//
+// Usage | 用法:
+//
+//	// Authorization Code Grant | 授权码模式
+//	token, err := server.Token(ctx, &TokenRequest{
+//	    GrantType:    GrantTypeAuthorizationCode,
+//	    ClientID:     "client_id",
+//	    ClientSecret: "client_secret",
+//	    Code:         "auth_code",
+//	    RedirectURI:  "https://example.com/callback",
+//	}, nil)
+//
+//	// Client Credentials Grant | 客户端凭证模式
+//	token, err := server.Token(ctx, &TokenRequest{
+//	    GrantType:    GrantTypeClientCredentials,
+//	    ClientID:     "client_id",
+//	    ClientSecret: "client_secret",
+//	    Scopes:       []string{"read", "write"},
+//	}, nil)
+//
+//	// Password Grant | 密码模式
+//	token, err := server.Token(ctx, &TokenRequest{
+//	    GrantType:    GrantTypePassword,
+//	    ClientID:     "client_id",
+//	    ClientSecret: "client_secret",
+//	    Username:     "user",
+//	    Password:     "pass",
+//	    Scopes:       []string{"read"},
+//	}, userValidator)
+//
+//	// Refresh Token Grant | 刷新令牌模式
+//	token, err := server.Token(ctx, &TokenRequest{
+//	    GrantType:    GrantTypeRefreshToken,
+//	    ClientID:     "client_id",
+//	    ClientSecret: "client_secret",
+//	    RefreshToken: "refresh_token",
+//	}, nil)
+func (s *OAuth2Server) Token(ctx context.Context, req *TokenRequest, validateUser UserValidator) (*AccessToken, error) {
+	if req == nil {
+		return nil, fmt.Errorf("%w: token request cannot be nil", core.ErrInvalidAuthCode)
+	}
+
+	switch req.GrantType {
+	case GrantTypeAuthorizationCode:
+		return s.ExchangeCodeForToken(ctx, req.Code, req.ClientID, req.ClientSecret, req.RedirectURI)
+
+	case GrantTypeClientCredentials:
+		return s.ClientCredentialsToken(ctx, req.ClientID, req.ClientSecret, req.Scopes)
+
+	case GrantTypePassword:
+		return s.PasswordGrantToken(ctx, req.ClientID, req.ClientSecret, req.Username, req.Password, req.Scopes, validateUser)
+
+	case GrantTypeRefreshToken:
+		return s.RefreshAccessToken(ctx, req.ClientID, req.RefreshToken, req.ClientSecret)
+
+	default:
+		return nil, core.ErrInvalidGrantType
+	}
 }

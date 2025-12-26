@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"github.com/click33/sa-token-go/core/adapter"
 	"github.com/click33/sa-token-go/core/utils"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
@@ -16,12 +17,12 @@ import (
 // Generator Token generator | Token生成器
 type Generator struct {
 	timeout      int64
-	tokenStyle   TokenStyle
+	tokenStyle   adapter.TokenStyle
 	jwtSecretKey string
 }
 
 // NewGenerator Creates a new token generator | 创建新的Token生成器
-func NewGenerator(timeout int64, tokenStyle TokenStyle, jwtSecretKey string) *Generator {
+func NewGenerator(timeout int64, tokenStyle adapter.TokenStyle, jwtSecretKey string) *Generator {
 	return &Generator{
 		timeout:      timeout,
 		tokenStyle:   tokenStyle,
@@ -33,7 +34,7 @@ func NewGenerator(timeout int64, tokenStyle TokenStyle, jwtSecretKey string) *Ge
 func NewDefaultGenerator() *Generator {
 	return &Generator{
 		timeout:      DefaultTimeout,
-		tokenStyle:   TokenStyleUUID,
+		tokenStyle:   adapter.TokenStyleUUID,
 		jwtSecretKey: DefaultJWTSecret,
 	}
 }
@@ -47,23 +48,23 @@ func (g *Generator) Generate(loginID string, device string) (string, error) {
 	}
 
 	switch g.tokenStyle {
-	case TokenStyleUUID:
+	case adapter.TokenStyleUUID:
 		return g.generateUUID()
-	case TokenStyleSimple:
+	case adapter.TokenStyleSimple:
 		return g.generateSimple(DefaultSimpleLength)
-	case TokenStyleRandom32:
+	case adapter.TokenStyleRandom32:
 		return g.generateSimple(32)
-	case TokenStyleRandom64:
+	case adapter.TokenStyleRandom64:
 		return g.generateSimple(64)
-	case TokenStyleRandom128:
+	case adapter.TokenStyleRandom128:
 		return g.generateSimple(128)
-	case TokenStyleJWT:
+	case adapter.TokenStyleJWT:
 		return g.generateJWT(loginID, device)
-	case TokenStyleHash:
+	case adapter.TokenStyleHash:
 		return g.generateHash(loginID, device)
-	case TokenStyleTimestamp:
+	case adapter.TokenStyleTimestamp:
 		return g.generateTimestamp(loginID, device)
-	case TokenStyleTik:
+	case adapter.TokenStyleTik:
 		return g.generateTik()
 	default:
 		return g.generateUUID()

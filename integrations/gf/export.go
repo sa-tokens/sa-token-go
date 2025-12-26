@@ -16,15 +16,12 @@ import (
 	"github.com/click33/sa-token-go/core/security"
 	"github.com/click33/sa-token-go/core/session"
 	"github.com/click33/sa-token-go/generator/sgenerator"
-	gflog "github.com/click33/sa-token-go/log/gf"
 	"github.com/click33/sa-token-go/log/nop"
 	"github.com/click33/sa-token-go/log/slog"
 	"github.com/click33/sa-token-go/pool/ants"
 	"github.com/click33/sa-token-go/storage/memory"
 	"github.com/click33/sa-token-go/storage/redis"
 	"github.com/click33/sa-token-go/stputil"
-	"github.com/gogf/gf/v2/os/glog"
-	goredis "github.com/redis/go-redis/v9"
 )
 
 // ============ Type Aliases | 类型别名 ============
@@ -90,10 +87,6 @@ type (
 	RedisConfig = redis.Config
 	// RedisBuilder Redis构建器
 	RedisBuilder = redis.Builder
-	// RedisClient Redis客户端 (go-redis/v9)
-	RedisClient = goredis.Client
-	// RedisOptions Redis连接选项 (go-redis/v9)
-	RedisOptions = goredis.Options
 
 	// ============ Logger Types | 日志类型 ============
 
@@ -103,8 +96,6 @@ type (
 	SlogLoggerConfig = slog.LoggerConfig
 	// SlogLogLevel 日志级别
 	SlogLogLevel = slog.LogLevel
-	// GFLogger GoFrame日志适配器
-	GFLogger = gflog.GFLogger
 	// NopLogger 空日志实现
 	NopLogger = nop.NopLogger
 
@@ -113,7 +104,7 @@ type (
 	// TokenGenerator Token生成器
 	TokenGenerator = sgenerator.Generator
 	// TokenStyle Token风格
-	TokenStyle = sgenerator.TokenStyle
+	TokenStyle = adapter.TokenStyle
 
 	// ============ Pool Types | 协程池类型 ============
 
@@ -298,16 +289,6 @@ func NewRedisStorageFromConfig(cfg *redis.Config) (*redis.Storage, error) {
 	return redis.NewStorageFromConfig(cfg)
 }
 
-// NewRedisStorageFromClient creates a new Redis storage from existing client | 从已有Redis客户端创建存储
-func NewRedisStorageFromClient(client *goredis.Client) *redis.Storage {
-	return redis.NewStorageFromClient(client)
-}
-
-// NewRedisClient creates a new Redis client | 创建Redis客户端
-func NewRedisClient(opts *goredis.Options) *goredis.Client {
-	return goredis.NewClient(opts)
-}
-
 // NewRedisBuilder creates a new Redis builder | 创建Redis构建器
 func NewRedisBuilder() *redis.Builder {
 	return redis.NewBuilder()
@@ -320,11 +301,6 @@ func NewSlogLogger(cfg *slog.LoggerConfig) (*slog.Logger, error) {
 	return slog.NewLoggerWithConfig(cfg)
 }
 
-// NewGFLogger creates a new GoFrame logger adapter | 创建GoFrame日志适配器
-func NewGFLogger(ctx context.Context, l *glog.Logger) *gflog.GFLogger {
-	return gflog.NewGFLogger(ctx, l)
-}
-
 // NewNopLogger creates a new no-op logger | 创建空日志器
 func NewNopLogger() *nop.NopLogger {
 	return nop.NewNopLogger()
@@ -333,7 +309,7 @@ func NewNopLogger() *nop.NopLogger {
 // ============ Generator Constructors | 生成器构造函数 ============
 
 // NewTokenGenerator creates a new token generator | 创建Token生成器
-func NewTokenGenerator(timeout int64, tokenStyle sgenerator.TokenStyle, jwtSecretKey string) *sgenerator.Generator {
+func NewTokenGenerator(timeout int64, tokenStyle adapter.TokenStyle, jwtSecretKey string) *sgenerator.Generator {
 	return sgenerator.NewGenerator(timeout, tokenStyle, jwtSecretKey)
 }
 
@@ -358,23 +334,23 @@ func NewRenewPoolManagerWithConfig(cfg *ants.RenewPoolConfig) (*ants.RenewPoolMa
 
 const (
 	// TokenStyleUUID UUID style | UUID风格
-	TokenStyleUUID = sgenerator.TokenStyleUUID
+	TokenStyleUUID = adapter.TokenStyleUUID
 	// TokenStyleSimple Simple random string | 简单随机字符串
-	TokenStyleSimple = sgenerator.TokenStyleSimple
+	TokenStyleSimple = adapter.TokenStyleSimple
 	// TokenStyleRandom32 32-bit random string | 32位随机字符串
-	TokenStyleRandom32 = sgenerator.TokenStyleRandom32
+	TokenStyleRandom32 = adapter.TokenStyleRandom32
 	// TokenStyleRandom64 64-bit random string | 64位随机字符串
-	TokenStyleRandom64 = sgenerator.TokenStyleRandom64
+	TokenStyleRandom64 = adapter.TokenStyleRandom64
 	// TokenStyleRandom128 128-bit random string | 128位随机字符串
-	TokenStyleRandom128 = sgenerator.TokenStyleRandom128
+	TokenStyleRandom128 = adapter.TokenStyleRandom128
 	// TokenStyleJWT JWT style | JWT风格
-	TokenStyleJWT = sgenerator.TokenStyleJWT
+	TokenStyleJWT = adapter.TokenStyleJWT
 	// TokenStyleHash SHA256 hash-based style | SHA256哈希风格
-	TokenStyleHash = sgenerator.TokenStyleHash
+	TokenStyleHash = adapter.TokenStyleHash
 	// TokenStyleTimestamp Timestamp-based style | 时间戳风格
-	TokenStyleTimestamp = sgenerator.TokenStyleTimestamp
+	TokenStyleTimestamp = adapter.TokenStyleTimestamp
 	// TokenStyleTik Short ID style (like TikTok) | Tik风格短ID
-	TokenStyleTik = sgenerator.TokenStyleTik
+	TokenStyleTik = adapter.TokenStyleTik
 )
 
 // ============ Log Level Constants | 日志级别常量 ============
