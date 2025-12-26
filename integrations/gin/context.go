@@ -7,7 +7,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// GinContext Gin request context adapter | Gin请求上下文适配器
 type GinContext struct {
 	c       *gin.Context
 	aborted bool
@@ -15,59 +14,61 @@ type GinContext struct {
 
 // NewGinContext creates a Gin context adapter | 创建Gin上下文适配器
 func NewGinContext(c *gin.Context) adapter.RequestContext {
-	return &GinContext{c: c}
+	return &GinContext{
+		c: c,
+	}
 }
 
-// GetHeader gets request header | 获取请求头
-func (g *GinContext) GetHeader(key string) string {
-	return g.c.GetHeader(key)
+// Get implements adapter.RequestContext.
+func (g *GinContext) Get(key string) (interface{}, bool) {
+	return g.c.Get(key)
 }
 
-// GetQuery gets query parameter | 获取查询参数
-func (g *GinContext) GetQuery(key string) string {
-	return g.c.Query(key)
+// GetClientIP implements adapter.RequestContext.
+func (g *GinContext) GetClientIP() string {
+	return g.c.ClientIP()
 }
 
-// GetCookie gets cookie | 获取Cookie
+// GetCookie implements adapter.RequestContext.
 func (g *GinContext) GetCookie(key string) string {
 	cookie, _ := g.c.Cookie(key)
 	return cookie
 }
 
-// SetHeader sets response header | 设置响应头
-func (g *GinContext) SetHeader(key, value string) {
-	g.c.Header(key, value)
+// GetHeader implements adapter.RequestContext.
+func (g *GinContext) GetHeader(key string) string {
+	return g.c.GetHeader(key)
 }
 
-// SetCookie sets cookie | 设置Cookie
-func (g *GinContext) SetCookie(name, value string, maxAge int, path, domain string, secure, httpOnly bool) {
-	g.c.SetCookie(name, value, maxAge, path, domain, secure, httpOnly)
-	g.c.SetSameSite(http.SameSiteLaxMode)
-}
-
-// GetClientIP gets client IP address | 获取客户端IP地址
-func (g *GinContext) GetClientIP() string {
-	return g.c.ClientIP()
-}
-
-// GetMethod gets request method | 获取请求方法
+// GetMethod implements adapter.RequestContext.
 func (g *GinContext) GetMethod() string {
 	return g.c.Request.Method
 }
 
-// GetPath gets request path | 获取请求路径
+// GetPath implements adapter.RequestContext.
 func (g *GinContext) GetPath() string {
 	return g.c.Request.URL.Path
 }
 
-// Set sets context value | 设置上下文值
+// GetQuery implements adapter.RequestContext.
+func (g *GinContext) GetQuery(key string) string {
+	return g.c.Query(key)
+}
+
+// Set implements adapter.RequestContext.
 func (g *GinContext) Set(key string, value interface{}) {
 	g.c.Set(key, value)
 }
 
-// Get gets context value | 获取上下文值
-func (g *GinContext) Get(key string) (interface{}, bool) {
-	return g.c.Get(key)
+// SetCookie implements adapter.RequestContext.
+func (g *GinContext) SetCookie(name string, value string, maxAge int, path string, domain string, secure bool, httpOnly bool) {
+	g.c.SetCookie(name, value, maxAge, path, domain, secure, httpOnly)
+	g.c.SetSameSite(http.SameSiteLaxMode)
+}
+
+// SetHeader implements adapter.RequestContext.
+func (g *GinContext) SetHeader(key string, value string) {
+	g.c.Header(key, value)
 }
 
 // ============ Additional Required Methods | 额外必需的方法 ============
@@ -113,7 +114,7 @@ func (g *GinContext) SetCookieWithOptions(options *adapter.CookieOptions) {
 		options.Secure,
 		options.HttpOnly,
 	)
-	
+
 	// Set SameSite attribute
 	switch options.SameSite {
 	case "Strict":
@@ -127,23 +128,17 @@ func (g *GinContext) SetCookieWithOptions(options *adapter.CookieOptions) {
 
 // GetString implements adapter.RequestContext.
 func (g *GinContext) GetString(key string) string {
-	value, exists := g.c.Get(key)
-	if !exists {
-		return ""
-	}
-	if str, ok := value.(string); ok {
-		return str
-	}
-	return ""
+	v := g.c.GetString(key)
+	return v
 }
 
 // MustGet implements adapter.RequestContext.
 func (g *GinContext) MustGet(key string) any {
-	value, exists := g.c.Get(key)
+	v, exists := g.c.Get(key)
 	if !exists {
 		panic("key not found: " + key)
 	}
-	return value
+	return v
 }
 
 // Abort implements adapter.RequestContext.
