@@ -52,7 +52,7 @@ func NewStorageWithCleanupInterval(interval time.Duration) *Storage {
 }
 
 // Set 设置键值对
-func (s *Storage) Set(key string, value any, expiration time.Duration) error {
+func (s *Storage) Set(_ context.Context, key string, value any, expiration time.Duration) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -70,7 +70,7 @@ func (s *Storage) Set(key string, value any, expiration time.Duration) error {
 }
 
 // SetKeepTTL Sets value without modifying TTL | 设置键值但保持原有TTL不变
-func (s *Storage) SetKeepTTL(key string, value any) error {
+func (s *Storage) SetKeepTTL(_ context.Context, key string, value any) error {
 	now := time.Now().Unix()
 
 	s.mu.Lock()
@@ -95,7 +95,7 @@ func (s *Storage) SetKeepTTL(key string, value any) error {
 }
 
 // Get 获取值
-func (s *Storage) Get(key string) (any, error) {
+func (s *Storage) Get(_ context.Context, key string) (any, error) {
 	now := time.Now().Unix()
 
 	s.mu.RLock()
@@ -108,7 +108,7 @@ func (s *Storage) Get(key string) (any, error) {
 
 	if item.isExpired(now) {
 		// 异步删除过期项
-		go s.Delete(key)
+		go s.Delete(context.Background(), key)
 		return nil, ErrKeyExpired
 	}
 
@@ -116,7 +116,7 @@ func (s *Storage) Get(key string) (any, error) {
 }
 
 // GetAndDelete atomically gets the value and deletes the key | 原子获取并删除键
-func (s *Storage) GetAndDelete(key string) (any, error) {
+func (s *Storage) GetAndDelete(_ context.Context, key string) (any, error) {
 	now := time.Now().Unix()
 
 	s.mu.Lock()
@@ -139,7 +139,7 @@ func (s *Storage) GetAndDelete(key string) (any, error) {
 }
 
 // Delete 删除键
-func (s *Storage) Delete(keys ...string) error {
+func (s *Storage) Delete(_ context.Context, keys ...string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -150,7 +150,7 @@ func (s *Storage) Delete(keys ...string) error {
 }
 
 // Exists 检查键是否存在
-func (s *Storage) Exists(key string) bool {
+func (s *Storage) Exists(_ context.Context, key string) bool {
 	now := time.Now().Unix()
 
 	s.mu.RLock()
@@ -163,7 +163,7 @@ func (s *Storage) Exists(key string) bool {
 
 	if item.isExpired(now) {
 		// 异步删除过期项
-		go s.Delete(key)
+		go s.Delete(context.Background(), key)
 		return false
 	}
 
@@ -171,7 +171,7 @@ func (s *Storage) Exists(key string) bool {
 }
 
 // Keys 获取匹配模式的所有键
-func (s *Storage) Keys(pattern string) ([]string, error) {
+func (s *Storage) Keys(_ context.Context, pattern string) ([]string, error) {
 	now := time.Now().Unix()
 
 	s.mu.RLock()
@@ -191,7 +191,7 @@ func (s *Storage) Keys(pattern string) ([]string, error) {
 }
 
 // Expire 设置键的过期时间
-func (s *Storage) Expire(key string, expiration time.Duration) error {
+func (s *Storage) Expire(_ context.Context, key string, expiration time.Duration) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -212,7 +212,7 @@ func (s *Storage) Expire(key string, expiration time.Duration) error {
 }
 
 // TTL 获取键的剩余生存时间
-func (s *Storage) TTL(key string) (time.Duration, error) {
+func (s *Storage) TTL(_ context.Context, key string) (time.Duration, error) {
 	now := time.Now().Unix()
 
 	s.mu.RLock()
@@ -236,7 +236,7 @@ func (s *Storage) TTL(key string) (time.Duration, error) {
 }
 
 // Clear 清空所有数据
-func (s *Storage) Clear() error {
+func (s *Storage) Clear(_ context.Context) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -245,7 +245,7 @@ func (s *Storage) Clear() error {
 }
 
 // Ping 检查存储可用性
-func (s *Storage) Ping() error {
+func (s *Storage) Ping(_ context.Context) error {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 

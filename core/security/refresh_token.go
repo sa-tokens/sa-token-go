@@ -1,6 +1,7 @@
 package security
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
@@ -86,7 +87,7 @@ func NewRefreshTokenManager(
 }
 
 // GenerateTokenPair Create access + refresh token | 生成访问令牌和刷新令牌
-func (rtm *RefreshTokenManager) GenerateTokenPair(loginID, device string) (*RefreshTokenInfo, error) {
+func (rtm *RefreshTokenManager) GenerateTokenPair(ctx context.Context, loginID, device string) (*RefreshTokenInfo, error) {
 	if loginID == "" {
 		return nil, core.ErrInvalidLoginIDEmpty
 	}
@@ -131,6 +132,7 @@ func (rtm *RefreshTokenManager) GenerateTokenPair(loginID, device string) (*Refr
 
 	// Store access token | 存储访问令牌
 	if err = rtm.storage.Set(
+		ctx,
 		rtm.getTokenKey(accessToken),
 		accessData,
 		rtm.accessTTL,
@@ -140,6 +142,7 @@ func (rtm *RefreshTokenManager) GenerateTokenPair(loginID, device string) (*Refr
 
 	// Store refresh token | 存储刷新令牌
 	if err := rtm.storage.Set(
+		ctx,
 		rtm.getRefreshKey(refreshToken),
 		refreshData,
 		rtm.refreshTTL,
@@ -151,13 +154,13 @@ func (rtm *RefreshTokenManager) GenerateTokenPair(loginID, device string) (*Refr
 }
 
 // VerifyAccessToken Check token exists | 验证访问令牌是否存在
-func (rtm *RefreshTokenManager) VerifyAccessToken(accessToken string) bool {
-	return rtm.storage.Exists(rtm.getTokenKey(accessToken))
+func (rtm *RefreshTokenManager) VerifyAccessToken(ctx context.Context, accessToken string) bool {
+	return rtm.storage.Exists(ctx, rtm.getTokenKey(accessToken))
 }
 
 // VerifyAccessTokenAndGetInfo Verify and get info | 验证访问令牌并获取信息
-func (rtm *RefreshTokenManager) VerifyAccessTokenAndGetInfo(accessToken string) (*AccessTokenInfo, bool) {
-	data, err := rtm.storage.Get(rtm.getTokenKey(accessToken))
+func (rtm *RefreshTokenManager) VerifyAccessTokenAndGetInfo(ctx context.Context, accessToken string) (*AccessTokenInfo, bool) {
+	data, err := rtm.storage.Get(ctx, rtm.getTokenKey(accessToken))
 	if err != nil || data == nil {
 		return nil, false
 	}
@@ -176,7 +179,7 @@ func (rtm *RefreshTokenManager) VerifyAccessTokenAndGetInfo(accessToken string) 
 }
 
 // RefreshAccessToken Refresh access token by refresh token | 使用刷新令牌刷新访问令牌
-func (rtm *RefreshTokenManager) RefreshAccessToken(refreshToken string) (*RefreshTokenInfo, error) {
+func (rtm *RefreshTokenManager) RefreshAccessToken(ctx context.Context, refreshToken string) (*RefreshTokenInfo, error) {
 	if refreshToken == "" {
 		return nil, core.ErrNonceInvalidRefreshToken
 	}
@@ -184,7 +187,7 @@ func (rtm *RefreshTokenManager) RefreshAccessToken(refreshToken string) (*Refres
 	refreshKey := rtm.getRefreshKey(refreshToken)
 
 	// Load refresh token | 读取刷新令牌
-	data, err := rtm.storage.Get(refreshKey)
+	data, err := rtm.storage.Get(ctx, refreshKey)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", core.ErrStorageUnavailable, err)
 	}
@@ -204,13 +207,13 @@ func (rtm *RefreshTokenManager) RefreshAccessToken(refreshToken string) (*Refres
 
 	// Check expiration | 检查过期
 	if time.Now().Unix() > info.ExpireTime {
-		_ = rtm.storage.Delete(refreshKey)
+		_ = rtm.storage.Delete(ctx, refreshKey)
 		return nil, core.ErrRefreshTokenExpired
 	}
 
 	// Remove old access token | 删除旧访问令牌
 	if info.AccessToken != "" {
-		_ = rtm.storage.Delete(rtm.getTokenKey(info.AccessToken))
+		_ = rtm.storage.Delete(ctx, rtm.getTokenKey(info.AccessToken))
 	}
 
 	// Generate new access token | 生成新访问令牌
@@ -229,6 +232,7 @@ func (rtm *RefreshTokenManager) RefreshAccessToken(refreshToken string) (*Refres
 		return nil, fmt.Errorf("%w: %v", core.ErrSerializeFailed, err)
 	}
 	if err := rtm.storage.Set(
+		ctx,
 		rtm.getTokenKey(newAccessToken),
 		accessData,
 		rtm.accessTTL,
@@ -241,7 +245,7 @@ func (rtm *RefreshTokenManager) RefreshAccessToken(refreshToken string) (*Refres
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", core.ErrSerializeFailed, err)
 	}
-	if err = rtm.storage.SetKeepTTL(refreshKey, refreshData); err != nil {
+	if err = rtm.storage.SetKeepTTL(ctx, refreshKey, refreshData); err != nil {
 		return nil, fmt.Errorf("%w: %v", core.ErrStorageUnavailable, err)
 	}
 
@@ -249,7 +253,7 @@ func (rtm *RefreshTokenManager) RefreshAccessToken(refreshToken string) (*Refres
 }
 
 // GetRefreshTokenInfo Get refresh token info by token | 根据刷新令牌获取刷新令牌信息
-func (rtm *RefreshTokenManager) GetRefreshTokenInfo(refreshToken string) (*RefreshTokenInfo, error) {
+func (rtm *RefreshTokenManager) GetRefreshTokenInfo(ctx context.Context, refreshToken string) (*RefreshTokenInfo, error) {
 	if refreshToken == "" {
 		return nil, core.ErrInvalidRefreshToken
 	}
@@ -257,7 +261,7 @@ func (rtm *RefreshTokenManager) GetRefreshTokenInfo(refreshToken string) (*Refre
 	refreshKey := rtm.getRefreshKey(refreshToken)
 
 	// Load refresh token | 读取刷新令牌
-	data, err := rtm.storage.Get(refreshKey)
+	data, err := rtm.storage.Get(ctx, refreshKey)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", core.ErrStorageUnavailable, err)
 	}
@@ -279,12 +283,12 @@ func (rtm *RefreshTokenManager) GetRefreshTokenInfo(refreshToken string) (*Refre
 }
 
 // RevokeRefreshToken Remove refresh token | 撤销刷新令牌
-func (rtm *RefreshTokenManager) RevokeRefreshToken(refreshToken string) error {
+func (rtm *RefreshTokenManager) RevokeRefreshToken(ctx context.Context, refreshToken string) error {
 	if refreshToken == "" {
 		return nil
 	}
 
-	err := rtm.storage.Delete(rtm.getRefreshKey(refreshToken))
+	err := rtm.storage.Delete(ctx, rtm.getRefreshKey(refreshToken))
 	if err != nil {
 		return fmt.Errorf("%w: %v", core.ErrStorageUnavailable, err)
 	}
@@ -293,8 +297,8 @@ func (rtm *RefreshTokenManager) RevokeRefreshToken(refreshToken string) error {
 }
 
 // IsValid Check refresh token valid | 判断刷新令牌是否有效
-func (rtm *RefreshTokenManager) IsValid(refreshToken string) bool {
-	data, err := rtm.storage.Get(rtm.getRefreshKey(refreshToken))
+func (rtm *RefreshTokenManager) IsValid(ctx context.Context, refreshToken string) bool {
+	data, err := rtm.storage.Get(ctx, rtm.getRefreshKey(refreshToken))
 	if err != nil || data == nil {
 		return false
 	}

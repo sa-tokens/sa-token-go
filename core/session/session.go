@@ -1,6 +1,7 @@
 package session
 
 import (
+	"context"
 	"fmt"
 	codec_json "github.com/click33/sa-token-go/codec/json"
 	"github.com/click33/sa-token-go/core"
@@ -47,7 +48,7 @@ func NewSession(authType, prefix, id string, storage adapter.Storage, serializer
 // ============ Data Operations | 数据操作 ============
 
 // Set Sets value | 设置值
-func (s *Session) Set(key string, value any, ttl ...time.Duration) error {
+func (s *Session) Set(ctx context.Context, key string, value any, ttl ...time.Duration) error {
 	if key == "" {
 		return core.ErrSessionInvalidDataKey
 	}
@@ -57,11 +58,11 @@ func (s *Session) Set(key string, value any, ttl ...time.Duration) error {
 
 	s.Data[key] = value
 
-	return s.save(ttl...)
+	return s.save(ctx, ttl...)
 }
 
 // SetMulti sets multiple key-value pairs | 设置多个键值对
-func (s *Session) SetMulti(valueMap map[string]any, ttl ...time.Duration) error {
+func (s *Session) SetMulti(ctx context.Context, valueMap map[string]any, ttl ...time.Duration) error {
 	if len(valueMap) == 0 {
 		return nil
 	}
@@ -76,7 +77,7 @@ func (s *Session) SetMulti(valueMap map[string]any, ttl ...time.Duration) error 
 		s.Data[key] = value
 	}
 
-	return s.save(ttl...)
+	return s.save(ctx, ttl...)
 }
 
 // Get Gets value | 获取值
@@ -148,21 +149,21 @@ func (s *Session) Has(key string) bool {
 }
 
 // Delete removes a key and preserves TTL | 删除键并保留 TTL
-func (s *Session) Delete(key string) error {
+func (s *Session) Delete(ctx context.Context, key string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	delete(s.Data, key)
-	return s.saveKeepTTL()
+	return s.saveKeepTTL(ctx)
 }
 
 // Clear removes all keys but preserves TTL | 清空所有键并保留 TTL
-func (s *Session) Clear() error {
+func (s *Session) Clear(ctx context.Context) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	s.Data = make(map[string]any)
-	return s.saveKeepTTL()
+	return s.saveKeepTTL(ctx)
 }
 
 // Keys Gets all keys | 获取所有键
@@ -191,22 +192,22 @@ func (s *Session) IsEmpty() bool {
 }
 
 // Renew extends the session TTL without modifying content | 续期 Session 的 TTL，但不修改内容
-func (s *Session) Renew(ttl time.Duration) error {
+func (s *Session) Renew(ctx context.Context, ttl time.Duration) error {
 	if ttl < 0 {
 		return nil // Skip renewal if ttl is invalid | 跳过无效续期
 	}
 
 	key := s.getStorageKey()
-	return s.storage.Expire(key, ttl)
+	return s.storage.Expire(ctx, key, ttl)
 }
 
 // Destroy Destroys session | 销毁Session
-func (s *Session) Destroy() error {
+func (s *Session) Destroy(ctx context.Context) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	key := s.getStorageKey()
-	return s.storage.Delete(key)
+	return s.storage.Delete(ctx, key)
 }
 
 // ============ Internal Methods | 内部方法 ============
@@ -217,7 +218,7 @@ func (s *Session) getStorageKey() string {
 }
 
 // save Saves session to storage | 保存到存储
-func (s *Session) save(ttl ...time.Duration) error {
+func (s *Session) save(ctx context.Context, ttl ...time.Duration) error {
 	data, err := s.serializer.Encode(s)
 	if err != nil {
 		return fmt.Errorf("%w: %v", core.ErrSerializeFailed, err)
@@ -227,7 +228,7 @@ func (s *Session) save(ttl ...time.Duration) error {
 
 	// Default to 0 (no expiration) | 默认使用 0（无过期时间）
 	if len(ttl) == 0 || ttl[0] <= 0 {
-		err = s.storage.Set(key, data, 0)
+		err = s.storage.Set(ctx, key, data, 0)
 		if err != nil {
 			return fmt.Errorf("%w: %v", core.ErrStorageUnavailable, err)
 		}
@@ -235,7 +236,7 @@ func (s *Session) save(ttl ...time.Duration) error {
 	}
 
 	// Save with provided TTL | 使用指定 TTL 保存
-	err = s.storage.Set(key, data, ttl[0])
+	err = s.storage.Set(ctx, key, data, ttl[0])
 	if err != nil {
 		return fmt.Errorf("%w: %v", core.ErrStorageUnavailable, err)
 	}
@@ -244,7 +245,7 @@ func (s *Session) save(ttl ...time.Duration) error {
 }
 
 // saveKeepTTL saves session while preserving its TTL | 保存 Session 并保留现有 TTL
-func (s *Session) saveKeepTTL() error {
+func (s *Session) saveKeepTTL(ctx context.Context) error {
 	data, err := s.serializer.Encode(s)
 	if err != nil {
 		return fmt.Errorf("%w: %v", core.ErrSerializeFailed, err)
@@ -256,7 +257,7 @@ func (s *Session) saveKeepTTL() error {
 	// -1: never expires | 永不过期
 	// -2: key not found | key不存在
 	// >0: remaining TTL | 剩余时间
-	ttl, _ := s.storage.TTL(key)
+	ttl, _ := s.storage.TTL(ctx, key)
 
 	// ttl <= 0 means: not found(-2), never expires(-1), or expired
 	// All these cases should save with no expiration | 这些情况都保存为永久
@@ -265,7 +266,7 @@ func (s *Session) saveKeepTTL() error {
 	}
 	// ttl > 0: use original TTL | 使用原有TTL
 
-	err = s.storage.Set(key, data, ttl)
+	err = s.storage.Set(ctx, key, data, ttl)
 	if err != nil {
 		return fmt.Errorf("%w: %v", core.ErrStorageUnavailable, err)
 	}

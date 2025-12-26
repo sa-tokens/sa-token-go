@@ -1,6 +1,7 @@
 package oauth2
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
@@ -128,7 +129,7 @@ func (s *OAuth2Server) GetClient(clientID string) (*Client, error) {
 }
 
 // GenerateAuthorizationCode Generates authorization code | 生成授权码
-func (s *OAuth2Server) GenerateAuthorizationCode(clientID, userID, redirectURI string, scopes []string) (*AuthorizationCode, error) {
+func (s *OAuth2Server) GenerateAuthorizationCode(ctx context.Context, clientID, userID, redirectURI string, scopes []string) (*AuthorizationCode, error) {
 	if userID == "" {
 		return nil, core.ErrUserIDEmpty
 	}
@@ -172,7 +173,7 @@ func (s *OAuth2Server) GenerateAuthorizationCode(clientID, userID, redirectURI s
 	}
 
 	key := s.getCodeKey(code)
-	if err := s.storage.Set(key, encodeData, s.codeExpiration); err != nil {
+	if err := s.storage.Set(ctx, key, encodeData, s.codeExpiration); err != nil {
 		return nil, fmt.Errorf("%w: %v", core.ErrStorageUnavailable, err)
 	}
 
@@ -180,7 +181,7 @@ func (s *OAuth2Server) GenerateAuthorizationCode(clientID, userID, redirectURI s
 }
 
 // ExchangeCodeForToken Exchanges authorization code for access token | 用授权码换取访问令牌
-func (s *OAuth2Server) ExchangeCodeForToken(code, clientID, clientSecret, redirectURI string) (*AccessToken, error) {
+func (s *OAuth2Server) ExchangeCodeForToken(ctx context.Context, code, clientID, clientSecret, redirectURI string) (*AccessToken, error) {
 	// Verify client credentials | 验证客户端凭证
 	client, err := s.GetClient(clientID)
 	if err != nil {
@@ -193,7 +194,7 @@ func (s *OAuth2Server) ExchangeCodeForToken(code, clientID, clientSecret, redire
 
 	// Get authorization code | 获取授权码
 	key := s.getCodeKey(code)
-	data, err := s.storage.Get(key)
+	data, err := s.storage.Get(ctx, key)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", core.ErrStorageUnavailable, err)
 	}
@@ -224,7 +225,7 @@ func (s *OAuth2Server) ExchangeCodeForToken(code, clientID, clientSecret, redire
 	}
 
 	if time.Now().Unix() > authCode.CreateTime+authCode.ExpiresIn {
-		_ = s.storage.Delete(key)
+		_ = s.storage.Delete(ctx, key)
 		return nil, core.ErrAuthCodeExpired
 	}
 
@@ -236,24 +237,24 @@ func (s *OAuth2Server) ExchangeCodeForToken(code, clientID, clientSecret, redire
 		return nil, fmt.Errorf("%w: %v", core.ErrSerializeFailed, err)
 	}
 
-	_ = s.storage.Set(key, encodeData, time.Minute)
+	_ = s.storage.Set(ctx, key, encodeData, time.Minute)
 
-	return s.generateAccessToken(authCode.UserID, authCode.ClientID, authCode.Scopes)
+	return s.generateAccessToken(ctx, authCode.UserID, authCode.ClientID, authCode.Scopes)
 }
 
 // ValidateAccessToken Validates access token | 验证访问令牌
-func (s *OAuth2Server) ValidateAccessToken(accessToken string) bool {
-	return s.storage.Exists(s.getTokenKey(accessToken))
+func (s *OAuth2Server) ValidateAccessToken(ctx context.Context, accessToken string) bool {
+	return s.storage.Exists(ctx, s.getTokenKey(accessToken))
 }
 
 // ValidateAccessTokenAndGetInfo Validates access token and get info | 验证访问令牌并获取信息
-func (s *OAuth2Server) ValidateAccessTokenAndGetInfo(accessToken string) (*AccessToken, error) {
+func (s *OAuth2Server) ValidateAccessTokenAndGetInfo(ctx context.Context, accessToken string) (*AccessToken, error) {
 	if accessToken == "" {
 		return nil, core.ErrInvalidAccessToken
 	}
 
 	key := s.getTokenKey(accessToken)
-	data, err := s.storage.Get(key)
+	data, err := s.storage.Get(ctx, key)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", core.ErrStorageUnavailable, err)
 	}
@@ -276,7 +277,7 @@ func (s *OAuth2Server) ValidateAccessTokenAndGetInfo(accessToken string) (*Acces
 }
 
 // RefreshAccessToken Refreshes access token using refresh token | 使用刷新令牌刷新访问令牌
-func (s *OAuth2Server) RefreshAccessToken(clientID, refreshToken, clientSecret string) (*AccessToken, error) {
+func (s *OAuth2Server) RefreshAccessToken(ctx context.Context, clientID, refreshToken, clientSecret string) (*AccessToken, error) {
 	if refreshToken == "" {
 		return nil, core.ErrInvalidRefreshToken
 	}
@@ -293,7 +294,7 @@ func (s *OAuth2Server) RefreshAccessToken(clientID, refreshToken, clientSecret s
 
 	// Get refresh token | 获取刷新令牌
 	key := s.getRefreshKey(refreshToken)
-	data, err := s.storage.Get(key)
+	data, err := s.storage.Get(ctx, key)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", core.ErrStorageUnavailable, err)
 	}
@@ -317,22 +318,22 @@ func (s *OAuth2Server) RefreshAccessToken(clientID, refreshToken, clientSecret s
 	}
 
 	// Delete old access token | 删除旧访问令牌
-	_ = s.storage.Delete(s.getTokenKey(accessTokenInfo.Token))
+	_ = s.storage.Delete(ctx, s.getTokenKey(accessTokenInfo.Token))
 
 	// Delete old refresh token (token rotation) | 删除旧刷新令牌（令牌轮换）
-	_ = s.storage.Delete(key)
+	_ = s.storage.Delete(ctx, key)
 
-	return s.generateAccessToken(accessTokenInfo.UserID, accessTokenInfo.ClientID, accessTokenInfo.Scopes)
+	return s.generateAccessToken(ctx, accessTokenInfo.UserID, accessTokenInfo.ClientID, accessTokenInfo.Scopes)
 }
 
 // RevokeToken Revokes access token and its refresh token | 撤销访问令牌及其刷新令牌
-func (s *OAuth2Server) RevokeToken(accessToken string) error {
+func (s *OAuth2Server) RevokeToken(ctx context.Context, accessToken string) error {
 	if accessToken == "" {
 		return nil
 	}
 
 	key := s.getTokenKey(accessToken)
-	data, err := s.storage.Get(key)
+	data, err := s.storage.Get(ctx, key)
 	if err != nil {
 		return fmt.Errorf("%w: %v", core.ErrStorageUnavailable, err)
 	}
@@ -352,10 +353,10 @@ func (s *OAuth2Server) RevokeToken(accessToken string) error {
 	}
 
 	if accessTokenInfo.RefreshToken != "" {
-		_ = s.storage.Delete(s.getRefreshKey(accessTokenInfo.RefreshToken))
+		_ = s.storage.Delete(ctx, s.getRefreshKey(accessTokenInfo.RefreshToken))
 	}
 
-	return s.storage.Delete(key)
+	return s.storage.Delete(ctx, key)
 }
 
 // ============ Helper Methods | 辅助方法 ============
@@ -414,7 +415,7 @@ func (s *OAuth2Server) isValidScopes(client *Client, scopes []string) bool {
 }
 
 // generateAccessToken Generates access token and refresh token | 生成访问令牌和刷新令牌
-func (s *OAuth2Server) generateAccessToken(userID, clientID string, scopes []string) (*AccessToken, error) {
+func (s *OAuth2Server) generateAccessToken(ctx context.Context, userID, clientID string, scopes []string) (*AccessToken, error) {
 	// Generate access token | 生成访问令牌
 	tokenBytes := make([]byte, AccessTokenLength)
 	if _, err := rand.Read(tokenBytes); err != nil {
@@ -447,12 +448,12 @@ func (s *OAuth2Server) generateAccessToken(userID, clientID string, scopes []str
 	refreshKey := s.getRefreshKey(refreshToken)
 
 	// Store access token | 存储访问令牌
-	if err = s.storage.Set(tokenKey, encodeData, s.tokenExpiration); err != nil {
+	if err = s.storage.Set(ctx, tokenKey, encodeData, s.tokenExpiration); err != nil {
 		return nil, fmt.Errorf("%w: %v", core.ErrStorageUnavailable, err)
 	}
 
 	// Store refresh token | 存储刷新令牌
-	if err = s.storage.Set(refreshKey, encodeData, DefaultRefreshTTL); err != nil {
+	if err = s.storage.Set(ctx, refreshKey, encodeData, DefaultRefreshTTL); err != nil {
 		return nil, fmt.Errorf("%w: %v", core.ErrStorageUnavailable, err)
 	}
 

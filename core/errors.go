@@ -54,6 +54,9 @@ var (
 
 	// ErrAccountNotFound indicates the account doesn't exist | 账号不存在
 	ErrAccountNotFound = fmt.Errorf("account not found: no account associated with this identifier")
+
+	// ErrLoginLimitExceeded indicates login count exceeds the maximum limit | 超出最大登录数量限制
+	ErrLoginLimitExceeded = fmt.Errorf("account error: login count exceeds the maximum limit")
 )
 
 // ============ Session Errors | 会话错误 ============
@@ -64,9 +67,6 @@ var (
 
 	// ErrActiveTimeout indicates the session has been inactive for too long | Session活跃超时
 	ErrActiveTimeout = fmt.Errorf("session inactive: the session has exceeded the inactivity timeout")
-
-	// ErrLoginLimitExceeded indicates login count exceeds the maximum limit | 超出最大登录数量限制
-	ErrLoginLimitExceeded = fmt.Errorf("account error: login count exceeds the maximum limit")
 )
 
 // ============ Security Errors | Security 错误 ============

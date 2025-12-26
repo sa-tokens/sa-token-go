@@ -11,7 +11,6 @@ import (
 // Storage Redis存储实现
 type Storage struct {
 	client    *redis.Client
-	ctx       context.Context
 	opTimeout time.Duration
 }
 
@@ -48,7 +47,6 @@ func NewStorage(url string) (*Storage, error) {
 
 	return &Storage{
 		client:    client,
-		ctx:       ctx,
 		opTimeout: 3 * time.Second,
 	}, nil
 }
@@ -79,7 +77,6 @@ func NewStorageFromConfig(cfg *Config) (*Storage, error) {
 
 	return &Storage{
 		client:    client,
-		ctx:       ctx,
 		opTimeout: opTimeout,
 	}, nil
 }
@@ -88,7 +85,6 @@ func NewStorageFromConfig(cfg *Config) (*Storage, error) {
 func NewStorageFromClient(client *redis.Client) *Storage {
 	return &Storage{
 		client:    client,
-		ctx:       context.Background(),
 		opTimeout: 3 * time.Second,
 	}
 }
@@ -99,15 +95,15 @@ func (s *Storage) getKey(key string) string {
 }
 
 // Set 设置键值对
-func (s *Storage) Set(key string, value any, expiration time.Duration) error {
-	ctx, cancel := s.withTimeout()
+func (s *Storage) Set(ctx context.Context, key string, value any, expiration time.Duration) error {
+	ctx, cancel := s.withTimeoutCtx(ctx)
 	defer cancel()
 	return s.client.Set(ctx, s.getKey(key), value, expiration).Err()
 }
 
 // SetKeepTTL Sets value without modifying TTL | 设置键值但保持原有TTL不变
-func (s *Storage) SetKeepTTL(key string, value any) error {
-	ctx, cancel := s.withTimeout()
+func (s *Storage) SetKeepTTL(ctx context.Context, key string, value any) error {
+	ctx, cancel := s.withTimeoutCtx(ctx)
 	defer cancel()
 
 	// 先检查键是否存在，不存在则返回错误（与Memory实现保持一致）
@@ -126,8 +122,8 @@ func (s *Storage) SetKeepTTL(key string, value any) error {
 }
 
 // Get 获取值
-func (s *Storage) Get(key string) (any, error) {
-	ctx, cancel := s.withTimeout()
+func (s *Storage) Get(ctx context.Context, key string) (any, error) {
+	ctx, cancel := s.withTimeoutCtx(ctx)
 	defer cancel()
 	val, err := s.client.Get(ctx, s.getKey(key)).Result()
 	if err == redis.Nil {
@@ -140,8 +136,8 @@ func (s *Storage) Get(key string) (any, error) {
 }
 
 // GetAndDelete atomically gets the value and deletes the key | 原子获取并删除键
-func (s *Storage) GetAndDelete(key string) (any, error) {
-	ctx, cancel := s.withTimeout()
+func (s *Storage) GetAndDelete(ctx context.Context, key string) (any, error) {
+	ctx, cancel := s.withTimeoutCtx(ctx)
 	defer cancel()
 
 	val, err := s.client.Get(ctx, s.getKey(key)).Result()
@@ -158,12 +154,12 @@ func (s *Storage) GetAndDelete(key string) (any, error) {
 }
 
 // Delete 删除键
-func (s *Storage) Delete(keys ...string) error {
+func (s *Storage) Delete(ctx context.Context, keys ...string) error {
 	if len(keys) == 0 {
 		return nil
 	}
 
-	ctx, cancel := s.withTimeout()
+	ctx, cancel := s.withTimeoutCtx(ctx)
 	defer cancel()
 
 	fullKeys := make([]string, len(keys))
@@ -174,8 +170,8 @@ func (s *Storage) Delete(keys ...string) error {
 }
 
 // Exists 检查键是否存在
-func (s *Storage) Exists(key string) bool {
-	ctx, cancel := s.withTimeout()
+func (s *Storage) Exists(ctx context.Context, key string) bool {
+	ctx, cancel := s.withTimeoutCtx(ctx)
 	defer cancel()
 	result, err := s.client.Exists(ctx, s.getKey(key)).Result()
 	if err != nil {
@@ -185,8 +181,8 @@ func (s *Storage) Exists(key string) bool {
 }
 
 // Keys 获取匹配模式的所有键
-func (s *Storage) Keys(pattern string) ([]string, error) {
-	ctx, cancel := s.withTimeout()
+func (s *Storage) Keys(ctx context.Context, pattern string) ([]string, error) {
+	ctx, cancel := s.withTimeoutCtx(ctx)
 	defer cancel()
 
 	var (
@@ -211,22 +207,22 @@ func (s *Storage) Keys(pattern string) ([]string, error) {
 }
 
 // Expire 设置键的过期时间
-func (s *Storage) Expire(key string, expiration time.Duration) error {
-	ctx, cancel := s.withTimeout()
+func (s *Storage) Expire(ctx context.Context, key string, expiration time.Duration) error {
+	ctx, cancel := s.withTimeoutCtx(ctx)
 	defer cancel()
 	return s.client.Expire(ctx, s.getKey(key), expiration).Err()
 }
 
 // TTL 获取键的剩余生存时间
-func (s *Storage) TTL(key string) (time.Duration, error) {
-	ctx, cancel := s.withTimeout()
+func (s *Storage) TTL(ctx context.Context, key string) (time.Duration, error) {
+	ctx, cancel := s.withTimeoutCtx(ctx)
 	defer cancel()
 	return s.client.TTL(ctx, s.getKey(key)).Result()
 }
 
 // Clear 清空所有数据（警告：会清空整个 Redis，谨慎使用！应由 Manager 层控制）
-func (s *Storage) Clear() error {
-	ctx, cancel := s.withTimeout()
+func (s *Storage) Clear(ctx context.Context) error {
+	ctx, cancel := s.withTimeoutCtx(ctx)
 	defer cancel()
 
 	var cursor uint64
@@ -250,8 +246,8 @@ func (s *Storage) Clear() error {
 }
 
 // Ping 检查连接
-func (s *Storage) Ping() error {
-	ctx, cancel := s.withTimeout()
+func (s *Storage) Ping(ctx context.Context) error {
+	ctx, cancel := s.withTimeoutCtx(ctx)
 	defer cancel()
 	return s.client.Ping(ctx).Err()
 }
@@ -266,12 +262,13 @@ func (s *Storage) GetClient() *redis.Client {
 	return s.client
 }
 
-// withTimeout returns a context with the configured per-operation timeout.
-func (s *Storage) withTimeout() (context.Context, context.CancelFunc) {
+// withTimeoutCtx returns a context with the configured per-operation timeout.
+// If the parent context has a shorter deadline, it will be respected.
+func (s *Storage) withTimeoutCtx(parent context.Context) (context.Context, context.CancelFunc) {
 	if s.opTimeout > 0 {
-		return context.WithTimeout(s.ctx, s.opTimeout)
+		return context.WithTimeout(parent, s.opTimeout)
 	}
-	return context.WithCancel(s.ctx)
+	return context.WithCancel(parent)
 }
 
 // Builder Redis存储构建器

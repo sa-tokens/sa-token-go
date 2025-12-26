@@ -1,13 +1,12 @@
 package gf
 
 import (
-	"context"
 	"errors"
-	"github.com/click33/sa-token-go/core"
-	"github.com/click33/sa-token-go/core/manager"
 	"net/http"
 
-	"github.com/click33/sa-token-go/core/config"
+	"github.com/click33/sa-token-go/core"
+	"github.com/click33/sa-token-go/core/manager"
+
 	saContext "github.com/click33/sa-token-go/core/context"
 	"github.com/click33/sa-token-go/stputil"
 	"github.com/gogf/gf/v2/frame/g"
@@ -76,14 +75,12 @@ func AuthMiddleware(opts ...AuthOption) ghttp.HandlerFunc {
 			return
 		}
 
+		// 获取 token | Get token
 		saCtx := getSaContext(r, mgr)
-		err = mgr.CheckLogin(
-			context.WithValue(
-				r.Context(),
-				config.CtxTokenValue,
-				saCtx.GetTokenValue(),
-			),
-		)
+		tokenValue := saCtx.GetTokenValue()
+
+		// 检查登录 | Check login
+		err = mgr.CheckLogin(r.Context(), tokenValue)
 		if err != nil {
 			if options.AuthFailFunc != nil {
 				options.AuthFailFunc(r, err)
@@ -118,27 +115,12 @@ func AuthWithStateMiddleware(opts ...AuthOption) ghttp.HandlerFunc {
 
 		// 构建 Sa-Token 上下文 | Build Sa-Token context
 		saCtx := getSaContext(r, mgr)
+		tokenValue := saCtx.GetTokenValue()
 
 		// 检查登录并返回状态 | Check login with state
-		_, err = mgr.CheckLoginWithState(
-			context.WithValue(
-				r.Context(),
-				config.CtxTokenValue,
-				saCtx.GetTokenValue(),
-			),
-		)
+		_, err = mgr.CheckLoginWithState(r.Context(), tokenValue)
 
 		if err != nil {
-			// 映射错误为标准 Sa-Token 错误
-			switch {
-			case errors.Is(err, manager.ErrTokenKickout):
-				err = core.ErrTokenKickout
-			case errors.Is(err, manager.ErrTokenReplaced):
-				err = core.ErrTokenReplaced
-			default:
-				err = core.ErrNotLogin
-			}
-
 			// 用户自定义回调优先
 			if options.AuthFailFunc != nil {
 				options.AuthFailFunc(r, err)
@@ -184,31 +166,23 @@ func PermissionMiddleware(
 
 		// 构建 Sa-Token 上下文 | Build Sa-Token context
 		saCtx := getSaContext(r, mgr)
-		ctx := context.WithValue(r.Context(), config.CtxTokenValue, saCtx.GetTokenValue())
+		tokenValue := saCtx.GetTokenValue()
+		ctx := r.Context()
 
 		// Permission check | 权限校验
 		var ok bool
 		switch {
 		// Single permission | 单权限判断
 		case len(permissions) == 1:
-			ok = mgr.HasPermissionByToken(
-				ctx,
-				permissions[0],
-			)
+			ok = mgr.HasPermissionByToken(ctx, tokenValue, permissions[0])
 
 		// AND logic | AND 逻辑
 		case options.LogicType == LogicAnd:
-			ok = mgr.HasPermissionsAndByToken(
-				ctx,
-				permissions,
-			)
+			ok = mgr.HasPermissionsAndByToken(ctx, tokenValue, permissions)
 
 		// OR logic (default) | OR 逻辑（默认）
 		default:
-			ok = mgr.HasPermissionsOrByToken(
-				ctx,
-				permissions,
-			)
+			ok = mgr.HasPermissionsOrByToken(ctx, tokenValue, permissions)
 		}
 
 		if !ok {
@@ -255,7 +229,8 @@ func RoleMiddleware(
 
 		// 构建 Sa-Token 上下文 | Build Sa-Token context
 		saCtx := getSaContext(r, mgr)
-		ctx := context.WithValue(r.Context(), config.CtxTokenValue, saCtx.GetTokenValue())
+		tokenValue := saCtx.GetTokenValue()
+		ctx := r.Context()
 
 		// Role check | 角色校验
 		var ok bool
@@ -263,15 +238,15 @@ func RoleMiddleware(
 		switch {
 		// Single role | 单角色判断
 		case len(roles) == 1:
-			ok = mgr.HasRoleByToken(ctx, roles[0])
+			ok = mgr.HasRoleByToken(ctx, tokenValue, roles[0])
 
 		// AND logic | AND 逻辑
 		case options.LogicType == LogicAnd:
-			ok = mgr.HasRolesAndByToken(ctx, roles)
+			ok = mgr.HasRolesAndByToken(ctx, tokenValue, roles)
 
 		// OR logic (default) | OR 逻辑（默认）
 		default:
-			ok = mgr.HasRolesOrByToken(ctx, roles)
+			ok = mgr.HasRolesOrByToken(ctx, tokenValue, roles)
 		}
 
 		if !ok {

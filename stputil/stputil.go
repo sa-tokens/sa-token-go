@@ -43,7 +43,7 @@ func LoginByToken(ctx context.Context, tokenValue string, authType ...string) er
 		return err
 	}
 
-	return mgr.LoginByToken(context.WithValue(ctx, config.CtxTokenValue, tokenValue))
+	return mgr.LoginByToken(ctx, tokenValue)
 }
 
 // Logout performs user logout | 用户登出
@@ -67,7 +67,7 @@ func LogoutByToken(ctx context.Context, tokenValue string, authType ...string) e
 		return err
 	}
 
-	return mgr.LogoutByToken(context.WithValue(ctx, config.CtxTokenValue, tokenValue))
+	return mgr.LogoutByToken(ctx, tokenValue)
 }
 
 // Kickout kicks out a user session | 踢人下线
@@ -91,7 +91,7 @@ func KickoutByToken(ctx context.Context, tokenValue string, authType ...string) 
 		return err
 	}
 
-	return mgr.KickoutByToken(context.WithValue(ctx, config.CtxTokenValue, tokenValue))
+	return mgr.KickoutByToken(ctx, tokenValue)
 }
 
 // Replace user offline by login ID and device | 根据账号和设备顶人下线
@@ -115,7 +115,7 @@ func ReplaceByToken(ctx context.Context, tokenValue string, authType ...string) 
 		return err
 	}
 
-	return mgr.ReplaceByToken(context.WithValue(ctx, config.CtxTokenValue, tokenValue))
+	return mgr.ReplaceByToken(ctx, tokenValue)
 }
 
 // ============ Token Validation | Token验证 ============
@@ -127,7 +127,7 @@ func IsLogin(ctx context.Context, tokenValue string, authType ...string) bool {
 		return false
 	}
 
-	return mgr.IsLogin(context.WithValue(ctx, config.CtxTokenValue, tokenValue))
+	return mgr.IsLogin(ctx, tokenValue)
 }
 
 // CheckLogin checks login status (throws error if not logged in) | 检查登录状态（未登录抛出错误）
@@ -137,7 +137,7 @@ func CheckLogin(ctx context.Context, tokenValue string, authType ...string) erro
 		return err
 	}
 
-	return mgr.CheckLogin(context.WithValue(ctx, config.CtxTokenValue, tokenValue))
+	return mgr.CheckLogin(ctx, tokenValue)
 }
 
 // CheckLoginWithState checks the login status (returns error to determine the reason if not logged in) | 检查登录状态（未登录时根据错误确定原因）
@@ -147,7 +147,7 @@ func CheckLoginWithState(ctx context.Context, tokenValue string, authType ...str
 		return false, err
 	}
 
-	return mgr.CheckLoginWithState(context.WithValue(ctx, config.CtxTokenValue, tokenValue))
+	return mgr.CheckLoginWithState(ctx, tokenValue)
 }
 
 // GetLoginID gets the login ID from token | 从Token获取登录ID
@@ -157,7 +157,7 @@ func GetLoginID(ctx context.Context, tokenValue string, authType ...string) (str
 		return "", err
 	}
 
-	return mgr.GetLoginID(context.WithValue(ctx, config.CtxTokenValue, tokenValue))
+	return mgr.GetLoginID(ctx, tokenValue)
 }
 
 // GetLoginIDNotCheck gets login ID without checking | 获取登录ID（不检查登录状态）
@@ -167,7 +167,7 @@ func GetLoginIDNotCheck(ctx context.Context, tokenValue string, authType ...stri
 		return "", err
 	}
 
-	return mgr.GetLoginIDNotCheck(context.WithValue(ctx, config.CtxTokenValue, tokenValue))
+	return mgr.GetLoginIDNotCheck(ctx, tokenValue)
 }
 
 // GetTokenValue gets the token value for a login ID | 获取登录ID对应的Token值
@@ -191,7 +191,7 @@ func GetTokenInfo(ctx context.Context, tokenValue string, authType ...string) (*
 		return nil, err
 	}
 
-	return mgr.GetTokenInfo(context.WithValue(ctx, config.CtxTokenValue, tokenValue))
+	return mgr.GetTokenInfoByToken(ctx, tokenValue)
 }
 
 // ============ Account Disable | 账号封禁 ============
@@ -217,7 +217,7 @@ func DisableByToken(ctx context.Context, tokenValue string, duration time.Durati
 		return err
 	}
 
-	loginID, err := mgr.GetLoginIDNotCheck(context.WithValue(ctx, config.CtxTokenValue, tokenValue))
+	loginID, err := mgr.GetLoginIDNotCheck(ctx, tokenValue)
 	if err != nil {
 		return err
 	}
@@ -245,7 +245,7 @@ func UntieByToken(ctx context.Context, tokenValue string, authType ...string) er
 		return err
 	}
 
-	loginID, err := mgr.GetLoginIDNotCheck(context.WithValue(ctx, config.CtxTokenValue, tokenValue))
+	loginID, err := mgr.GetLoginIDNotCheck(ctx, tokenValue)
 	if err != nil {
 		return err
 	}
@@ -273,7 +273,7 @@ func IsDisableByToken(ctx context.Context, tokenValue string, authType ...string
 		return false
 	}
 
-	loginID, err := mgr.GetLoginIDNotCheck(context.WithValue(ctx, config.CtxTokenValue, tokenValue))
+	loginID, err := mgr.GetLoginIDNotCheck(ctx, tokenValue)
 	if err != nil {
 		return false
 	}
@@ -291,7 +291,7 @@ func GetDisableTime(ctx context.Context, loginID interface{}, authType ...string
 	if id, err := toString(loginID); err != nil {
 		return 0, err
 	} else {
-		return mgr.GetDisableTime(ctx, id)
+		return mgr.GetDisableTTL(ctx, id)
 	}
 }
 
@@ -301,12 +301,41 @@ func GetDisableTimeByToken(ctx context.Context, tokenValue string, authType ...s
 		return 0, err
 	}
 
-	loginID, err := mgr.GetLoginIDNotCheck(context.WithValue(ctx, config.CtxTokenValue, tokenValue))
+	loginID, err := mgr.GetLoginIDNotCheck(ctx, tokenValue)
 	if err != nil {
 		return 0, err
 	}
 
-	return mgr.GetDisableTime(ctx, loginID)
+	return mgr.GetDisableTTL(ctx, loginID)
+}
+
+// CheckDisableWithInfo gets disable info | 获取封禁信息
+func CheckDisableWithInfo(ctx context.Context, loginID interface{}, authType ...string) (*manager.DisableInfo, error) {
+	mgr, err := GetManager(authType...)
+	if err != nil {
+		return nil, err
+	}
+
+	if id, err := toString(loginID); err != nil {
+		return nil, err
+	} else {
+		return mgr.CheckDisableWithInfo(ctx, id)
+	}
+}
+
+// CheckDisableWithInfoByToken gets disable info by token | 根据Token获取封禁信息
+func CheckDisableWithInfoByToken(ctx context.Context, tokenValue string, authType ...string) (*manager.DisableInfo, error) {
+	mgr, err := GetManager(authType...)
+	if err != nil {
+		return nil, err
+	}
+
+	loginID, err := mgr.GetLoginIDNotCheck(ctx, tokenValue)
+	if err != nil {
+		return nil, err
+	}
+
+	return mgr.CheckDisableWithInfo(ctx, loginID)
 }
 
 // ============ Session Management | Session管理 ============
@@ -332,7 +361,7 @@ func GetSessionByToken(ctx context.Context, tokenValue string, authType ...strin
 		return nil, err
 	}
 
-	return mgr.GetSessionByToken(context.WithValue(ctx, config.CtxTokenValue, tokenValue))
+	return mgr.GetSessionByToken(ctx, tokenValue)
 }
 
 // DeleteSession deletes a session | 删除Session
@@ -356,7 +385,50 @@ func DeleteSessionByToken(ctx context.Context, tokenValue string, authType ...st
 		return err
 	}
 
-	return mgr.DeleteSessionByToken(context.WithValue(ctx, config.CtxTokenValue, tokenValue))
+	return mgr.DeleteSessionByToken(ctx, tokenValue)
+}
+
+// HasSession checks if session exists | 检查Session是否存在
+func HasSession(ctx context.Context, loginID interface{}, authType ...string) bool {
+	mgr, err := GetManager(authType...)
+	if err != nil {
+		return false
+	}
+
+	if id, err := toString(loginID); err != nil {
+		return false
+	} else {
+		return mgr.HasSession(ctx, id)
+	}
+}
+
+// RenewSession renews session TTL | 续期Session
+func RenewSession(ctx context.Context, loginID interface{}, ttl time.Duration, authType ...string) error {
+	mgr, err := GetManager(authType...)
+	if err != nil {
+		return err
+	}
+
+	if id, err := toString(loginID); err != nil {
+		return err
+	} else {
+		return mgr.RenewSession(ctx, id, ttl)
+	}
+}
+
+// RenewSessionByToken renews session TTL by token | 根据Token续期Session
+func RenewSessionByToken(ctx context.Context, tokenValue string, ttl time.Duration, authType ...string) error {
+	mgr, err := GetManager(authType...)
+	if err != nil {
+		return err
+	}
+
+	loginID, err := mgr.GetLoginIDNotCheck(ctx, tokenValue)
+	if err != nil {
+		return err
+	}
+
+	return mgr.RenewSession(ctx, loginID, ttl)
 }
 
 // ============ Permission Verification | 权限验证 ============
@@ -383,7 +455,7 @@ func SetPermissionsByToken(ctx context.Context, tokenValue string, permissions [
 	}
 
 	loginID, err := mgr.GetLoginIDNotCheck(
-		context.WithValue(ctx, config.CtxTokenValue, tokenValue),
+		ctx, tokenValue,
 	)
 	if err != nil {
 		return err
@@ -414,7 +486,7 @@ func RemovePermissionsByToken(ctx context.Context, tokenValue string, permission
 	}
 
 	loginID, err := mgr.GetLoginIDNotCheck(
-		context.WithValue(ctx, config.CtxTokenValue, tokenValue),
+		ctx, tokenValue,
 	)
 	if err != nil {
 		return err
@@ -445,7 +517,7 @@ func GetPermissionsByToken(ctx context.Context, tokenValue string, authType ...s
 	}
 
 	loginID, err := mgr.GetLoginIDNotCheck(
-		context.WithValue(ctx, config.CtxTokenValue, tokenValue),
+		ctx, tokenValue,
 	)
 	if err != nil {
 		return nil, err
@@ -475,7 +547,7 @@ func HasPermissionByToken(ctx context.Context, tokenValue string, permission str
 		return false
 	}
 
-	loginID, err := mgr.GetLoginIDNotCheck(context.WithValue(ctx, config.CtxTokenValue, tokenValue))
+	loginID, err := mgr.GetLoginIDNotCheck(ctx, tokenValue)
 	if err != nil {
 		return false
 	}
@@ -504,7 +576,7 @@ func HasPermissionsAndByToken(ctx context.Context, tokenValue string, permission
 		return false
 	}
 
-	loginID, err := mgr.GetLoginIDNotCheck(context.WithValue(ctx, config.CtxTokenValue, tokenValue))
+	loginID, err := mgr.GetLoginIDNotCheck(ctx, tokenValue)
 	if err != nil {
 		return false
 	}
@@ -533,7 +605,7 @@ func HasPermissionsOrByToken(ctx context.Context, tokenValue string, permissions
 		return false
 	}
 
-	loginID, err := mgr.GetLoginIDNotCheck(context.WithValue(ctx, config.CtxTokenValue, tokenValue))
+	loginID, err := mgr.GetLoginIDNotCheck(ctx, tokenValue)
 	if err != nil {
 		return false
 	}
@@ -565,7 +637,7 @@ func SetRolesByToken(ctx context.Context, tokenValue string, roles []string, aut
 	}
 
 	loginID, err := mgr.GetLoginIDNotCheck(
-		context.WithValue(ctx, config.CtxTokenValue, tokenValue),
+		ctx, tokenValue,
 	)
 	if err != nil {
 		return err
@@ -596,7 +668,7 @@ func RemoveRolesByToken(ctx context.Context, tokenValue string, roles []string, 
 	}
 
 	loginID, err := mgr.GetLoginIDNotCheck(
-		context.WithValue(ctx, config.CtxTokenValue, tokenValue),
+		ctx, tokenValue,
 	)
 	if err != nil {
 		return err
@@ -627,7 +699,7 @@ func GetRolesByToken(ctx context.Context, tokenValue string, authType ...string)
 	}
 
 	loginID, err := mgr.GetLoginIDNotCheck(
-		context.WithValue(ctx, config.CtxTokenValue, tokenValue),
+		ctx, tokenValue,
 	)
 	if err != nil {
 		return nil, err
@@ -658,7 +730,7 @@ func HasRoleByToken(ctx context.Context, tokenValue string, role string, authTyp
 	}
 
 	loginID, err := mgr.GetLoginIDNotCheck(
-		context.WithValue(ctx, config.CtxTokenValue, tokenValue),
+		ctx, tokenValue,
 	)
 	if err != nil {
 		return false
@@ -689,7 +761,7 @@ func HasRolesAndByToken(ctx context.Context, tokenValue string, roles []string, 
 	}
 
 	loginID, err := mgr.GetLoginIDNotCheck(
-		context.WithValue(ctx, config.CtxTokenValue, tokenValue),
+		ctx, tokenValue,
 	)
 	if err != nil {
 		return false
@@ -720,7 +792,7 @@ func HasRolesOrByToken(ctx context.Context, tokenValue string, roles []string, a
 	}
 
 	loginID, err := mgr.GetLoginIDNotCheck(
-		context.WithValue(ctx, config.CtxTokenValue, tokenValue),
+		ctx, tokenValue,
 	)
 	if err != nil {
 		return false
@@ -738,7 +810,7 @@ func SetTokenTag(ctx context.Context, tokenValue, tag string, authType ...string
 		return err
 	}
 
-	return mgr.SetTokenTag(context.WithValue(ctx, config.CtxTokenValue, tokenValue), tag)
+	return mgr.SetTokenTag(tag)
 }
 
 // GetTokenTag 获取Token标签
@@ -748,7 +820,7 @@ func GetTokenTag(ctx context.Context, tokenValue string, authType ...string) (st
 		return "", err
 	}
 
-	return mgr.GetTokenTag(context.WithValue(ctx, config.CtxTokenValue, tokenValue))
+	return mgr.GetTokenTag(ctx)
 }
 
 // ============ 会话查询 ============
@@ -790,7 +862,7 @@ func Generate(ctx context.Context, authType ...string) (string, error) {
 		return "", err
 	}
 
-	return mgr.GetNonceManager().Generate()
+	return mgr.SecurityGenerateNonce(ctx)
 }
 
 // Verify Verifies a nonce | 验证随机数
@@ -800,7 +872,7 @@ func Verify(ctx context.Context, nonce string, authType ...string) bool {
 		return false
 	}
 
-	return mgr.GetNonceManager().Verify(nonce)
+	return mgr.SecurityVerifyNonce(ctx, nonce)
 }
 
 // VerifyAndConsume Verifies and consumes nonce, returns error if invalid | 验证并消费nonce，无效时返回错误
@@ -810,7 +882,7 @@ func VerifyAndConsume(ctx context.Context, nonce string, authType ...string) err
 		return err
 	}
 
-	return mgr.GetNonceManager().VerifyAndConsume(nonce)
+	return mgr.SecurityVerifyAndConsumeNonce(ctx, nonce)
 }
 
 // IsValidNonce Checks if nonce is valid without consuming it | 检查nonce是否有效（不消费）
@@ -820,7 +892,7 @@ func IsValidNonce(ctx context.Context, nonce string, authType ...string) bool {
 		return false
 	}
 
-	return mgr.GetNonceManager().IsValid(nonce)
+	return mgr.SecurityIsValidNonce(ctx, nonce)
 }
 
 // GenerateTokenPair Create access + refresh token | 生成访问令牌和刷新令牌
@@ -833,7 +905,7 @@ func GenerateTokenPair(ctx context.Context, loginID interface{}, deviceOrAutoTyp
 	if id, err := toString(loginID); err != nil {
 		return nil, err
 	} else {
-		return mgr.GetRefreshManager().GenerateTokenPair(id, mgr.GetDevice(deviceOrAutoType))
+		return mgr.SecurityGenerateTokenPair(ctx, id, mgr.GetDevice(deviceOrAutoType))
 	}
 }
 
@@ -844,7 +916,7 @@ func VerifyAccessToken(ctx context.Context, accessToken string, authType ...stri
 		return false
 	}
 
-	return mgr.GetRefreshManager().VerifyAccessToken(accessToken)
+	return mgr.SecurityVerifyAccessToken(ctx, accessToken)
 }
 
 // VerifyAccessTokenAndGetInfo verifies access token and returns token info | 验证访问令牌并返回Token信息
@@ -854,7 +926,7 @@ func VerifyAccessTokenAndGetInfo(ctx context.Context, accessToken string, authTy
 		return nil, false
 	}
 
-	return mgr.GetRefreshManager().VerifyAccessTokenAndGetInfo(accessToken)
+	return mgr.SecurityVerifyAccessTokenAndGetInfo(ctx, accessToken)
 }
 
 // GetRefreshTokenInfo gets refresh token information | 获取刷新令牌信息
@@ -864,7 +936,17 @@ func GetRefreshTokenInfo(ctx context.Context, refreshToken string, authType ...s
 		return nil, err
 	}
 
-	return mgr.GetRefreshManager().GetRefreshTokenInfo(refreshToken)
+	return mgr.SecurityGetRefreshTokenInfo(ctx, refreshToken)
+}
+
+// RefreshAccessToken refreshes access token using refresh token | 使用刷新令牌刷新访问令牌
+func RefreshAccessToken(ctx context.Context, refreshToken string, authType ...string) (*security.RefreshTokenInfo, error) {
+	mgr, err := GetManager(authType...)
+	if err != nil {
+		return nil, err
+	}
+
+	return mgr.SecurityRefreshAccessToken(ctx, refreshToken)
 }
 
 // RevokeRefreshToken Revokes refresh token | 撤销刷新令牌
@@ -874,7 +956,7 @@ func RevokeRefreshToken(ctx context.Context, refreshToken string, authType ...st
 		return err
 	}
 
-	return mgr.GetRefreshManager().RevokeRefreshToken(refreshToken)
+	return mgr.SecurityRevokeRefreshToken(ctx, refreshToken)
 }
 
 // IsValid checks whether token is valid | 检查Token是否有效
@@ -884,7 +966,7 @@ func IsValid(ctx context.Context, refreshToken string, authType ...string) bool 
 		return false
 	}
 
-	return mgr.GetRefreshManager().IsValid(refreshToken)
+	return mgr.SecurityIsRefreshTokenValid(ctx, refreshToken)
 }
 
 // ============ OAuth2 Features | OAuth2 功能 ============
@@ -896,7 +978,7 @@ func RegisterClient(ctx context.Context, client *oauth2.Client, authType ...stri
 		return err
 	}
 
-	return mgr.GetOAuth2Server().RegisterClient(client)
+	return mgr.OAuth2RegisterClient(client)
 }
 
 // UnregisterClient unregisters an OAuth2 client | 注销OAuth2客户端
@@ -906,7 +988,7 @@ func UnregisterClient(ctx context.Context, clientID string, authType ...string) 
 		return err
 	}
 
-	mgr.GetOAuth2Server().UnregisterClient(clientID)
+	mgr.OAuth2UnregisterClient(clientID)
 
 	return nil
 }
@@ -918,7 +1000,7 @@ func GetClient(ctx context.Context, clientID string, authType ...string) (*oauth
 		return nil, err
 	}
 
-	return mgr.GetOAuth2Server().GetClient(clientID)
+	return mgr.OAuth2GetClient(clientID)
 }
 
 // GenerateAuthorizationCode creates an authorization code | 创建授权码
@@ -928,7 +1010,7 @@ func GenerateAuthorizationCode(ctx context.Context, clientID, loginID, redirectU
 		return nil, err
 	}
 
-	return mgr.GetOAuth2Server().GenerateAuthorizationCode(clientID, loginID, redirectURI, scope)
+	return mgr.OAuth2GenerateAuthorizationCode(ctx, clientID, loginID, redirectURI, scope)
 }
 
 // ExchangeCodeForToken exchanges authorization code for token | 使用授权码换取令牌
@@ -938,27 +1020,37 @@ func ExchangeCodeForToken(ctx context.Context, code, clientID, clientSecret, red
 		return nil, err
 	}
 
-	return mgr.GetOAuth2Server().ExchangeCodeForToken(code, clientID, clientSecret, redirectURI)
+	return mgr.OAuth2ExchangeCodeForToken(ctx, code, clientID, clientSecret, redirectURI)
 }
 
 // ValidateAccessToken verifies OAuth2 access token | 验证OAuth2访问令牌
-func ValidateAccessToken(ctx context.Context, accessToken string, authType ...string) (*oauth2.AccessToken, error) {
+func ValidateAccessToken(ctx context.Context, accessToken string, authType ...string) bool {
 	mgr, err := GetManager(authType...)
 	if err != nil {
-		return nil, err
+		return false
 	}
 
-	return mgr.GetOAuth2Server().ValidateAccessToken(accessToken)
+	return mgr.OAuth2ValidateAccessToken(ctx, accessToken)
 }
 
-// RefreshAccessToken Refreshes access token using refresh token | 使用刷新令牌刷新访问令牌
-func RefreshAccessToken(ctx context.Context, refreshToken, clientID, clientSecret string, authType ...string) (*oauth2.AccessToken, error) {
+// ValidateAccessTokenAndGetInfo verifies OAuth2 access token and get info | 验证OAuth2访问令牌并获取信息
+func ValidateAccessTokenAndGetInfo(ctx context.Context, accessToken string, authType ...string) (*oauth2.AccessToken, error) {
 	mgr, err := GetManager(authType...)
 	if err != nil {
 		return nil, err
 	}
 
-	return mgr.GetOAuth2Server().RefreshAccessToken(refreshToken, clientID, clientSecret)
+	return mgr.OAuth2ValidateAccessTokenAndGetInfo(ctx, accessToken)
+}
+
+// OAuth2RefreshAccessToken Refreshes access token using refresh token | 使用刷新令牌刷新访问令牌(OAuth2)
+func OAuth2RefreshAccessToken(ctx context.Context, clientID, refreshToken, clientSecret string, authType ...string) (*oauth2.AccessToken, error) {
+	mgr, err := GetManager(authType...)
+	if err != nil {
+		return nil, err
+	}
+
+	return mgr.OAuth2RefreshAccessToken(ctx, clientID, refreshToken, clientSecret)
 }
 
 // RevokeToken Revokes access token and its refresh token | 撤销访问令牌及其刷新令牌
@@ -968,7 +1060,7 @@ func RevokeToken(ctx context.Context, accessToken string, authType ...string) er
 		return err
 	}
 
-	return mgr.GetOAuth2Server().RevokeToken(accessToken)
+	return mgr.OAuth2RevokeToken(ctx, accessToken)
 }
 
 // ============ Public Getters | 公共获取器 ============
@@ -1061,6 +1153,143 @@ func GetOAuth2Server(ctx context.Context, authType ...string) *oauth2.OAuth2Serv
 		return nil
 	}
 	return mgr.GetOAuth2Server()
+}
+
+// ============ Event Management | 事件管理 ============
+
+// RegisterFunc registers a function as an event listener | 注册函数作为事件监听器
+func RegisterFunc(event listener.Event, fn func(*listener.EventData), authType ...string) {
+	mgr, err := GetManager(authType...)
+	if err != nil {
+		return
+	}
+	mgr.RegisterFunc(event, fn)
+}
+
+// Register registers an event listener | 注册事件监听器
+func Register(event listener.Event, l listener.Listener, authType ...string) string {
+	mgr, err := GetManager(authType...)
+	if err != nil {
+		return ""
+	}
+	return mgr.Register(event, l)
+}
+
+// RegisterWithConfig registers an event listener with config | 注册带配置的事件监听器
+func RegisterWithConfig(event listener.Event, l listener.Listener, config listener.ListenerConfig, authType ...string) string {
+	mgr, err := GetManager(authType...)
+	if err != nil {
+		return ""
+	}
+	return mgr.RegisterWithConfig(event, l, config)
+}
+
+// Unregister removes an event listener by ID | 根据ID移除事件监听器
+func Unregister(id string, authType ...string) bool {
+	mgr, err := GetManager(authType...)
+	if err != nil {
+		return false
+	}
+	return mgr.Unregister(id)
+}
+
+// TriggerEvent manually triggers an event | 手动触发事件
+func TriggerEvent(data *listener.EventData, authType ...string) {
+	mgr, err := GetManager(authType...)
+	if err != nil {
+		return
+	}
+	mgr.TriggerEvent(data)
+}
+
+// TriggerEventAsync triggers an event asynchronously and returns immediately | 异步触发事件并立即返回
+func TriggerEventAsync(data *listener.EventData, authType ...string) {
+	mgr, err := GetManager(authType...)
+	if err != nil {
+		return
+	}
+	mgr.TriggerEventAsync(data)
+}
+
+// TriggerEventSync triggers an event synchronously and waits for all listeners | 同步触发事件并等待所有监听器完成
+func TriggerEventSync(data *listener.EventData, authType ...string) {
+	mgr, err := GetManager(authType...)
+	if err != nil {
+		return
+	}
+	mgr.TriggerEventSync(data)
+}
+
+// WaitEvents waits for all async event listeners to complete | 等待所有异步事件监听器完成
+func WaitEvents(authType ...string) {
+	mgr, err := GetManager(authType...)
+	if err != nil {
+		return
+	}
+	mgr.WaitEvents()
+}
+
+// ClearEventListeners removes all listeners for a specific event | 清除指定事件的所有监听器
+func ClearEventListeners(event listener.Event, authType ...string) {
+	mgr, err := GetManager(authType...)
+	if err != nil {
+		return
+	}
+	mgr.ClearEventListeners(event)
+}
+
+// ClearAllEventListeners removes all listeners | 清除所有事件监听器
+func ClearAllEventListeners(authType ...string) {
+	mgr, err := GetManager(authType...)
+	if err != nil {
+		return
+	}
+	mgr.ClearAllEventListeners()
+}
+
+// CountEventListeners returns the number of listeners for a specific event | 获取指定事件监听器数量
+func CountEventListeners(event listener.Event, authType ...string) int {
+	mgr, err := GetManager(authType...)
+	if err != nil {
+		return 0
+	}
+	return mgr.CountEventListeners(event)
+}
+
+// CountAllListeners returns the total number of registered listeners | 获取已注册监听器总数
+func CountAllListeners(authType ...string) int {
+	mgr, err := GetManager(authType...)
+	if err != nil {
+		return 0
+	}
+	return mgr.CountAllListeners()
+}
+
+// GetEventListenerIDs returns all listener IDs for a specific event | 获取指定事件的所有监听器ID
+func GetEventListenerIDs(event listener.Event, authType ...string) []string {
+	mgr, err := GetManager(authType...)
+	if err != nil {
+		return nil
+	}
+	return mgr.GetEventListenerIDs(event)
+}
+
+// GetAllRegisteredEvents returns all events that have registered listeners | 获取所有已注册事件
+func GetAllRegisteredEvents(authType ...string) []listener.Event {
+	mgr, err := GetManager(authType...)
+	if err != nil {
+		return nil
+	}
+	return mgr.GetAllRegisteredEvents()
+}
+
+// HasEventListeners checks if there are any listeners for a specific event | 检查指定事件是否有监听器
+func HasEventListeners(event listener.Event, authType ...string) bool {
+	mgr, err := GetManager(authType...)
+	if err != nil {
+		return false
+	}
+	return mgr.HasEventListeners(event)
 }
 
 // ============ Check Functions for Token-based operations | 基于Token的检查函数 ============

@@ -123,16 +123,6 @@ func AuthWithStateMiddleware(opts ...AuthOption) gin.HandlerFunc {
 
 		_, err = mgr.CheckLoginWithState(context.WithValue(c.Request.Context(), config.CtxTokenValue, saCtx.GetTokenValue()))
 		if err != nil {
-
-			switch {
-			case errors.Is(err, manager.ErrTokenKickout):
-				err = core.ErrTokenKickout
-			case errors.Is(err, manager.ErrTokenReplaced):
-				err = core.ErrTokenReplaced
-			default:
-				err = core.ErrNotLogin
-			}
-
 			if options.AuthFailFunc != nil {
 				options.AuthFailFunc(c, err)
 			} else {

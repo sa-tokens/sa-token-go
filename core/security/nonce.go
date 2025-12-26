@@ -1,6 +1,7 @@
 package security
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
@@ -50,7 +51,7 @@ func NewNonceManager(authType, prefix string, storage adapter.Storage, ttl time.
 }
 
 // Generate Generates a new nonce and stores it | 生成新的nonce并存储
-func (nm *NonceManager) Generate() (string, error) {
+func (nm *NonceManager) Generate(ctx context.Context) (string, error) {
 	// Create byte slice for nonce | 创建字节切片生成nonce
 	bytes := make([]byte, NonceLength)
 	if _, err := rand.Read(bytes); err != nil {
@@ -61,7 +62,7 @@ func (nm *NonceManager) Generate() (string, error) {
 
 	// Build storage key | 构建存储键
 	key := nm.getNonceKey(nonce)
-	if err := nm.storage.Set(key, time.Now().Unix(), nm.ttl); err != nil {
+	if err := nm.storage.Set(ctx, key, time.Now().Unix(), nm.ttl); err != nil {
 		return "", fmt.Errorf("%w: %v", core.ErrStorageUnavailable, err)
 	}
 
@@ -69,7 +70,7 @@ func (nm *NonceManager) Generate() (string, error) {
 }
 
 // Verify Verifies nonce and consumes it (one-time use) Returns false if nonce doesn't exist or already used | 验证nonce并消费它（一次性使用）如果nonce不存在或已使用则返回false
-func (nm *NonceManager) Verify(nonce string) bool {
+func (nm *NonceManager) Verify(ctx context.Context, nonce string) bool {
 	if nonce == "" {
 		return false
 	}
@@ -81,26 +82,26 @@ func (nm *NonceManager) Verify(nonce string) bool {
 	defer nm.mu.Unlock() // Release lock after function | 函数结束释放锁
 
 	// Nonce not found | 未找到nonce
-	if !nm.storage.Exists(key) {
+	if !nm.storage.Exists(ctx, key) {
 		return false
 	}
 
 	// Consume nonce | 消耗nonce
-	_ = nm.storage.Delete(key)
+	_ = nm.storage.Delete(ctx, key)
 
 	return true
 }
 
 // VerifyAndConsume Verifies and consumes nonce, returns error if invalid | 验证并消费nonce，无效时返回错误
-func (nm *NonceManager) VerifyAndConsume(nonce string) error {
-	if !nm.Verify(nonce) {
+func (nm *NonceManager) VerifyAndConsume(ctx context.Context, nonce string) error {
+	if !nm.Verify(ctx, nonce) {
 		return core.ErrInvalidNonce
 	}
 	return nil
 }
 
 // IsValid Checks if nonce is valid without consuming it | 检查nonce是否有效（不消费）
-func (nm *NonceManager) IsValid(nonce string) bool {
+func (nm *NonceManager) IsValid(ctx context.Context, nonce string) bool {
 	if nonce == "" {
 		return false
 	}
@@ -112,7 +113,7 @@ func (nm *NonceManager) IsValid(nonce string) bool {
 	defer nm.mu.RUnlock() // Release read lock | 释放读锁
 
 	// Return existence | 返回是否存在
-	return nm.storage.Exists(key)
+	return nm.storage.Exists(ctx, key)
 }
 
 // getNonceKey Gets storage key for nonce | 获取nonce的存储键
