@@ -171,17 +171,9 @@ func PermissionMiddleware(
 
 		// Permission check | 权限校验
 		var ok bool
-		switch {
-		// Single permission | 单权限判断
-		case len(permissions) == 1:
-			ok = mgr.HasPermissionByToken(ctx, tokenValue, permissions[0])
-
-		// AND logic | AND 逻辑
-		case options.LogicType == LogicAnd:
+		if options.LogicType == LogicAnd {
 			ok = mgr.HasPermissionsAndByToken(ctx, tokenValue, permissions)
-
-		// OR logic (default) | OR 逻辑（默认）
-		default:
+		} else {
 			ok = mgr.HasPermissionsOrByToken(ctx, tokenValue, permissions)
 		}
 
@@ -234,18 +226,9 @@ func RoleMiddleware(
 
 		// Role check | 角色校验
 		var ok bool
-
-		switch {
-		// Single role | 单角色判断
-		case len(roles) == 1:
-			ok = mgr.HasRoleByToken(ctx, tokenValue, roles[0])
-
-		// AND logic | AND 逻辑
-		case options.LogicType == LogicAnd:
+		if options.LogicType == LogicAnd {
 			ok = mgr.HasRolesAndByToken(ctx, tokenValue, roles)
-
-		// OR logic (default) | OR 逻辑（默认）
-		default:
+		} else {
 			ok = mgr.HasRolesOrByToken(ctx, tokenValue, roles)
 		}
 

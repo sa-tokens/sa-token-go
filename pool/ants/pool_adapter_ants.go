@@ -111,6 +111,11 @@ func (m *RenewPoolManager) Stats() (running, capacity int, usage float64) {
 	capacity = m.pool.Cap()    // Pool capacity | 当前池容量
 	if capacity > 0 {
 		usage = float64(running) / float64(capacity) // Usage ratio | 当前使用率
+		// Cap usage at 1.0 to handle race condition between Running() and Cap() calls
+		// 限制使用率最大为 1.0，处理 Running() 和 Cap() 调用之间的竞态条件
+		if usage > 1.0 {
+			usage = 1.0
+		}
 	}
 
 	return
