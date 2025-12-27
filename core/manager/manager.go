@@ -1367,6 +1367,21 @@ func (m *Manager) OAuth2RevokeToken(ctx context.Context, accessToken string) err
 	return m.oauth2Server.RevokeToken(ctx, accessToken)
 }
 
+// OAuth2Token Unified token endpoint that dispatches to appropriate handler based on grant type | 统一的令牌端点，根据授权类型分发到相应的处理逻辑
+func (m *Manager) OAuth2Token(ctx context.Context, req *oauth2.TokenRequest, validateUser oauth2.UserValidator) (*oauth2.AccessToken, error) {
+	return m.oauth2Server.Token(ctx, req, validateUser)
+}
+
+// OAuth2ClientCredentialsToken Gets access token using client credentials grant | 使用客户端凭证模式获取访问令牌
+func (m *Manager) OAuth2ClientCredentialsToken(ctx context.Context, clientID, clientSecret string, scopes []string) (*oauth2.AccessToken, error) {
+	return m.oauth2Server.ClientCredentialsToken(ctx, clientID, clientSecret, scopes)
+}
+
+// OAuth2PasswordGrantToken Gets access token using resource owner password credentials grant | 使用密码模式获取访问令牌
+func (m *Manager) OAuth2PasswordGrantToken(ctx context.Context, clientID, clientSecret, username, password string, scopes []string, validateUser oauth2.UserValidator) (*oauth2.AccessToken, error) {
+	return m.oauth2Server.PasswordGrantToken(ctx, clientID, clientSecret, username, password, scopes, validateUser)
+}
+
 // ============ Public Getters | 公共获取器 ============
 
 // GetConfig returns the manager configuration | 获取 Manager 当前使用的配置

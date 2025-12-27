@@ -1063,6 +1063,36 @@ func RevokeToken(ctx context.Context, accessToken string, authType ...string) er
 	return mgr.OAuth2RevokeToken(ctx, accessToken)
 }
 
+// OAuth2Token Unified token endpoint that dispatches to appropriate handler based on grant type | 统一的令牌端点，根据授权类型分发到相应的处理逻辑
+func OAuth2Token(ctx context.Context, req *oauth2.TokenRequest, validateUser oauth2.UserValidator, authType ...string) (*oauth2.AccessToken, error) {
+	mgr, err := GetManager(authType...)
+	if err != nil {
+		return nil, err
+	}
+
+	return mgr.OAuth2Token(ctx, req, validateUser)
+}
+
+// OAuth2ClientCredentialsToken Gets access token using client credentials grant | 使用客户端凭证模式获取访问令牌
+func OAuth2ClientCredentialsToken(ctx context.Context, clientID, clientSecret string, scopes []string, authType ...string) (*oauth2.AccessToken, error) {
+	mgr, err := GetManager(authType...)
+	if err != nil {
+		return nil, err
+	}
+
+	return mgr.OAuth2ClientCredentialsToken(ctx, clientID, clientSecret, scopes)
+}
+
+// OAuth2PasswordGrantToken Gets access token using resource owner password credentials grant | 使用密码模式获取访问令牌
+func OAuth2PasswordGrantToken(ctx context.Context, clientID, clientSecret, username, password string, scopes []string, validateUser oauth2.UserValidator, authType ...string) (*oauth2.AccessToken, error) {
+	mgr, err := GetManager(authType...)
+	if err != nil {
+		return nil, err
+	}
+
+	return mgr.OAuth2PasswordGrantToken(ctx, clientID, clientSecret, username, password, scopes, validateUser)
+}
+
 // ============ Public Getters | 公共获取器 ============
 
 // GetConfig returns the manager configuration | 获取 Manager 当前使用的配置
