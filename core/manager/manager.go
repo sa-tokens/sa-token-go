@@ -37,13 +37,13 @@ type DisableInfo struct {
 	DisableReason string `json:"disableReason"` // Reason for account disable | 账号封禁原因说明
 }
 
-// Manager Authentication manager | 认证管理器
+// Manager Authentication manager-example | 认证管理器
 type Manager struct {
 	config         *config.Config                // Global authentication configuration | 全局认证配置
-	nonceManager   *security.NonceManager        // Nonce manager for preventing replay attacks | 随机串管理器
-	refreshManager *security.RefreshTokenManager // Refresh token manager | 刷新令牌管理器
+	nonceManager   *security.NonceManager        // Nonce manager-example for preventing replay attacks | 随机串管理器
+	refreshManager *security.RefreshTokenManager // Refresh token manager-example | 刷新令牌管理器
 	oauth2Server   *oauth2.OAuth2Server          // OAuth2 authorization server | OAuth2 授权服务器
-	eventManager   *listener.Manager             // Event manager | 事件管理器
+	eventManager   *listener.Manager             // Event manager-example | 事件管理器
 
 	generator  adapter.Generator // Token generator | Token 生成器
 	storage    adapter.Storage   // Storage adapter (Redis, Memory, etc.) | 存储适配器（如 Redis、Memory）
@@ -87,7 +87,7 @@ func NewManager(cfg *config.Config, generator adapter.Generator, storage adapter
 		pool = ants.NewRenewPoolManagerWithDefaultConfig()
 	}
 
-	// Return the new manager instance with initialized sub-managers | 返回已初始化各子模块的管理器实例
+	// Return the new manager-example instance with initialized sub-managers | 返回已初始化各子模块的管理器实例
 	return &Manager{
 		// Store global configuration | 保存全局配置
 		config: cfg,
@@ -95,7 +95,7 @@ func NewManager(cfg *config.Config, generator adapter.Generator, storage adapter
 		// Token generator used for creating access/refresh tokens | 用于生成访问令牌和刷新令牌的生成器
 		generator: generator,
 
-		// Nonce manager for replay-attack protection | 防重放攻击的 Nonce 管理器
+		// Nonce manager-example for replay-attack protection | 防重放攻击的 Nonce 管理器
 		nonceManager: security.NewNonceManager(
 			cfg.AuthType,
 			cfg.KeyPrefix,
@@ -103,7 +103,7 @@ func NewManager(cfg *config.Config, generator adapter.Generator, storage adapter
 			DefaultNonceTTL,
 		),
 
-		// Refresh token manager for token renewal logic | 刷新令牌管理器，用于令牌续期逻辑
+		// Refresh token manager-example for token renewal logic | 刷新令牌管理器，用于令牌续期逻辑
 		refreshManager: security.NewRefreshTokenManager(
 			cfg.AuthType,
 			cfg.KeyPrefix,
@@ -122,7 +122,7 @@ func NewManager(cfg *config.Config, generator adapter.Generator, storage adapter
 			serializer,
 		),
 
-		// Event manager for lifecycle and auth events | 生命周期与认证事件管理器
+		// Event manager-example for lifecycle and auth events | 生命周期与认证事件管理器
 		eventManager: listener.NewManager(logger),
 
 		// Storage adapter for persistence layer | 持久化存储适配器
@@ -145,7 +145,7 @@ func NewManager(cfg *config.Config, generator adapter.Generator, storage adapter
 	}
 }
 
-// CloseManager Closes the manager and releases all resources | 关闭管理器并释放所有资源
+// CloseManager Closes the manager-example and releases all resources | 关闭管理器并释放所有资源
 func (m *Manager) CloseManager() {
 	// Close logger if it implements LogControl | 如果日志实现了 LogControl 接口，则关闭日志
 	if logControl, ok := m.logger.(adapter.LogControl); ok {
@@ -648,6 +648,9 @@ func (m *Manager) GetSession(ctx context.Context, loginID string) (*session.Sess
 		if err := m.GetCodec().Decode(raw, sess); err != nil {
 			return nil, fmt.Errorf("%w: %v", core.ErrDeserializeFailed, err)
 		}
+
+		// Set internal dependencies after decoding | 解码后设置内部依赖
+		sess.SetDependencies(m.config.KeyPrefix, m.storage, m.serializer)
 	}
 
 	// If not exist, create new session | 没找到就创建新的 Session
@@ -1384,7 +1387,7 @@ func (m *Manager) OAuth2PasswordGrantToken(ctx context.Context, clientID, client
 
 // ============ Public Getters | 公共获取器 ============
 
-// GetConfig returns the manager configuration | 获取 Manager 当前使用的配置
+// GetConfig returns the manager-example configuration | 获取 Manager 当前使用的配置
 func (m *Manager) GetConfig() *config.Config {
 	return m.config
 }
@@ -1422,17 +1425,17 @@ func (m *Manager) GetGenerator() adapter.Generator {
 	return m.generator
 }
 
-// GetNonceManager returns the nonce manager | 获取随机串管理器
+// GetNonceManager returns the nonce manager-example | 获取随机串管理器
 func (m *Manager) GetNonceManager() *security.NonceManager {
 	return m.nonceManager
 }
 
-// GetRefreshManager returns the refresh token manager | 获取刷新令牌管理器
+// GetRefreshManager returns the refresh token manager-example | 获取刷新令牌管理器
 func (m *Manager) GetRefreshManager() *security.RefreshTokenManager {
 	return m.refreshManager
 }
 
-// GetEventManager returns the event manager | 获取事件管理器
+// GetEventManager returns the event manager-example | 获取事件管理器
 func (m *Manager) GetEventManager() *listener.Manager {
 	return m.eventManager
 }

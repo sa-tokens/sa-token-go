@@ -1,15 +1,19 @@
 package memory
 
 import (
+	"context"
 	"testing"
 	"time"
 )
 
 func TestSetKeepTTL(t *testing.T) {
 	storage := NewStorage()
+	defer storage.Close()
+
+	ctx := context.Background()
 
 	// 测试场景1: 键不存在的情况
-	err := storage.SetKeepTTL("non_existent_key", "value")
+	err := storage.SetKeepTTL(ctx, "non_existent_key", "value")
 	if err == nil {
 		t.Errorf("Expected error for non-existent key, got nil")
 	}
@@ -21,25 +25,25 @@ func TestSetKeepTTL(t *testing.T) {
 	ttl := 10 * time.Second
 
 	// 先设置一个键值对
-	err = storage.Set(key, originalValue, ttl)
+	err = storage.Set(ctx, key, originalValue, ttl)
 	if err != nil {
 		t.Fatalf("Failed to set key: %v", err)
 	}
 
 	// 获取原始TTL
-	originalTTL, err := storage.TTL(key)
+	originalTTL, err := storage.TTL(ctx, key)
 	if err != nil {
 		t.Fatalf("Failed to get TTL: %v", err)
 	}
 
 	// 使用SetKeepTTL更新值
-	err = storage.SetKeepTTL(key, newValue)
+	err = storage.SetKeepTTL(ctx, key, newValue)
 	if err != nil {
 		t.Fatalf("SetKeepTTL failed: %v", err)
 	}
 
 	// 验证值已更新
-	value, err := storage.Get(key)
+	value, err := storage.Get(ctx, key)
 	if err != nil {
 		t.Fatalf("Failed to get value: %v", err)
 	}
@@ -48,7 +52,7 @@ func TestSetKeepTTL(t *testing.T) {
 	}
 
 	// 验证TTL保持不变
-	newTTL, err := storage.TTL(key)
+	newTTL, err := storage.TTL(ctx, key)
 	if err != nil {
 		t.Fatalf("Failed to get TTL after update: %v", err)
 	}

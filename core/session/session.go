@@ -45,6 +45,19 @@ func NewSession(authType, prefix, id string, storage adapter.Storage, serializer
 	}
 }
 
+// SetDependencies sets internal dependencies for a decoded session | 设置反序列化后的 Session 的内部依赖
+func (s *Session) SetDependencies(prefix string, storage adapter.Storage, serializer adapter.Codec) {
+	if storage == nil {
+		storage = memory.NewStorage()
+	}
+	if serializer == nil {
+		serializer = codec_json.NewJSONSerializer()
+	}
+	s.prefix = prefix
+	s.storage = storage
+	s.serializer = serializer
+}
+
 // ============ Data Operations | 数据操作 ============
 
 // Set Sets value | 设置值

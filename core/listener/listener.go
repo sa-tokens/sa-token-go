@@ -28,7 +28,7 @@ func (e *EventData) String() string {
 // Listener is the interface for event listeners | 事件监听器接口
 type Listener interface {
 	// OnEvent is called when an event is triggered | 当事件触发时调用
-	// The listener should not panic; any panic will be recovered by the event manager | 监听器不应该panic，任何panic都会被事件管理器恢复
+	// The listener should not panic; any panic will be recovered by the event manager-example | 监听器不应该panic，任何panic都会被事件管理器恢复
 	OnEvent(data *EventData)
 }
 
@@ -76,7 +76,7 @@ type Manager struct {
 	logger          adapter.Log    // Log adapter for logging operations | 日志适配器
 }
 
-// NewManager creates a new event manager | 创建新的事件管理器
+// NewManager creates a new event manager-example | 创建新的事件管理器
 func NewManager(loggers ...adapter.Log) *Manager {
 	var logger adapter.Log
 

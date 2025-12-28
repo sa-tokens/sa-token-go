@@ -20,91 +20,88 @@ go run cmd/main.go
 
 ## 使用方式
 
-### 方式一：使用 Manager 实例（推荐用于复杂场景）
+### 方式一：使用 Builder 构建器（推荐）
 
 ```go
 package main
 
 import (
     "github.com/gin-gonic/gin"
-    "github.com/click33/sa-token-go/core"
     sagin "github.com/click33/sa-token-go/integrations/gin"
-    "github.com/click33/sa-token-go/storage/memory"
 )
 
 func main() {
-    // 创建 Manager
-    manager := core.NewBuilder().
-        Storage(memory.NewStorage()).
+    // 使用 Builder 创建 Manager
+    mgr := sagin.NewDefaultBuild().
         TokenName("Authorization").
+        Timeout(7200).
+        IsPrintBanner(true).
         Build()
-    
-    // 创建插件
-    plugin := sagin.NewPlugin(manager)
-    
+
+    // 设置全局 Manager
+    sagin.SetManager(mgr)
+
     // 设置路由
     r := gin.Default()
-    r.POST("/login", plugin.LoginHandler)
-    r.GET("/user", plugin.AuthMiddleware(), plugin.UserInfoHandler)
-    
-    r.Run(":8080")
-}
-```
 
-### 方式二：使用 StpUtil 全局工具类（推荐用于简单场景）
-
-```go
-package main
-
-import (
-    "net/http"
-    
-    "github.com/gin-gonic/gin"
-    "github.com/click33/sa-token-go/core"
-    "github.com/click33/sa-token-go/stputil"
-    sagin "github.com/click33/sa-token-go/integrations/gin"
-    "github.com/click33/sa-token-go/storage/memory"
-)
-
-func init() {
-    // 初始化 StpUtil
-    stputil.SetManager(
-        core.NewBuilder().
-            Storage(memory.NewStorage()).
-            Build(),
-    )
-}
-
-func main() {
-    r := gin.Default()
-    
     // 登录接口
     r.POST("/login", func(c *gin.Context) {
         var req struct {
-            UserID int `json:"userId"`
+            UserID string `json:"userId"`
         }
         c.ShouldBindJSON(&req)
-        
-        token, _ := stputil.Login(req.UserID)
-        c.JSON(http.StatusOK, gin.H{"token": token})
+
+        ctx := c.Request.Context()
+        token, _ := sagin.Login(ctx, req.UserID)
+        c.JSON(200, gin.H{"token": token})
     })
-    
-    // 使用注解装饰器
-    r.GET("/user", sagin.CheckLogin(), func(c *gin.Context) {
-        token := c.GetHeader("Authorization")
-        loginID, _ := stputil.GetLoginID(token)
-        
-        c.JSON(http.StatusOK, gin.H{
+
+    // 需要登录的接口
+    r.GET("/user", sagin.CheckLoginMiddleware(), func(c *gin.Context) {
+        loginID, _ := sagin.GetLoginIDFromRequest(c)
+        c.JSON(200, gin.H{
             "loginId": loginID,
             "message": "用户信息",
         })
     })
-    
-    // 需要权限
-    r.GET("/admin", sagin.CheckPermission("admin:*"), func(c *gin.Context) {
-        c.JSON(http.StatusOK, gin.H{"message": "管理员数据"})
+
+    // 需要权限的接口
+    r.GET("/admin", sagin.CheckPermissionMiddleware("admin:*"), func(c *gin.Context) {
+        c.JSON(200, gin.H{"message": "管理员数据"})
     })
-    
+
+    r.Run(":8080")
+}
+```
+
+### 方式二：使用路由组
+
+```go
+package main
+
+import (
+    "github.com/gin-gonic/gin"
+    sagin "github.com/click33/sa-token-go/integrations/gin"
+)
+
+func main() {
+    // 初始化 Manager
+    mgr := sagin.NewDefaultBuild().Build()
+    sagin.SetManager(mgr)
+
+    r := gin.Default()
+
+    // 公开接口
+    r.POST("/login", loginHandler)
+
+    // 受保护的路由组
+    protected := r.Group("/api")
+    protected.Use(sagin.CheckLoginMiddleware())
+    {
+        protected.GET("/user", userHandler)
+        protected.GET("/admin", sagin.CheckPermissionMiddleware("admin:*"), adminHandler)
+    }
+
     r.Run(":8080")
 }
 ```
@@ -117,7 +114,15 @@ func main() {
   ```bash
   curl -X POST http://localhost:8080/login \
     -H "Content-Type: application/json" \
-    -d '{"username":"test","password":"123456"}'
+    -d '{"userId":"1000"}'
+  ```
+
+  响应：
+  ```json
+  {
+    "message": "登录成功",
+    "token": "YOUR_TOKEN"
+  }
   ```
 
 - `GET /public` - 公开访问
@@ -133,11 +138,80 @@ func main() {
     -H "Authorization: YOUR_TOKEN"
   ```
 
+  响应：
+  ```json
+  {
+    "message": "用户信息",
+    "loginId": "1000"
+  }
+  ```
+
 - `GET /api/admin` - 管理员接口（需要管理员权限）
   ```bash
   curl http://localhost:8080/api/admin \
     -H "Authorization: YOUR_TOKEN"
   ```
+
+## 中间件说明
+
+| 中间件 | 说明 |
+|--------|------|
+| `CheckLoginMiddleware()` | 检查是否已登录 |
+| `CheckRoleMiddleware(roles...)` | 检查是否拥有指定角色 |
+| `CheckPermissionMiddleware(perms...)` | 检查是否拥有指定权限 |
+| `CheckDisableMiddleware()` | 检查账号是否被封禁 |
+| `IgnoreMiddleware()` | 忽略认证检查 |
+
+## 常用函数
+
+### 认证相关
+
+```go
+// 登录（需要 context）
+token, err := sagin.Login(ctx, userID)
+
+// 登出
+err := sagin.Logout(ctx, userID)
+err := sagin.LogoutByToken(ctx, token)
+
+// 检查登录状态
+isLogin := sagin.IsLogin(ctx, token)
+
+// 获取登录ID
+loginID, err := sagin.GetLoginID(ctx, token)
+
+// 从请求中获取登录ID（Gin 专用）
+loginID, err := sagin.GetLoginIDFromRequest(c)
+```
+
+### 权限和角色
+
+```go
+// 设置权限
+err := sagin.SetPermissions(ctx, userID, []string{"user:read", "admin:*"})
+
+// 设置角色
+err := sagin.SetRoles(ctx, userID, []string{"admin", "user"})
+
+// 检查权限
+hasPermission := sagin.HasPermission(ctx, userID, "admin:*")
+
+// 检查角色
+hasRole := sagin.HasRole(ctx, userID, "admin")
+```
+
+### 踢人和封禁
+
+```go
+// 踢人下线
+err := sagin.Kickout(ctx, userID)
+
+// 封禁账号
+err := sagin.Disable(ctx, userID, time.Hour)
+
+// 解封账号
+err := sagin.Untie(ctx, userID)
+```
 
 ## 配置文件
 
@@ -154,5 +228,5 @@ server:
 
 ## 更多示例
 
-查看 [注解示例](../../annotation/annotation-example) 了解更多注解装饰器的用法。
-
+- [简单示例](../gin-simple) - 最简单的使用方式
+- [注解示例](../../annotation/annotation-example) - 中间件装饰器用法

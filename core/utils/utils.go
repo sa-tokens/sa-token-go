@@ -240,7 +240,7 @@ func ParsePermissionTag(tag string) []string {
 }
 
 // ParseRoleTag 解析角色标签
-// 格式: "role:admin,manager"
+// 格式: "role:admin,manager-example"
 func ParseRoleTag(tag string) []string {
 	if tag == "" {
 		return []string{}

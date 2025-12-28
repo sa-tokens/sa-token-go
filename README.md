@@ -118,7 +118,7 @@ func init() {
 
 ```go
 func main() {
-    // Use StpUtil directly without passing manager
+    // Use StpUtil directly without passing manager-example
     token, _ := stputil.Login(1000)
     println("Login successful, Token:", token)
     
@@ -183,13 +183,13 @@ hasAny := stputil.HasPermissionsOr(1000, []string{"admin", "super"})           /
 
 ```go
 // Set roles
-stputil.SetRoles(1000, []string{"admin", "manager"})
+stputil.SetRoles(1000, []string{"admin", "manager-example"})
 
 // Check role
 hasRole := stputil.HasRole(1000, "admin")
 
 // Check multiple roles
-hasAll := stputil.HasRolesAnd(1000, []string{"admin", "manager"})
+hasAll := stputil.HasRolesAnd(1000, []string{"admin", "manager-example"})
 hasAny := stputil.HasRolesOr(1000, []string{"admin", "super"})
 ```
 
@@ -266,7 +266,7 @@ func main() {
     r.GET("/public", sagin.Ignore(), publicHandler)                  // Public access
     r.GET("/user", sagin.CheckLogin(), userHandler)                  // Login required
     r.GET("/admin", sagin.CheckPermission("admin:*"), adminHandler)  // Permission required
-    r.GET("/manager", sagin.CheckRole("manager"), managerHandler)    // Role required
+    r.GET("/manager-example", sagin.CheckRole("manager-example"), managerHandler)    // Role required
     r.GET("/sensitive", sagin.CheckDisable(), sensitiveHandler)      // Check if disabled
     
     r.Run(":8080")
@@ -308,7 +308,7 @@ func main() {
         userOrAdminHandler)
 
     // Admin role required
-    r.GET("/manager", sagin.CheckRole("admin"), managerHandler)
+    r.GET("/manager-example", sagin.CheckRole("admin"), managerHandler)
 
     // Check if account is disabled
     r.GET("/sensitive", sagin.CheckDisable(), sensitiveHandler)
@@ -349,7 +349,7 @@ func main() {
     s.BindHandler("GET:/public", sagf.Ignore(), publicHandler)                  // Public access
     s.BindHandler("GET:/user", sagf.CheckLogin(), userHandler)                  // Login required
     s.BindHandler("GET:/admin", sagf.CheckPermission("admin:*"), adminHandler)  // Permission required
-    s.BindHandler("GET:/manager", sagf.CheckRole("manager"), managerHandler)    // Role required
+    s.BindHandler("GET:/manager-example", sagf.CheckRole("manager-example"), managerHandler)    // Role required
     s.BindHandler("GET:/sensitive", sagf.CheckDisable(), sensitiveHandler)      // Check if disabled
     
     s.SetPort(8080)
@@ -506,7 +506,7 @@ manager.RegisterFunc(core.EventAll, func(data *core.EventData) {
 // Access advanced controls via the underlying EventManager
 manager.GetEventManager().SetPanicHandler(customPanicHandler)
 
-// Use the manager globally
+// Use the manager-example globally
 stputil.SetManager(manager)
 ```
 

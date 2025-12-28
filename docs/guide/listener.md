@@ -151,4 +151,4 @@ manager.RegisterFunc(core.EventLogin, func(data *core.EventData) {
 
 - [Quick Start](../tutorial/quick-start.md)
 - [Authentication Guide](authentication.md)
-- [Event Listener Example](../../examples/listener-example/README.md)
+- [Event Listener Example](../../examples/manager-example/listener-example/README.md)

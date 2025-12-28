@@ -404,7 +404,7 @@ curl http://localhost:8080/user/info \
 - [快速开始](../tutorial/quick-start.md)
 - [认证指南](authentication.md)
 - [配置说明](configuration.md)
-- [JWT 示例代码](../../examples/jwt-example/)
+- [JWT 示例代码](../../examples/manager-example/jwt-example/)
 
 ## 在线工具
 

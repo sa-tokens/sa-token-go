@@ -4,19 +4,14 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/click33/sa-token-go/core"
 	sagin "github.com/click33/sa-token-go/integrations/gin"
-	"github.com/click33/sa-token-go/storage/memory"
-	"github.com/click33/sa-token-go/stputil"
 	"github.com/gin-gonic/gin"
 )
 
 func init() {
-	// 初始化StpUtil
-	stputil.SetManager(
-		core.NewBuilder().
-			Storage(memory.NewStorage()).
-			Build(),
+	// 初始化 Manager
+	sagin.SetManager(
+		sagin.NewDefaultBuild().Build(),
 	)
 }
 
@@ -32,7 +27,7 @@ func (h *UserHandler) GetPublic(c *gin.Context) {
 
 // 需要登录
 func (h *UserHandler) GetUserInfo(c *gin.Context) {
-	loginID, _ := stputil.GetLoginID(c.GetHeader("Authorization"))
+	loginID, _ := sagin.GetLoginIDFromRequest(c)
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "用户个人信息",
@@ -42,7 +37,7 @@ func (h *UserHandler) GetUserInfo(c *gin.Context) {
 
 // 需要管理员权限
 func (h *UserHandler) GetAdminData(c *gin.Context) {
-	loginID, _ := stputil.GetLoginID(c.GetHeader("Authorization"))
+	loginID, _ := sagin.GetLoginIDFromRequest(c)
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "管理员数据",
@@ -53,7 +48,7 @@ func (h *UserHandler) GetAdminData(c *gin.Context) {
 
 // 需要多个权限之一
 func (h *UserHandler) GetUserOrAdmin(c *gin.Context) {
-	loginID, _ := stputil.GetLoginID(c.GetHeader("Authorization"))
+	loginID, _ := sagin.GetLoginIDFromRequest(c)
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "用户或管理员都可以访问",
@@ -63,7 +58,7 @@ func (h *UserHandler) GetUserOrAdmin(c *gin.Context) {
 
 // 需要特定角色
 func (h *UserHandler) GetManagerData(c *gin.Context) {
-	loginID, _ := stputil.GetLoginID(c.GetHeader("Authorization"))
+	loginID, _ := sagin.GetLoginIDFromRequest(c)
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "经理数据",
@@ -73,7 +68,7 @@ func (h *UserHandler) GetManagerData(c *gin.Context) {
 
 // 检查账号是否被封禁
 func (h *UserHandler) GetSensitiveData(c *gin.Context) {
-	loginID, _ := stputil.GetLoginID(c.GetHeader("Authorization"))
+	loginID, _ := sagin.GetLoginIDFromRequest(c)
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "敏感数据",
@@ -92,16 +87,23 @@ func loginHandler(c *gin.Context) {
 		return
 	}
 
+	ctx := c.Request.Context()
+
 	// 登录
-	token, err := stputil.Login(req.UserID)
+	token, err := sagin.Login(ctx, req.UserID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "登录失败"})
 		return
 	}
 
 	// 设置权限和角色（模拟）
-	stputil.SetPermissions(req.UserID, []string{"user:read", "user:write", "admin:*"})
-	stputil.SetRoles(req.UserID, []string{"admin", "manager"})
+	if req.UserID == 1 {
+		_ = sagin.SetPermissions(ctx, req.UserID, []string{"user:read", "user:write", "admin:*"})
+		_ = sagin.SetRoles(ctx, req.UserID, []string{"admin", "manager-example"})
+	} else {
+		_ = sagin.SetPermissions(ctx, req.UserID, []string{"user:read", "user:write"})
+		_ = sagin.SetRoles(ctx, req.UserID, []string{"user"})
+	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"token":   token,
@@ -120,8 +122,10 @@ func disableHandler(c *gin.Context) {
 		return
 	}
 
+	ctx := c.Request.Context()
+
 	// 封禁账号1小时
-	stputil.Disable(req.UserID, 1*time.Hour)
+	_ = sagin.Disable(ctx, req.UserID, 1*time.Hour)
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "账号已封禁1小时",
@@ -135,31 +139,31 @@ func main() {
 	r.POST("/login", loginHandler)
 
 	// 封禁接口（需要管理员权限）
-	r.POST("/disable", sagin.CheckPermission("admin:*"), disableHandler)
+	r.POST("/disable", sagin.CheckPermissionMiddleware("admin:*"), disableHandler)
 
 	// 使用装饰器模式设置路由
 	handler := &UserHandler{}
 
 	// 公开访问 - 忽略认证
-	r.GET("/public", sagin.Ignore(), handler.GetPublic)
+	r.GET("/public", sagin.IgnoreMiddleware(), handler.GetPublic)
 
 	// 需要登录
-	r.GET("/user/info", sagin.CheckLogin(), handler.GetUserInfo)
+	r.GET("/user/info", sagin.CheckLoginMiddleware(), handler.GetUserInfo)
 
 	// 需要管理员权限
-	r.GET("/admin", sagin.CheckPermission("admin:*"), handler.GetAdminData)
+	r.GET("/admin", sagin.CheckPermissionMiddleware("admin:*"), handler.GetAdminData)
 
 	// 需要用户权限或管理员权限（OR逻辑）
 	r.GET("/user-or-admin",
-		sagin.CheckPermission("user:read", "admin:*"),
+		sagin.CheckPermissionMiddleware("user:read", "admin:*"),
 		handler.GetUserOrAdmin)
 
 	// 需要管理员角色
-	r.GET("/manager", sagin.CheckRole("admin"), handler.GetManagerData)
+	r.GET("/manager-example", sagin.CheckRoleMiddleware("admin"), handler.GetManagerData)
 
 	// 检查账号是否被封禁
-	r.GET("/sensitive", sagin.CheckDisable(), handler.GetSensitiveData)
+	r.GET("/sensitive", sagin.CheckDisableMiddleware(), handler.GetSensitiveData)
 
 	// 启动服务器
-	r.Run(":8080")
+	_ = r.Run(":8080")
 }

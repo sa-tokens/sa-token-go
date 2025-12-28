@@ -1,21 +1,16 @@
 module github.com/click33/sa-token-go/examples/chi-example
 
-go 1.21
+go 1.25.0
 
 require (
-	github.com/click33/sa-token-go/core v0.1.3
-	github.com/click33/sa-token-go/integrations/chi v0.1.3
-	github.com/click33/sa-token-go/storage/memory v0.1.3
+	github.com/click33/sa-token-go/core v0.1.6
+	github.com/click33/sa-token-go/storage/memory v0.1.6
 	github.com/go-chi/chi/v5 v5.0.11
 )
 
 require (
-	github.com/golang-jwt/jwt/v5 v5.2.1 // indirect
+	github.com/golang-jwt/jwt/v5 v5.3.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
-)
-
-replace (
-	github.com/click33/sa-token-go/core => ../../../core
-	github.com/click33/sa-token-go/integrations/chi => ../../../integrations/chi
-	github.com/click33/sa-token-go/storage/memory => ../../../storage/memory
+	github.com/panjf2000/ants/v2 v2.11.3 // indirect
+	golang.org/x/sync v0.19.0 // indirect
 )

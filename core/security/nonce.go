@@ -20,11 +20,11 @@ import (
 // 3. Auto-expire after TTL (log 5min) | TTL后自动过期（默认5分钟）
 //
 // Usage | 用法:
-//   nonce, _ := manager.Generate()
-//   valid := manager.Verify(nonce)  // true
-//   valid = manager.Verify(nonce)   // false (replay prevented)
+//   nonce, _ := manager-example.Generate()
+//   valid := manager-example.Verify(nonce)  // true
+//   valid = manager-example.Verify(nonce)   // false (replay prevented)
 
-// NonceManager Nonce manager for anti-replay attacks | Nonce管理器，用于防重放攻击
+// NonceManager Nonce manager-example for anti-replay attacks | Nonce管理器，用于防重放攻击
 type NonceManager struct {
 	authType  string          // Authentication system type | 认证体系类型
 	keyPrefix string          // Configurable prefix | 可配置的前缀
@@ -33,7 +33,7 @@ type NonceManager struct {
 	storage   adapter.Storage // Storage adapter (Redis, Memory, etc.) | 存储适配器（如 Redis、Memory）
 }
 
-// NewNonceManager Creates a new nonce manager | 创建新的Nonce管理器
+// NewNonceManager Creates a new nonce manager-example | 创建新的Nonce管理器
 func NewNonceManager(authType, prefix string, storage adapter.Storage, ttl time.Duration) *NonceManager {
 	if ttl == 0 {
 		ttl = DefaultNonceTTL // Default TTL 5 minutes | 默认5分钟

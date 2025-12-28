@@ -183,13 +183,13 @@ hasAny := stputil.HasPermissionsOr(1000, []string{"admin", "super"})           /
 
 ```go
 // 设置角色
-stputil.SetRoles(1000, []string{"admin", "manager"})
+stputil.SetRoles(1000, []string{"admin", "manager-example"})
 
 // 检查角色
 hasRole := stputil.HasRole(1000, "admin")
 
 // 多角色检查
-hasAll := stputil.HasRolesAnd(1000, []string{"admin", "manager"})
+hasAll := stputil.HasRolesAnd(1000, []string{"admin", "manager-example"})
 hasAny := stputil.HasRolesOr(1000, []string{"admin", "super"})
 ```
 
@@ -266,7 +266,7 @@ func main() {
     r.GET("/public", sagin.Ignore(), publicHandler)                  // 公开访问
     r.GET("/user", sagin.CheckLogin(), userHandler)                  // 需要登录
     r.GET("/admin", sagin.CheckPermission("admin:*"), adminHandler)  // 需要权限
-    r.GET("/manager", sagin.CheckRole("manager"), managerHandler)    // 需要角色
+    r.GET("/manager-example", sagin.CheckRole("manager-example"), managerHandler)    // 需要角色
     r.GET("/sensitive", sagin.CheckDisable(), sensitiveHandler)      // 检查封禁
     
     r.Run(":8080")
@@ -308,7 +308,7 @@ func main() {
         userOrAdminHandler)
 
     // 需要管理员角色
-    r.GET("/manager", sagin.CheckRole("admin"), managerHandler)
+    r.GET("/manager-example", sagin.CheckRole("admin"), managerHandler)
 
     // 检查账号是否被封禁
     r.GET("/sensitive", sagin.CheckDisable(), sensitiveHandler)
@@ -349,7 +349,7 @@ func main() {
     s.BindHandler("GET:/public", sagf.Ignore(), publicHandler)                  // 公开访问
     s.BindHandler("GET:/user", sagf.CheckLogin(), userHandler)                  // 需要登录
     s.BindHandler("GET:/admin", sagf.CheckPermission("admin:*"), adminHandler)  // 需要权限
-    s.BindHandler("GET:/manager", sagf.CheckRole("manager"), managerHandler)    // 需要角色
+    s.BindHandler("GET:/manager-example", sagf.CheckRole("manager-example"), managerHandler)    // 需要角色
     s.BindHandler("GET:/sensitive", sagf.CheckDisable(), sensitiveHandler)      // 检查是否禁用
     
     s.SetPort(8080)

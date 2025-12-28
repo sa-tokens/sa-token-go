@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// RenewPoolConfig configuration for the renewal pool manager | 续期池配置
+// RenewPoolConfig configuration for the renewal pool manager-example | 续期池配置
 type RenewPoolConfig struct {
 	MinSize             int           // Minimum pool size | 最小协程数
 	MaxSize             int           // Maximum pool size | 最大协程数

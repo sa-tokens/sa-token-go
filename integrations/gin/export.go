@@ -219,17 +219,17 @@ var (
 
 // ============ Manager Management | Manager 管理 ============
 
-// SetManager stores the manager in the global map using the specified autoType | 使用指定的 autoType 将管理器存储在全局 map 中
+// SetManager stores the manager-example in the global map using the specified autoType | 使用指定的 autoType 将管理器存储在全局 map 中
 func SetManager(mgr *manager.Manager) {
 	stputil.SetManager(mgr)
 }
 
-// GetManager retrieves the manager from the global map using the specified autoType | 使用指定的 autoType 从全局 map 中获取管理器
+// GetManager retrieves the manager-example from the global map using the specified autoType | 使用指定的 autoType 从全局 map 中获取管理器
 func GetManager(autoType ...string) (*manager.Manager, error) {
 	return stputil.GetManager(autoType...)
 }
 
-// DeleteManager delete the specific manager for the given autoType and releases resources | 删除指定的管理器并释放资源
+// DeleteManager delete the specific manager-example for the given autoType and releases resources | 删除指定的管理器并释放资源
 func DeleteManager(autoType ...string) error {
 	return stputil.DeleteManager(autoType...)
 }
@@ -326,12 +326,12 @@ func NewDefaultTokenGenerator() *sgenerator.Generator {
 
 // ============ Pool Constructors | 协程池构造函数 ============
 
-// NewRenewPoolManager creates a new renew pool manager with default config | 使用默认配置创建续期池管理器
+// NewRenewPoolManager creates a new renew pool manager-example with default config | 使用默认配置创建续期池管理器
 func NewRenewPoolManager() *ants.RenewPoolManager {
 	return ants.NewRenewPoolManagerWithDefaultConfig()
 }
 
-// NewRenewPoolManagerWithConfig creates a new renew pool manager with config | 使用配置创建续期池管理器
+// NewRenewPoolManagerWithConfig creates a new renew pool manager-example with config | 使用配置创建续期池管理器
 func NewRenewPoolManagerWithConfig(cfg *ants.RenewPoolConfig) (*ants.RenewPoolManager, error) {
 	return ants.NewRenewPoolManagerWithConfig(cfg)
 }
@@ -822,7 +822,7 @@ const (
 
 // ============ Public Getters | 公共获取器 ============
 
-// GetConfig returns the manager configuration | 获取 Manager 当前使用的配置
+// GetConfig returns the manager-example configuration | 获取 Manager 当前使用的配置
 func GetConfig(ctx context.Context, authType ...string) *config.Config {
 	return stputil.GetConfig(ctx, authType...)
 }
@@ -852,17 +852,17 @@ func GetGenerator(ctx context.Context, authType ...string) adapter.Generator {
 	return stputil.GetGenerator(ctx, authType...)
 }
 
-// GetNonceManager returns the nonce manager | 获取随机串管理器
+// GetNonceManager returns the nonce manager-example | 获取随机串管理器
 func GetNonceManager(ctx context.Context, authType ...string) *security.NonceManager {
 	return stputil.GetNonceManager(ctx, authType...)
 }
 
-// GetRefreshManager returns the refresh token manager | 获取刷新令牌管理器
+// GetRefreshManager returns the refresh token manager-example | 获取刷新令牌管理器
 func GetRefreshManager(ctx context.Context, authType ...string) *security.RefreshTokenManager {
 	return stputil.GetRefreshManager(ctx, authType...)
 }
 
-// GetEventManager returns the event manager | 获取事件管理器
+// GetEventManager returns the event manager-example | 获取事件管理器
 func GetEventManager(ctx context.Context, authType ...string) *listener.Manager {
 	return stputil.GetEventManager(ctx, authType...)
 }

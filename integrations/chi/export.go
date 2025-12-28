@@ -105,7 +105,7 @@ func DefaultConfig() *Config {
 	return core.DefaultConfig()
 }
 
-// NewManager creates a new authentication manager | 创建新的认证管理器
+// NewManager creates a new authentication manager-example | 创建新的认证管理器
 func NewManager(storage Storage, cfg *Config) *Manager {
 	return core.NewManager(storage, cfg)
 }
@@ -130,7 +130,7 @@ func NewTokenGenerator(cfg *Config) *TokenGenerator {
 	return core.NewTokenGenerator(cfg)
 }
 
-// NewEventManager creates a new event manager | 创建新的事件管理器
+// NewEventManager creates a new event manager-example | 创建新的事件管理器
 func NewEventManager() *EventManager {
 	return core.NewEventManager()
 }
@@ -140,12 +140,12 @@ func NewBuilder() *Builder {
 	return core.NewBuilder()
 }
 
-// NewNonceManager creates a new nonce manager | 创建新的Nonce管理器
+// NewNonceManager creates a new nonce manager-example | 创建新的Nonce管理器
 func NewNonceManager(storage Storage, prefix string, ttl ...int64) *NonceManager {
 	return core.NewNonceManager(storage, prefix, ttl...)
 }
 
-// NewRefreshTokenManager creates a new refresh token manager | 创建新的刷新令牌管理器
+// NewRefreshTokenManager creates a new refresh token manager-example | 创建新的刷新令牌管理器
 func NewRefreshTokenManager(storage Storage, prefix string, cfg *Config) *RefreshTokenManager {
 	return core.NewRefreshTokenManager(storage, prefix, cfg)
 }

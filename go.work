@@ -1,4 +1,4 @@
-go 1.25.3
+go 1.25.0
 
 use (
 	// codec
@@ -7,7 +7,27 @@ use (
 
 	// core
 	./core
-	./stputil
+
+	// examples - integrations
+	./examples/annotation/annotation-example
+	./examples/chi/chi-example
+	./examples/echo/echo-example
+	./examples/fiber/fiber-example
+	./examples/gf
+	./examples/gin/gin-example
+	./examples/gin/gin-simple
+	./examples/kratos/kratos-example
+
+	// examples - manager-example
+	./examples/manager-example/jwt-example
+	./examples/manager-example/listener-example
+	./examples/manager-example/oauth2-example
+	./examples/manager-example/security-example
+	./examples/manager-example/session-demo
+	./examples/manager-example/token-styles
+
+	// examples - quick-start
+	./examples/quick-start/simple-example
 
 	// generator
 	./generator/sgenerator
@@ -31,22 +51,5 @@ use (
 	// storage
 	./storage/memory
 	./storage/redis
-
-	// examples
-	./examples/gf
-	./examples/gin/gin-example
-	./examples/gin/gin-simple
-	./examples/kratos/kratos-example
-	./examples/chi/chi-example
-	./examples/echo/echo-example
-	./examples/fiber/fiber-example
-	./examples/quick-start/simple-example
-	./examples/redis-example
-	./examples/jwt-example
-	./examples/listener-example
-	./examples/oauth2-example
-	./examples/security-features
-	./examples/session-demo
-	./examples/token-styles
-	./examples/annotation/annotation-example
+	./stputil
 )

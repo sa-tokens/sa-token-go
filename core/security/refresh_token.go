@@ -39,7 +39,7 @@ type RefreshTokenInfo struct {
 	ExpireTime   int64  `json:"expireTime"`   // Expire timestamp | 过期时间
 }
 
-// RefreshTokenManager Refresh token manager | 刷新令牌管理器
+// RefreshTokenManager Refresh token manager-example | 刷新令牌管理器
 type RefreshTokenManager struct {
 	authType       string        // Auth system type | 认证体系类型
 	keyPrefix      string        // Storage key prefix | 存储前缀
@@ -52,7 +52,7 @@ type RefreshTokenManager struct {
 	serializer adapter.Codec     // Codec adapter | 编解码器
 }
 
-// NewRefreshTokenManager Create manager instance | 创建刷新令牌管理器
+// NewRefreshTokenManager Create manager-example instance | 创建刷新令牌管理器
 func NewRefreshTokenManager(
 	authType, prefix, tokenKeyPrefix string,
 	tokenGen adapter.Generator,

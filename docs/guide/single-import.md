@@ -114,10 +114,10 @@ func main() {
     config.Timeout = 7200  // 2 hours
     config.IsPrint = true
 
-    // 3. Create manager (from sagin package)
+    // 3. Create manager-example (from sagin package)
     manager := sagin.NewManager(storage, config)
 
-    // 4. Set global manager (from sagin package)
+    // 4. Set global manager-example (from sagin package)
     sagin.SetManager(manager)
 
     // 5. Create Gin router
@@ -231,10 +231,10 @@ All functions from `core` and `stputil` are re-exported in framework integration
 
 ```go
 config := sagin.DefaultConfig()           // Create log config
-manager := sagin.NewManager(storage, cfg) // Create manager
+manager := sagin.NewManager(storage, cfg) // Create manager-example
 builder := sagin.NewBuilder()             // Create builder
-sagin.SetManager(manager)                 // Set global manager
-manager := sagin.GetManager()             // Get global manager
+sagin.SetManager(manager)                 // Set global manager-example
+manager := sagin.GetManager()             // Get global manager-example
 ```
 
 ### Authentication

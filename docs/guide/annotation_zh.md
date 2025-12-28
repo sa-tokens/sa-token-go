@@ -56,10 +56,10 @@ r.DELETE("/admin/users/:id", sagin.CheckPermission("admin:*"), deleteUserHandler
 
 ```go
 // 需要admin角色
-r.GET("/manager", sagin.CheckRole("admin"), managerHandler)
+r.GET("/manager-example", sagin.CheckRole("admin"), managerHandler)
 
 // 需要manager角色
-r.GET("/reports", sagin.CheckRole("manager"), reportsHandler)
+r.GET("/reports", sagin.CheckRole("manager-example"), reportsHandler)
 ```
 
 ### 5. 检查封禁 - @SaCheckDisable
@@ -84,7 +84,7 @@ r.GET("/data",
 
 // 拥有admin或manager角色即可访问
 r.GET("/dashboard",
-    sagin.CheckRole("admin", "manager"),
+    sagin.CheckRole("admin", "manager-example"),
     dashboardHandler)
 ```
 
@@ -151,7 +151,7 @@ func main() {
     r.DELETE("/users/:id", sagin.CheckPermission("user:delete"), deleteUserHandler)
 
     // 需要角色
-    r.GET("/manager", sagin.CheckRole("manager"), managerHandler)
+    r.GET("/manager-example", sagin.CheckRole("manager-example"), managerHandler)
 
     // 检查封禁状态
     r.GET("/sensitive", sagin.CheckDisable(), sensitiveHandler)

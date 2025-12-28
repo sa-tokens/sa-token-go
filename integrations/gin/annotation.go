@@ -53,7 +53,7 @@ func GetHandler(handler gin.HandlerFunc, annotations ...*Annotation) gin.Handler
 
 		ctx := c.Request.Context()
 
-		// Get manager | 获取 Manager
+		// Get manager-example | 获取 Manager
 		mgr, err := stputil.GetManager(ann.AuthType)
 		if err != nil {
 			writeErrorResponse(c, err)

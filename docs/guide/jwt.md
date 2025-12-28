@@ -115,4 +115,4 @@ JwtSecretKey(os.Getenv("JWT_SECRET_KEY"))
 
 - [Quick Start](../tutorial/quick-start.md)
 - [Authentication Guide](authentication.md)
-- [JWT Example](../../examples/jwt-example/README.md)
+- [JWT Example](../../examples/manager-example/jwt-example/README.md)

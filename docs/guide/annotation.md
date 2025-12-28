@@ -38,7 +38,7 @@ r.GET("/admin", sagin.CheckRole("admin"), func(c *gin.Context) {
 })
 
 // Requires any of the roles
-r.GET("/dashboard", sagin.CheckRole("admin", "manager"), func(c *gin.Context) {
+r.GET("/dashboard", sagin.CheckRole("admin", "manager-example"), func(c *gin.Context) {
     c.JSON(200, gin.H{"message": "Dashboard"})
 })
 ```
@@ -107,7 +107,7 @@ func main() {
 
     // Role required
     r.GET("/admin", sagin.CheckRole("admin"), adminHandler)
-    r.GET("/manager", sagin.CheckRole("admin", "manager"), managerHandler)
+    r.GET("/manager-example", sagin.CheckRole("admin", "manager-example"), managerHandler)
 
     // Permission required
     r.GET("/users", sagin.CheckPermission("user:read"), listUsersHandler)

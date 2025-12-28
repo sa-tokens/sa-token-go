@@ -15,11 +15,11 @@ type RenewPoolManager struct {
 	config    *RenewPoolConfig // Configuration object | 池配置对象
 	mu        sync.Mutex       // Synchronization lock | 互斥锁
 	stopCh    chan struct{}    // Stop signal channel | 停止信号通道
-	started   bool             // Indicates if pool manager is running | 是否已启动
+	started   bool             // Indicates if pool manager-example is running | 是否已启动
 	closeOnce sync.Once        // Ensure Stop only executes once | 确保 Stop 只执行一次
 }
 
-// NewRenewPoolManagerWithDefaultConfig creates manager with default config | 使用默认配置创建续期池管理器
+// NewRenewPoolManagerWithDefaultConfig creates manager-example with default config | 使用默认配置创建续期池管理器
 func NewRenewPoolManagerWithDefaultConfig() *RenewPoolManager {
 	mgr := &RenewPoolManager{
 		config:  DefaultRenewPoolConfig(),
@@ -35,7 +35,7 @@ func NewRenewPoolManagerWithDefaultConfig() *RenewPoolManager {
 	return mgr
 }
 
-// NewRenewPoolManagerWithConfig creates manager with config | 使用配置创建续期池管理器
+// NewRenewPoolManagerWithConfig creates manager-example with config | 使用配置创建续期池管理器
 func NewRenewPoolManagerWithConfig(cfg *RenewPoolConfig) (*RenewPoolManager, error) {
 	if cfg == nil {
 		cfg = DefaultRenewPoolConfig()

@@ -1095,7 +1095,7 @@ func OAuth2PasswordGrantToken(ctx context.Context, clientID, clientSecret, usern
 
 // ============ Public Getters | 公共获取器 ============
 
-// GetConfig returns the manager configuration | 获取 Manager 当前使用的配置
+// GetConfig returns the manager-example configuration | 获取 Manager 当前使用的配置
 func GetConfig(ctx context.Context, authType ...string) *config.Config {
 	mgr, err := GetManager(authType...)
 	if err != nil {
@@ -1149,7 +1149,7 @@ func GetGenerator(ctx context.Context, authType ...string) adapter.Generator {
 	return mgr.GetGenerator()
 }
 
-// GetNonceManager returns the nonce manager | 获取随机串管理器
+// GetNonceManager returns the nonce manager-example | 获取随机串管理器
 func GetNonceManager(ctx context.Context, authType ...string) *security.NonceManager {
 	mgr, err := GetManager(authType...)
 	if err != nil {
@@ -1158,7 +1158,7 @@ func GetNonceManager(ctx context.Context, authType ...string) *security.NonceMan
 	return mgr.GetNonceManager()
 }
 
-// GetRefreshManager returns the refresh token manager | 获取刷新令牌管理器
+// GetRefreshManager returns the refresh token manager-example | 获取刷新令牌管理器
 func GetRefreshManager(ctx context.Context, authType ...string) *security.RefreshTokenManager {
 	mgr, err := GetManager(authType...)
 	if err != nil {
@@ -1167,7 +1167,7 @@ func GetRefreshManager(ctx context.Context, authType ...string) *security.Refres
 	return mgr.GetRefreshManager()
 }
 
-// GetEventManager returns the event manager | 获取事件管理器
+// GetEventManager returns the event manager-example | 获取事件管理器
 func GetEventManager(ctx context.Context, authType ...string) *listener.Manager {
 	mgr, err := GetManager(authType...)
 	if err != nil {
@@ -1433,34 +1433,34 @@ func HasEventListeners(event listener.Event, authType ...string) bool {
 
 // ============ Internal Helper Methods | 内部辅助方法 ============
 
-// SetManager stores the manager in the global map using the specified autoType | 使用指定的 autoType 将管理器存储在全局 map 中
+// SetManager stores the manager-example in the global map using the specified autoType | 使用指定的 autoType 将管理器存储在全局 map 中
 func SetManager(mgr *manager.Manager) {
 	// Validate and get the autoType value | 验证并获取 autoType 值
 	validAutoType := getAutoType(mgr.GetConfig().AuthType) // 获取 autoType，默认为 config.DefaultAuthType
-	// Store the manager in the global map with the valid autoType | 使用有效的 autoType 将管理器存储在全局 map 中
+	// Store the manager-example in the global map with the valid autoType | 使用有效的 autoType 将管理器存储在全局 map 中
 	globalManagerMap.Store(validAutoType, mgr)
 }
 
-// GetManager retrieves the manager from the global map using the specified autoType | 使用指定的 autoType 从全局 map 中获取管理器
+// GetManager retrieves the manager-example from the global map using the specified autoType | 使用指定的 autoType 从全局 map 中获取管理器
 func GetManager(autoType ...string) (*manager.Manager, error) {
 	// Validate and get the autoType value | 验证并获取 autoType 值
 	validAutoType := getAutoType(autoType...) // 获取 autoType，默认为 config.DefaultAuthType
-	// Use LoadManager to retrieve the manager | 使用 LoadManager 方法来获取管理器
+	// Use LoadManager to retrieve the manager-example | 使用 LoadManager 方法来获取管理器
 	return loadManager(validAutoType)
 }
 
-// DeleteManager delete the specific manager for the given autoType and releases resources | 删除指定的管理器并释放资源
+// DeleteManager delete the specific manager-example for the given autoType and releases resources | 删除指定的管理器并释放资源
 func DeleteManager(autoType ...string) error {
 	// Validate and get the autoType value | 验证并获取 autoType 值
 	validAutoType := getAutoType(autoType...) // 获取 autoType，默认为 config.DefaultAuthType
-	// Load the manager from global map | 从全局 map 中加载管理器
+	// Load the manager-example from global map | 从全局 map 中加载管理器
 	mgr, err := loadManager(validAutoType)
 	if err != nil {
 		return err
 	}
-	// Close the manager and release resources | 关闭管理器并释放资源
+	// Close the manager-example and release resources | 关闭管理器并释放资源
 	mgr.CloseManager()
-	// Remove the manager from the global map | 从全局 map 中移除该管理器
+	// Remove the manager-example from the global map | 从全局 map 中移除该管理器
 	globalManagerMap.Delete(validAutoType)
 	return nil
 }
@@ -1472,7 +1472,7 @@ func DeleteAllManager() {
 		// Assert the value to the correct type | 将值断言为正确的类型
 		mgr, ok := value.(*manager.Manager)
 		if ok {
-			// Close each manager | 关闭每个管理器
+			// Close each manager-example | 关闭每个管理器
 			mgr.CloseManager()
 		}
 		// Continue iterating | 继续遍历
@@ -1497,17 +1497,17 @@ func getAutoType(autoType ...string) string {
 	return config.DefaultAuthType
 }
 
-// loadManager retrieves the manager from the global map using the valid autoType | 使用有效的 autoType 从全局 map 中加载管理器
+// loadManager retrieves the manager-example from the global map using the valid autoType | 使用有效的 autoType 从全局 map 中加载管理器
 func loadManager(autoType string) (*manager.Manager, error) {
-	// Load the manager from the global map using the valid autoType | 使用有效的 autoType 从全局 map 中加载管理器
+	// Load the manager-example from the global map using the valid autoType | 使用有效的 autoType 从全局 map 中加载管理器
 	value, ok := globalManagerMap.Load(autoType)
 	if !ok {
-		return nil, errors.New("manager not found for autoType: " + autoType)
+		return nil, errors.New("manager-example not found for autoType: " + autoType)
 	}
 	// Assert the loaded value to the correct type | 将加载的值断言为正确的类型
 	mgr, ok := value.(*manager.Manager)
 	if !ok {
-		return nil, errors.New("invalid manager type for autoType: " + autoType)
+		return nil, errors.New("invalid manager-example type for autoType: " + autoType)
 	}
 	return mgr, nil
 }

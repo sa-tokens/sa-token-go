@@ -24,7 +24,7 @@ func TestNewRenewPoolManagerWithDefaultConfig(t *testing.T) {
 		t.Error("config should not be nil")
 	}
 	if !mgr.started {
-		t.Error("manager should be started")
+		t.Error("manager-example should be started")
 	}
 }
 
@@ -141,7 +141,7 @@ func TestRenewPoolManager_Stop(t *testing.T) {
 	mgr.Stop() // Should not panic | 不应该 panic
 
 	if mgr.started {
-		t.Error("manager should not be started after Stop()")
+		t.Error("manager-example should not be started after Stop()")
 	}
 }
 
@@ -602,7 +602,7 @@ func TestRenewPoolManager_AutoScale_Demo(t *testing.T) {
 
 	mgr, err := NewRenewPoolManagerWithConfig(cfg)
 	if err != nil {
-		t.Fatalf("Failed to create pool manager: %v", err)
+		t.Fatalf("Failed to create pool manager-example: %v", err)
 	}
 	defer mgr.Stop()
 
@@ -714,7 +714,7 @@ func TestRenewPoolManager_AutoScale_StressTest(t *testing.T) {
 
 	mgr, err := NewRenewPoolManagerWithConfig(cfg)
 	if err != nil {
-		t.Fatalf("Failed to create pool manager: %v", err)
+		t.Fatalf("Failed to create pool manager-example: %v", err)
 	}
 	defer mgr.Stop()
 

@@ -226,7 +226,7 @@ func SetRoles(loginID interface{}, roles []string) error
 
 **示例**：
 ```go
-stputil.SetRoles(1000, []string{"admin", "manager"})
+stputil.SetRoles(1000, []string{"admin", "manager-example"})
 ```
 
 ### HasRole
@@ -252,7 +252,7 @@ if stputil.HasRole(1000, "admin") {
 **示例**：
 ```go
 // AND逻辑
-stputil.HasRolesAnd(1000, []string{"admin", "manager"})
+stputil.HasRolesAnd(1000, []string{"admin", "manager-example"})
 
 // OR逻辑
 stputil.HasRolesOr(1000, []string{"admin", "super"})

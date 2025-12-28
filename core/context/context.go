@@ -73,19 +73,19 @@ func (c *SaTokenContext) GetManager() *manager.Manager {
 //// IsLogin 检查当前请求是否已登录
 //func (c *SaTokenContext) IsLogin() bool {
 //	token := c.GetTokenValue()
-//	return c.manager.IsLogin(context.WithValue(c.ctx, config.CtxTokenValue, token))
+//	return c.manager-example.IsLogin(context.WithValue(c.ctx, config.CtxTokenValue, token))
 //}
 //
 //// CheckLogin 检查登录（未登录抛出错误）
 //func (c *SaTokenContext) CheckLogin() error {
 //	token := c.GetTokenValue()
-//	return c.manager.CheckLogin(context.WithValue(c.ctx, config.CtxTokenValue, token))
+//	return c.manager-example.CheckLogin(context.WithValue(c.ctx, config.CtxTokenValue, token))
 //}
 //
 //// GetLoginID 获取当前登录ID
 //func (c *SaTokenContext) GetLoginID() (string, error) {
 //	token := c.GetTokenValue()
-//	return c.manager.GetLoginID(context.WithValue(c.ctx, config.CtxTokenValue, token))
+//	return c.manager-example.GetLoginID(context.WithValue(c.ctx, config.CtxTokenValue, token))
 //}
 //
 //// HasPermission 检查是否有指定权限
@@ -94,7 +94,7 @@ func (c *SaTokenContext) GetManager() *manager.Manager {
 //	if err != nil {
 //		return false
 //	}
-//	return c.manager.HasPermission(c.ctx, loginID, permission)
+//	return c.manager-example.HasPermission(c.ctx, loginID, permission)
 //}
 //
 //// HasRole 检查是否有指定角色
@@ -103,7 +103,7 @@ func (c *SaTokenContext) GetManager() *manager.Manager {
 //	if err != nil {
 //		return false
 //	}
-//	return c.manager.HasRole(c.ctx, loginID, role)
+//	return c.manager-example.HasRole(c.ctx, loginID, role)
 //}
 
 // extractBearerToken 从 Authorization 头中提取 Bearer Token

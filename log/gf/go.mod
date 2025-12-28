@@ -1,6 +1,6 @@
 module github.com/click33/sa-token-go/log/gf
 
-go 1.23.0
+go 1.25.0
 
 require github.com/gogf/gf/v2 v2.9.4
 

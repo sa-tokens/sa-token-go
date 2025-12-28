@@ -139,7 +139,7 @@ func (c *Config) Validate() error {
 	}
 
 	// MaxRefresh must not exceed Timeout | MaxRefresh 不能大于 Timeout
-	if c.Timeout != NoLimit && c.MaxRefresh > c.Timeout {
+	if c.Timeout != NoLimit && c.AutoRenew && c.MaxRefresh > c.Timeout {
 		return fmt.Errorf(
 			"MaxRefresh (%d) must be <= Timeout (%d)",
 			c.MaxRefresh,

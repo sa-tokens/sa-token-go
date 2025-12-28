@@ -53,7 +53,7 @@ func GetHandler(handler ghttp.HandlerFunc, annotations ...*Annotation) ghttp.Han
 
 		ctx := r.Context()
 
-		// Get manager | 获取 Manager
+		// Get manager-example | 获取 Manager
 		mgr, err := stputil.GetManager(ann.AuthType)
 		if err != nil {
 			writeErrorResponse(r, err)
