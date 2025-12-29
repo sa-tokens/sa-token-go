@@ -1,6 +1,8 @@
+// @Author daixk 2025/12/28
 package echo
 
 import (
+	"context"
 	"strings"
 
 	"github.com/click33/sa-token-go/core"
@@ -10,75 +12,101 @@ import (
 
 // Annotation annotation structure | 注解结构体
 type Annotation struct {
-	CheckLogin      bool     `json:"checkLogin"`
-	CheckRole       []string `json:"checkRole"`
-	CheckPermission []string `json:"checkPermission"`
-	CheckDisable    bool     `json:"checkDisable"`
-	Ignore          bool     `json:"ignore"`
+	AuthType        string    `json:"authType"`        // Optional: specify auth type | 可选:指定认证类型
+	CheckLogin      bool      `json:"checkLogin"`      // Check login | 检查登录
+	CheckRole       []string  `json:"checkRole"`       // Check roles | 检查角色
+	CheckPermission []string  `json:"checkPermission"` // Check permissions | 检查权限
+	CheckDisable    bool      `json:"checkDisable"`    // Check disable status | 检查封禁状态
+	Ignore          bool      `json:"ignore"`          // Ignore authentication | 忽略认证
+	LogicType       LogicType `json:"logicType"`       // OR or AND logic (default: OR) | OR 或 AND 逻辑（默认: OR）
 }
 
 // GetHandler gets handler with annotations | 获取带注解的处理器
 func GetHandler(handler echo.HandlerFunc, annotations ...*Annotation) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		// Check if authentication should be ignored | 检查是否忽略认证
+		// Ignore authentication | 忽略认证直接放行
 		if len(annotations) > 0 && annotations[0].Ignore {
 			if handler != nil {
 				return handler(c)
 			}
-			return nil
+			return c.Next()
 		}
 
-		// Get token from context using configured TokenName | 从上下文获取Token（使用配置的TokenName）
-		ctx := NewEchoContext(c)
-		saCtx := core.NewContext(ctx, stputil.GetManager())
+		// Check if any authentication is needed | 检查是否需要任何认证
+		ann := &Annotation{}
+		if len(annotations) > 0 {
+			ann = annotations[0]
+		}
+
+		// No authentication required | 无需任何认证
+		needAuth := ann.CheckLogin || ann.CheckDisable || len(ann.CheckPermission) > 0 || len(ann.CheckRole) > 0
+		if !needAuth {
+			if handler != nil {
+				return handler(c)
+			}
+			return c.Next()
+		}
+
+		ctx := c.Request().Context()
+
+		// Get manager | 获取 Manager
+		mgr, err := stputil.GetManager(ann.AuthType)
+		if err != nil {
+			return writeErrorResponse(c, err)
+		}
+
+		// Get SaTokenContext (reuse cached context) | 获取 SaTokenContext（复用缓存上下文）
+		saCtx := getSaContext(c, mgr)
 		token := saCtx.GetTokenValue()
+
 		if token == "" {
 			return writeErrorResponse(c, core.NewNotLoginError())
 		}
 
 		// Check login | 检查登录
-		if !stputil.IsLogin(token) {
-			return writeErrorResponse(c, core.NewNotLoginError())
-		}
-
-		// Get login ID | 获取登录ID
-		loginID, err := stputil.GetLoginID(token)
-		if err != nil {
+		if err := mgr.CheckLogin(ctx, token); err != nil {
 			return writeErrorResponse(c, err)
 		}
 
+		// Get loginID for further checks | 获取 loginID 用于后续检查
+		var loginID string
+		if ann.CheckDisable || len(ann.CheckPermission) > 0 || len(ann.CheckRole) > 0 {
+			loginID, err = mgr.GetLoginIDNotCheck(ctx, token)
+			if err != nil {
+				return writeErrorResponse(c, err)
+			}
+		}
+
 		// Check if account is disabled | 检查是否被封禁
-		if len(annotations) > 0 && annotations[0].CheckDisable {
-			if stputil.IsDisable(loginID) {
+		if ann.CheckDisable {
+			if mgr.IsDisable(ctx, loginID) {
 				return writeErrorResponse(c, core.NewAccountDisabledError(loginID))
 			}
 		}
 
 		// Check permission | 检查权限
-		if len(annotations) > 0 && len(annotations[0].CheckPermission) > 0 {
-			hasPermission := false
-			for _, perm := range annotations[0].CheckPermission {
-				if stputil.HasPermission(loginID, strings.TrimSpace(perm)) {
-					hasPermission = true
-					break
-				}
+		if len(ann.CheckPermission) > 0 {
+			var ok bool
+			if ann.LogicType == LogicAnd {
+				ok = mgr.HasPermissionsAnd(ctx, loginID, ann.CheckPermission)
+			} else {
+				ok = mgr.HasPermissionsOr(ctx, loginID, ann.CheckPermission)
 			}
-			if !hasPermission {
-				return writeErrorResponse(c, core.NewPermissionDeniedError(strings.Join(annotations[0].CheckPermission, ",")))
+			if !ok {
+				return writeErrorResponse(c, core.NewPermissionDeniedError(strings.Join(ann.CheckPermission, ",")))
 			}
 		}
 
 		// Check role | 检查角色
-		if len(annotations) > 0 && len(annotations[0].CheckRole) > 0 {
-			hasRole := false
-			for _, role := range annotations[0].CheckRole {
-				if stputil.HasRole(loginID, strings.TrimSpace(role)) {
-					hasRole = true
-					break
-				}
+		if len(ann.CheckRole) > 0 {
+			var ok bool
+			if ann.LogicType == LogicAnd {
+				ok = mgr.HasRolesAnd(ctx, loginID, ann.CheckRole)
+			} else {
+				ok = mgr.HasRolesOr(ctx, loginID, ann.CheckRole)
 			}
-			if !hasRole {
-				return writeErrorResponse(c, core.NewRoleDeniedError(strings.Join(annotations[0].CheckRole, ",")))
+			if !ok {
+				return writeErrorResponse(c, core.NewRoleDeniedError(strings.Join(ann.CheckRole, ",")))
 			}
 		}
 
@@ -86,14 +114,18 @@ func GetHandler(handler echo.HandlerFunc, annotations ...*Annotation) echo.Handl
 		if handler != nil {
 			return handler(c)
 		}
-		return nil
+		return c.Next()
 	}
 }
 
 // CheckLoginMiddleware decorator for login checking | 检查登录装饰器
-func CheckLoginMiddleware() echo.MiddlewareFunc {
+func CheckLoginMiddleware(authType ...string) echo.MiddlewareFunc {
+	ann := &Annotation{CheckLogin: true}
+	if len(authType) > 0 {
+		ann.AuthType = authType[0]
+	}
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return GetHandler(next, &Annotation{CheckLogin: true})
+		return GetHandler(next, ann)
 	}
 }
 
@@ -104,6 +136,13 @@ func CheckRoleMiddleware(roles ...string) echo.MiddlewareFunc {
 	}
 }
 
+// CheckRoleMiddlewareWithAuthType decorator for role checking with auth type | 检查角色装饰器（带认证类型）
+func CheckRoleMiddlewareWithAuthType(authType string, roles ...string) echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return GetHandler(next, &Annotation{CheckRole: roles, AuthType: authType})
+	}
+}
+
 // CheckPermissionMiddleware decorator for permission checking | 检查权限装饰器
 func CheckPermissionMiddleware(perms ...string) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
@@ -111,10 +150,21 @@ func CheckPermissionMiddleware(perms ...string) echo.MiddlewareFunc {
 	}
 }
 
-// CheckDisableMiddleware decorator for checking if account is disabled | 检查是否被封禁装饰器
-func CheckDisableMiddleware() echo.MiddlewareFunc {
+// CheckPermissionMiddlewareWithAuthType decorator for permission checking with auth type | 检查权限装饰器（带认证类型）
+func CheckPermissionMiddlewareWithAuthType(authType string, perms ...string) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return GetHandler(next, &Annotation{CheckDisable: true})
+		return GetHandler(next, &Annotation{CheckPermission: perms, AuthType: authType})
+	}
+}
+
+// CheckDisableMiddleware decorator for checking if account is disabled | 检查是否被封禁装饰器
+func CheckDisableMiddleware(authType ...string) echo.MiddlewareFunc {
+	ann := &Annotation{CheckDisable: true}
+	if len(authType) > 0 {
+		ann.AuthType = authType[0]
+	}
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return GetHandler(next, ann)
 	}
 }
 
@@ -123,4 +173,115 @@ func IgnoreMiddleware() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return GetHandler(next, &Annotation{Ignore: true})
 	}
+}
+
+// ============ Combined Middleware | 组合中间件 ============
+
+// CheckLoginAndRoleMiddleware checks login and role | 检查登录和角色
+func CheckLoginAndRoleMiddleware(roles ...string) echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return GetHandler(next, &Annotation{CheckLogin: true, CheckRole: roles})
+	}
+}
+
+// CheckLoginAndPermissionMiddleware checks login and permission | 检查登录和权限
+func CheckLoginAndPermissionMiddleware(perms ...string) echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return GetHandler(next, &Annotation{CheckLogin: true, CheckPermission: perms})
+	}
+}
+
+// CheckAllMiddleware checks login, role, permission and disable status | 全面检查
+func CheckAllMiddleware(roles []string, perms []string) echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return GetHandler(next, &Annotation{
+			CheckLogin:      true,
+			CheckRole:       roles,
+			CheckPermission: perms,
+			CheckDisable:    true,
+		})
+	}
+}
+
+// ============ Route Group Helper | 路由组辅助函数 ============
+
+// AuthGroup creates a route group with authentication | 创建带认证的路由组
+func AuthGroup(group *echo.Group, authType ...string) *echo.Group {
+	group.Use(CheckLoginMiddleware(authType...))
+	return group
+}
+
+// RoleGroup creates a route group with role checking | 创建带角色检查的路由组
+func RoleGroup(group *echo.Group, roles ...string) *echo.Group {
+	group.Use(CheckLoginAndRoleMiddleware(roles...))
+	return group
+}
+
+// PermissionGroup creates a route group with permission checking | 创建带权限检查的路由组
+func PermissionGroup(group *echo.Group, perms ...string) *echo.Group {
+	group.Use(CheckLoginAndPermissionMiddleware(perms...))
+	return group
+}
+
+// ============ Context Helper | 上下文辅助函数 ============
+
+// GetLoginIDFromRequest gets login ID from request context | 从请求上下文获取登录 ID
+func GetLoginIDFromRequest(c echo.Context, authType ...string) (string, error) {
+	var at string
+	if len(authType) > 0 {
+		at = authType[0]
+	}
+
+	mgr, err := stputil.GetManager(at)
+	if err != nil {
+		return "", err
+	}
+
+	saCtx := getSaContext(c, mgr)
+	token := saCtx.GetTokenValue()
+	if token == "" {
+		return "", core.ErrNotLogin
+	}
+	return mgr.GetLoginID(c.Request().Context(), token)
+}
+
+// IsLoginFromRequest checks if user is logged in from request | 从请求检查用户是否已登录
+func IsLoginFromRequest(c echo.Context, authType ...string) bool {
+	var at string
+	if len(authType) > 0 {
+		at = authType[0]
+	}
+
+	mgr, err := stputil.GetManager(at)
+	if err != nil {
+		return false
+	}
+
+	saCtx := getSaContext(c, mgr)
+	token := saCtx.GetTokenValue()
+	if token == "" {
+		return false
+	}
+	return mgr.IsLogin(c.Request().Context(), token)
+}
+
+// GetTokenFromRequest gets token from request (exported) | 从请求获取 Token（导出）
+func GetTokenFromRequest(c echo.Context, authType ...string) string {
+	var at string
+	if len(authType) > 0 {
+		at = authType[0]
+	}
+
+	mgr, err := stputil.GetManager(at)
+	if err != nil {
+		return ""
+	}
+
+	saCtx := getSaContext(c, mgr)
+	return saCtx.GetTokenValue()
+}
+
+// WithContext creates a new context with sa-token context | 创建带 sa-token 上下文的新上下文
+func WithContext(c echo.Context, authType ...string) context.Context {
+	return c.Request().Context()
 }

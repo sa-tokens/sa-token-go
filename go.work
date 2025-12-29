@@ -13,7 +13,7 @@ use (
 	./examples/chi/chi-example
 	./examples/echo/echo-example
 	./examples/fiber/fiber-example
-	./examples/gf
+	./examples/gf/gf-example
 	./examples/gin/gin-example
 	./examples/gin/gin-simple
 	./examples/kratos/kratos-example
