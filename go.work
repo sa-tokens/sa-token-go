@@ -3,6 +3,7 @@ go 1.25.3
 use (
 	./core
 	./examples/kratos/kratos-example
+	./examples/multi-certification
 	./integrations/chi
 	./integrations/echo
 	./integrations/fiber

@@ -13,212 +13,229 @@ import (
 
 // Global Manager instance | 全局Manager实例
 var (
-	globalManager *manager.Manager
-	once          sync.Once
-	mu            sync.RWMutex
+	globalLogic *StpLogic
+	//globalManager *manager.Manager
+	once sync.Once
+	mu   sync.RWMutex
 )
 
 // SetManager sets the global Manager (must be called first) | 设置全局Manager（必须先调用此方法）
 func SetManager(mgr *manager.Manager) {
-	mu.Lock()
-	defer mu.Unlock()
-	globalManager = mgr
+	if globalLogic == nil {
+		globalLogic = NewStpLogic(mgr)
+	}
+	globalLogic.SetManager(mgr)
 }
 
 // GetManager gets the global Manager | 获取全局Manager
 func GetManager() *manager.Manager {
-	mu.RLock()
-	defer mu.RUnlock()
-	if globalManager == nil {
-		panic("StpUtil not initialized, please call SetManager() first or use builder.NewBuilder().Build()")
+	if globalLogic == nil {
+		panic("StpUtil not initialized, please call SetManager() first")
 	}
-	return globalManager
+	if globalLogic.GetManager() == nil {
+		panic("StpUtil not initialized, please call SetManager() first")
+	}
+	return globalLogic.GetManager()
 }
 
 // CloseManager closes global Manager and releases resources | 关闭全局 Manager 并释放资源
 func CloseManager() {
+	if globalLogic != nil {
+		globalLogic.CloseManager()
+		globalLogic.SetManager(nil) // 置 nil 避免后续误用
+	}
+}
+
+// ============ StpLogic ============
+
+// SetStpLogic sets the global StpLogic instance | 设置全局 StpLogic 实例
+func SetStpLogic(logic *StpLogic) {
 	mu.Lock()
 	defer mu.Unlock()
-	if globalManager != nil {
-		globalManager.CloseManager()
-		globalManager = nil // 置 nil 避免后续误用
-	}
+	globalLogic = logic
+}
+
+// GetStpLogic gets the global StpLogic instance | 获取全局 StpLogic 实例
+func GetStpLogic() *StpLogic {
+	mu.Lock()
+	defer mu.Unlock()
+	return globalLogic
 }
 
 // ============ Authentication | 登录认证 ============
 
 // Login performs user login | 用户登录
 func Login(loginID interface{}, device ...string) (string, error) {
-	return GetManager().Login(toString(loginID), device...)
+	return globalLogic.Login(toString(loginID), device...)
 }
 
 // LoginByToken performs login with specified token | 使用指定Token登录
 func LoginByToken(loginID interface{}, tokenValue string, device ...string) error {
-	return GetManager().LoginByToken(toString(loginID), tokenValue, device...)
+	return globalLogic.LoginByToken(toString(loginID), tokenValue, device...)
 }
 
 // Logout performs user logout | 用户登出
 func Logout(loginID interface{}, device ...string) error {
-	return GetManager().Logout(toString(loginID), device...)
+	return globalLogic.Logout(toString(loginID), device...)
 }
 
 // LogoutByToken performs logout by token | 根据Token登出
 func LogoutByToken(tokenValue string) error {
-	return GetManager().LogoutByToken(tokenValue)
+	return globalLogic.LogoutByToken(tokenValue)
 }
 
 // IsLogin checks if the user is logged in | 检查用户是否已登录
 func IsLogin(tokenValue string) bool {
-	return GetManager().IsLogin(tokenValue)
+	return globalLogic.IsLogin(tokenValue)
 }
 
 // CheckLogin checks login status (throws error if not logged in) | 检查登录状态（未登录抛出错误）
 func CheckLogin(tokenValue string) error {
-	return GetManager().CheckLogin(tokenValue)
+	return globalLogic.CheckLogin(tokenValue)
 }
 
 // GetLoginID gets the login ID from token | 从Token获取登录ID
 func GetLoginID(tokenValue string) (string, error) {
-	return GetManager().GetLoginID(tokenValue)
+	return globalLogic.GetLoginID(tokenValue)
 }
 
 // GetLoginIDNotCheck gets login ID without checking | 获取登录ID（不检查）
 func GetLoginIDNotCheck(tokenValue string) (string, error) {
-	return GetManager().GetLoginIDNotCheck(tokenValue)
+	return globalLogic.GetLoginIDNotCheck(tokenValue)
 }
 
 // GetTokenValue gets the token value for a login ID | 获取登录ID对应的Token值
 func GetTokenValue(loginID interface{}, device ...string) (string, error) {
-	return GetManager().GetTokenValue(toString(loginID), device...)
+	return globalLogic.GetTokenValue(toString(loginID), device...)
 }
 
 // GetTokenInfo gets token information | 获取Token信息
 func GetTokenInfo(tokenValue string) (*manager.TokenInfo, error) {
-	return GetManager().GetTokenInfo(tokenValue)
+	return globalLogic.GetTokenInfo(tokenValue)
 }
 
 // ============ Kickout | 踢人下线 ============
 
 // Kickout kicks out a user session | 踢人下线
 func Kickout(loginID interface{}, device ...string) error {
-	return GetManager().Kickout(toString(loginID), device...)
+	return globalLogic.Kickout(toString(loginID), device...)
 }
 
 // ============ Account Disable | 账号封禁 ============
 
 // Disable disables an account for specified duration | 封禁账号（指定时长）
 func Disable(loginID interface{}, duration time.Duration) error {
-	return GetManager().Disable(toString(loginID), duration)
+	return globalLogic.Disable(toString(loginID), duration)
 }
 
 // Untie re-enables a disabled account | 解封账号
 func Untie(loginID interface{}) error {
-	return GetManager().Untie(toString(loginID))
+	return globalLogic.Untie(toString(loginID))
 }
 
 // IsDisable checks if an account is disabled | 检查账号是否被封禁
 func IsDisable(loginID interface{}) bool {
-	return GetManager().IsDisable(toString(loginID))
+	return globalLogic.IsDisable(toString(loginID))
 }
 
 // GetDisableTime gets remaining disable time in seconds | 获取剩余封禁时间（秒）
 func GetDisableTime(loginID interface{}) (int64, error) {
-	return GetManager().GetDisableTime(toString(loginID))
+	return globalLogic.GetDisableTime(toString(loginID))
 }
 
 // ============ Session Management | Session管理 ============
 
 // GetSession gets session by login ID | 根据登录ID获取Session
 func GetSession(loginID interface{}) (*session.Session, error) {
-	return GetManager().GetSession(toString(loginID))
+	return globalLogic.GetSession(toString(loginID))
 }
 
 // GetSessionByToken gets session by token | 根据Token获取Session
 func GetSessionByToken(tokenValue string) (*session.Session, error) {
-	return GetManager().GetSessionByToken(tokenValue)
+	return globalLogic.GetSessionByToken(tokenValue)
 }
 
 // DeleteSession deletes a session | 删除Session
 func DeleteSession(loginID interface{}) error {
-	return GetManager().DeleteSession(toString(loginID))
+	return globalLogic.DeleteSession(toString(loginID))
 }
 
 // ============ Permission Verification | 权限验证 ============
 
 // SetPermissions sets permissions for a login ID | 设置用户权限
 func SetPermissions(loginID interface{}, permissions []string) error {
-	return GetManager().SetPermissions(toString(loginID), permissions)
+	return globalLogic.SetPermissions(toString(loginID), permissions)
 }
 
 // GetPermissions gets permission list | 获取权限列表
 func GetPermissions(loginID interface{}) ([]string, error) {
-	return GetManager().GetPermissions(toString(loginID))
+	return globalLogic.GetPermissions(toString(loginID))
 }
 
 // HasPermission checks if has specified permission | 检查是否拥有指定权限
 func HasPermission(loginID interface{}, permission string) bool {
-	return GetManager().HasPermission(toString(loginID), permission)
+	return globalLogic.HasPermission(toString(loginID), permission)
 }
 
 // HasPermissionsAnd checks if has all permissions (AND logic) | 检查是否拥有所有权限（AND逻辑）
 func HasPermissionsAnd(loginID interface{}, permissions []string) bool {
-	return GetManager().HasPermissionsAnd(toString(loginID), permissions)
+	return globalLogic.HasPermissionsAnd(toString(loginID), permissions)
 }
 
 // HasPermissionsOr checks if has any permission (OR logic) | 检查是否拥有任一权限（OR逻辑）
 func HasPermissionsOr(loginID interface{}, permissions []string) bool {
-	return GetManager().HasPermissionsOr(toString(loginID), permissions)
+	return globalLogic.HasPermissionsOr(toString(loginID), permissions)
 }
 
 // ============ Role Management | 角色管理 ============
 
 // SetRoles sets roles for a login ID | 设置用户角色
 func SetRoles(loginID interface{}, roles []string) error {
-	return GetManager().SetRoles(toString(loginID), roles)
+	return globalLogic.SetRoles(toString(loginID), roles)
 }
 
 // GetRoles gets role list | 获取角色列表
 func GetRoles(loginID interface{}) ([]string, error) {
-	return GetManager().GetRoles(toString(loginID))
+	return globalLogic.GetRoles(toString(loginID))
 }
 
 // HasRole checks if has specified role | 检查是否拥有指定角色
 func HasRole(loginID interface{}, role string) bool {
-	return GetManager().HasRole(toString(loginID), role)
+	return globalLogic.HasRole(toString(loginID), role)
 }
 
 // HasRolesAnd checks if has all roles (AND logic) | 检查是否拥有所有角色（AND逻辑）
 func HasRolesAnd(loginID interface{}, roles []string) bool {
-	return GetManager().HasRolesAnd(toString(loginID), roles)
+	return globalLogic.HasRolesAnd(toString(loginID), roles)
 }
 
 // HasRolesOr 检查是否拥有任一角色（OR）
 func HasRolesOr(loginID interface{}, roles []string) bool {
-	return GetManager().HasRolesOr(toString(loginID), roles)
+	return globalLogic.HasRolesOr(toString(loginID), roles)
 }
 
 // ============ Token标签 ============
 
 // SetTokenTag 设置Token标签
 func SetTokenTag(tokenValue, tag string) error {
-	return GetManager().SetTokenTag(tokenValue, tag)
+	return globalLogic.SetTokenTag(tokenValue, tag)
 }
 
 // GetTokenTag 获取Token标签
 func GetTokenTag(tokenValue string) (string, error) {
-	return GetManager().GetTokenTag(tokenValue)
+	return globalLogic.GetTokenTag(tokenValue)
 }
 
 // ============ 会话查询 ============
 
 // GetTokenValueList 获取指定账号的所有Token
 func GetTokenValueList(loginID interface{}) ([]string, error) {
-	return GetManager().GetTokenValueListByLoginID(toString(loginID))
+	return globalLogic.GetTokenValueList(loginID)
 }
 
 // GetSessionCount 获取指定账号的Session数量
 func GetSessionCount(loginID interface{}) (int, error) {
-	return GetManager().GetSessionCountByLoginID(toString(loginID))
+	return globalLogic.GetSessionCount(loginID)
 }
 
 // ============ 辅助方法 ============
@@ -288,49 +305,49 @@ func uint64ToString(u uint64) string {
 }
 
 func GenerateNonce() (string, error) {
-	if globalManager == nil {
+	if globalLogic == nil {
 		panic("Manager not initialized. Call stputil.SetManager() first")
 	}
-	return globalManager.GenerateNonce()
+	return globalLogic.GenerateNonce()
 }
 
 func VerifyNonce(nonce string) bool {
-	if globalManager == nil {
+	if globalLogic == nil {
 		panic("Manager not initialized. Call stputil.SetManager() first")
 	}
-	return globalManager.VerifyNonce(nonce)
+	return globalLogic.VerifyNonce(nonce)
 }
 
 func LoginWithRefreshToken(loginID interface{}, device ...string) (*security.RefreshTokenInfo, error) {
-	if globalManager == nil {
+	if globalLogic == nil {
 		panic("Manager not initialized. Call stputil.SetManager() first")
 	}
 	deviceType := "default"
 	if len(device) > 0 {
 		deviceType = device[0]
 	}
-	return globalManager.LoginWithRefreshToken(fmt.Sprintf("%v", loginID), deviceType)
+	return globalLogic.LoginWithRefreshToken(fmt.Sprintf("%v", loginID), deviceType)
 }
 
 func RefreshAccessToken(refreshToken string) (*security.RefreshTokenInfo, error) {
-	if globalManager == nil {
+	if globalLogic == nil {
 		panic("Manager not initialized. Call stputil.SetManager() first")
 	}
-	return globalManager.RefreshAccessToken(refreshToken)
+	return globalLogic.RefreshAccessToken(refreshToken)
 }
 
 func RevokeRefreshToken(refreshToken string) error {
-	if globalManager == nil {
+	if globalLogic == nil {
 		panic("Manager not initialized. Call stputil.SetManager() first")
 	}
-	return globalManager.RevokeRefreshToken(refreshToken)
+	return globalLogic.RevokeRefreshToken(refreshToken)
 }
 
 func GetOAuth2Server() *oauth2.OAuth2Server {
-	if globalManager == nil {
+	if globalLogic == nil {
 		panic("Manager not initialized. Call stputil.SetManager() first")
 	}
-	return globalManager.GetOAuth2Server()
+	return globalLogic.GetOAuth2Server()
 }
 
 // ============ Check Functions for Token-based operations | 基于Token的检查函数 ============
