@@ -22,14 +22,12 @@ type Annotation struct {
 }
 
 // GetHandler gets handler with annotations | 获取带注解的处理器
+// Note: handler must not be nil, use middleware pattern instead | 注意: handler不能为nil，请使用中间件模式
 func GetHandler(handler echo.HandlerFunc, annotations ...*Annotation) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		// Ignore authentication | 忽略认证直接放行
 		if len(annotations) > 0 && annotations[0].Ignore {
-			if handler != nil {
-				return handler(c)
-			}
-			return c.Next()
+			return handler(c)
 		}
 
 		// Check if any authentication is needed | 检查是否需要任何认证
@@ -41,10 +39,7 @@ func GetHandler(handler echo.HandlerFunc, annotations ...*Annotation) echo.Handl
 		// No authentication required | 无需任何认证
 		needAuth := ann.CheckLogin || ann.CheckDisable || len(ann.CheckPermission) > 0 || len(ann.CheckRole) > 0
 		if !needAuth {
-			if handler != nil {
-				return handler(c)
-			}
-			return c.Next()
+			return handler(c)
 		}
 
 		ctx := c.Request().Context()
@@ -111,10 +106,7 @@ func GetHandler(handler echo.HandlerFunc, annotations ...*Annotation) echo.Handl
 		}
 
 		// All checks passed, execute original handler | 所有检查通过，执行原函数
-		if handler != nil {
-			return handler(c)
-		}
-		return c.Next()
+		return handler(c)
 	}
 }
 

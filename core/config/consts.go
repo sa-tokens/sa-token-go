@@ -1,11 +1,6 @@
 // @Author daixk 2025/12/7 15:34:00
 package config
 
-const (
-	CtxAutoType   = "CtxAutoType"
-	CtxTokenValue = "CtxTokenValue"
-)
-
 // SameSiteMode Cookie SameSite attribute values | Cookie的SameSite属性值
 type SameSiteMode string
 

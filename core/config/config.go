@@ -2,8 +2,9 @@ package config
 
 import (
 	"fmt"
-	"github.com/click33/sa-token-go/core/adapter"
 	"strings"
+
+	"github.com/click33/sa-token-go/core/adapter"
 )
 
 // Config Sa-Token configuration | Sa-Token配置
@@ -118,86 +119,124 @@ func DefaultConfig() *Config {
 
 // Validate validates the configuration | 验证配置是否合理
 func (c *Config) Validate() error {
-	// Check TokenStyle validity | 检查 Token 风格是否合法
-	if !c.TokenStyle.IsValid() {
-		return fmt.Errorf("invalid TokenStyle: %s", c.TokenStyle)
-	}
+	// =============== Phase 1: Basic format validation | 阶段1：基础格式验证 ===============
 
-	// Validate numeric fields that must be -1 (no limit) or >0 (valid) | 验证必须为-1（无限制）或>0（有效）的数值字段
-	if err := c.checkNoLimits(); err != nil {
-		return err
-	}
-
-	// Check TokenName | 检查 Token 名称
+	// [Critical] TokenName is required for Token identification | TokenName是Token标识的必要字段
 	if c.TokenName == "" {
 		return fmt.Errorf("TokenName cannot be empty")
 	}
-
-	// Check JwtSecretKey if TokenStyle is JWT | 如果 Token 风格为 JWT，则检查密钥是否设置
-	if c.TokenStyle == adapter.TokenStyleJWT && c.JwtSecretKey == "" {
-		return fmt.Errorf("JwtSecretKey is required when TokenStyle is JWT")
+	if strings.ContainsAny(c.TokenName, "\t\r\n") {
+		return fmt.Errorf("TokenName cannot contain tab/newline characters, got: %q", c.TokenName)
+	}
+	if len(c.TokenName) > 64 {
+		return fmt.Errorf("TokenName too long (max 64 chars), got length: %d", len(c.TokenName))
 	}
 
-	// MaxRefresh must not exceed Timeout | MaxRefresh 不能大于 Timeout
-	if c.Timeout != NoLimit && c.AutoRenew && c.MaxRefresh > c.Timeout {
-		return fmt.Errorf(
-			"MaxRefresh (%d) must be <= Timeout (%d)",
-			c.MaxRefresh,
-			c.Timeout,
-		)
-	}
-
-	// RenewInterval must not exceed MaxRefresh | RenewInterval 不能大于 MaxRefresh
-	if c.MaxRefresh != NoLimit && c.RenewInterval != NoLimit && c.RenewInterval > c.MaxRefresh {
-		return fmt.Errorf(
-			"RenewInterval (%d) must be <= MaxRefresh (%d)",
-			c.RenewInterval,
-			c.MaxRefresh,
-		)
-	}
-
-	// Check if at least one read source is enabled | 检查是否至少启用了一个 Token 读取来源
-	if !c.IsReadHeader && !c.IsReadCookie && !c.IsReadBody {
-		return fmt.Errorf("at least one of IsReadHeader, IsReadCookie, or IsReadBody must be true")
-	}
-
-	// Check KeyPrefix validity | 检查 KeyPrefix 合法性
+	// [Critical] KeyPrefix is required for storage isolation | KeyPrefix是存储隔离的必要字段
 	if c.KeyPrefix == "" {
-		return fmt.Errorf("KeyPrefix cannot be empty") // KeyPrefix不能为空
+		return fmt.Errorf("KeyPrefix cannot be empty")
 	}
-	if strings.ContainsAny(c.KeyPrefix, " \t\r\n") {
-		return fmt.Errorf("KeyPrefix cannot contain whitespace characters, got: %q", c.KeyPrefix)
+	if strings.ContainsAny(c.KeyPrefix, "\t\r\n") {
+		return fmt.Errorf("KeyPrefix cannot contain tab/newline characters, got: %q", c.KeyPrefix)
 	}
 	if len(c.KeyPrefix) > 64 {
 		return fmt.Errorf("KeyPrefix too long (max 64 chars), got length: %d", len(c.KeyPrefix))
 	}
 
-	// Check authType validity | 校验 AuthType 的合法性
+	// [Critical] AuthType is required for auth system identification | AuthType是认证体系标识的必要字段
 	if c.AuthType == "" {
-		return fmt.Errorf("AuthType cannot be empty") // AuthType不能为空
+		return fmt.Errorf("AuthType cannot be empty")
 	}
-	if strings.ContainsAny(c.AuthType, " \t\r\n") {
-		return fmt.Errorf("AuthType cannot contain whitespace characters, got: %q", c.AuthType)
+	if strings.ContainsAny(c.AuthType, "\t\r\n") {
+		return fmt.Errorf("AuthType cannot contain tab/newline characters, got: %q", c.AuthType)
 	}
 	if len(c.AuthType) > 64 {
 		return fmt.Errorf("AuthType too long (max 64 chars), got length: %d", len(c.AuthType))
 	}
 
-	// Validate CookieConfig if set | 验证 Cookie 配置（如果设置）
-	if c.CookieConfig != nil {
-		// Check Path | 检查路径
-		if c.CookieConfig.Path == "" {
-			return fmt.Errorf("CookieConfig.Path cannot be empty")
-		}
-		// Check SameSite | 检查 SameSite 值是否合法
-		switch c.CookieConfig.SameSite {
-		case SameSiteLax, SameSiteStrict, SameSiteNone:
-		default:
-			return fmt.Errorf("invalid CookieConfig.SameSite value: %v", c.CookieConfig.SameSite)
+	// =============== Phase 2: Numeric range validation | 阶段2：数值范围验证 ===============
+
+	// [Critical] Numeric fields must be valid: -1 (no limit) or >0 | 数值字段必须合法：-1（无限制）或>0
+	if err := c.checkNoLimits(); err != nil {
+		return err
+	}
+
+	// =============== Phase 3: TokenStyle + JWT validation | 阶段3：Token风格验证 ===============
+
+	// [Critical] TokenStyle must be valid | Token风格必须合法
+	if !c.TokenStyle.IsValid() {
+		return fmt.Errorf("invalid TokenStyle: %s", c.TokenStyle)
+	}
+
+	// [Critical] JWT mode requires secret key, otherwise JWT cannot work | JWT模式必须设置密钥，否则JWT无法工作
+	if c.TokenStyle == adapter.TokenStyleJWT && c.JwtSecretKey == "" {
+		return fmt.Errorf("JwtSecretKey is required when TokenStyle is JWT")
+	}
+
+	// =============== Phase 4: Auto-adjustment for critical issues | 阶段4：关键问题自动调整 ===============
+
+	// [Critical] AutoRenew enabled but MaxRefresh > Timeout would cause token never renew | 启用续期但阈值大于超时时间会导致永远不续期
+	if c.AutoRenew && c.Timeout != NoLimit && c.MaxRefresh != NoLimit && c.MaxRefresh > c.Timeout {
+		c.MaxRefresh = c.Timeout / 2
+		if c.MaxRefresh <= 0 {
+			c.MaxRefresh = c.Timeout
 		}
 	}
 
-	// All checks passed | 所有配置验证通过
+	// =============== Phase 5: Critical time relationship validation | 阶段5：关键时间关系验证 ===============
+
+	// [Critical] RenewInterval >= ActiveTimeout would cause active users to be kicked out | 续期间隔大于等于活跃超时会导致活跃用户被踢出
+	if c.AutoRenew && c.ActiveTimeout != NoLimit && c.RenewInterval != NoLimit && c.RenewInterval >= c.ActiveTimeout {
+		return fmt.Errorf("RenewInterval (%d) must be less than ActiveTimeout (%d), otherwise active users may be kicked out", c.RenewInterval, c.ActiveTimeout)
+	}
+
+	// =============== Phase 6: Token read source validation | 阶段6：Token读取来源验证 ===============
+
+	// [Critical] At least one read source must be enabled, otherwise Token cannot be obtained | 至少启用一个读取来源，否则无法获取Token
+	if !c.IsReadHeader && !c.IsReadCookie && !c.IsReadBody {
+		return fmt.Errorf("at least one of IsReadHeader, IsReadCookie, or IsReadBody must be true")
+	}
+
+	// =============== Phase 7: CookieConfig validation | 阶段7：Cookie配置验证 ===============
+
+	// [Critical] CookieConfig required when IsReadCookie is true | 启用Cookie读取时必须设置CookieConfig
+	if c.IsReadCookie && c.CookieConfig == nil {
+		return fmt.Errorf("CookieConfig cannot be nil when IsReadCookie is true")
+	}
+
+	// Validate CookieConfig critical issues | 验证Cookie配置的关键问题
+	if c.CookieConfig != nil {
+		if err := c.validateCookieConfig(); err != nil {
+			return err
+		}
+	}
+
+	// All critical checks passed | 所有关键检查通过
+	return nil
+}
+
+// validateCookieConfig validates critical CookieConfig issues | 验证Cookie配置的关键问题
+func (c *Config) validateCookieConfig() error {
+	cc := c.CookieConfig
+
+	// [Critical] Path is required for Cookie to work | Path是Cookie工作的必要字段
+	if cc.Path == "" {
+		return fmt.Errorf("CookieConfig.Path cannot be empty")
+	}
+
+	// [Critical] SameSite must be valid value | SameSite必须是合法值
+	switch cc.SameSite {
+	case SameSiteLax, SameSiteStrict, SameSiteNone, "":
+		// Valid values (empty string will use browser default) | 合法值（空字符串将使用浏览器默认值）
+	default:
+		return fmt.Errorf("invalid CookieConfig.SameSite value: %v", cc.SameSite)
+	}
+
+	// [Critical] Secure must be true when SameSite=None, otherwise browser will reject Cookie | SameSite=None时Secure必须为true，否则浏览器会拒绝Cookie
+	if cc.SameSite == SameSiteNone && !cc.Secure {
+		return fmt.Errorf("CookieConfig.Secure must be true when SameSite is None (browser requirement)")
+	}
+
 	return nil
 }
 

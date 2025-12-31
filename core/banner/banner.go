@@ -45,40 +45,41 @@ func PrintWithConfig(cfg *config.Config) {
 	fmt.Println("│                   Configuration                         │")
 	fmt.Println("├─────────────────────────────────────────────────────────┤")
 
-	// Basic Token Settings | Token 基础设置
+	// Basic Settings | 基础设置
 	fmt.Print(formatConfigLine("Token Name", cfg.TokenName))
 	fmt.Print(formatConfigLine("Token Style", cfg.TokenStyle))
+	fmt.Print(formatConfigLine("Auth Type", cfg.AuthType))
 	fmt.Print(formatConfigLine("Key Prefix", cfg.KeyPrefix))
-	fmt.Print(formatConfigLine("AuthType", cfg.AuthType))
 
-	// Login Control | 登录控制
-	fmt.Println("├─────────────────────────────────────────────────────────┤")
-	fmt.Print(formatConfigLine("Concurrent Login", cfg.IsConcurrent))
-	fmt.Print(formatConfigLine("Share Token", cfg.IsShare))
-	fmt.Print(formatConfigLine("Max Login Count", formatCount(cfg.MaxLoginCount)))
-
-	// Timeout & Activity | 超时与活跃控制
+	// Timeout Strategy | 超时策略
 	fmt.Println("├─────────────────────────────────────────────────────────┤")
 	fmt.Print(formatConfigLine("Token Timeout", formatTimeout(cfg.Timeout)))
 	fmt.Print(formatConfigLine("Active Timeout", formatTimeout(cfg.ActiveTimeout)))
-
-	// Renewal & Refresh Strategy | 续期与刷新策略
-	fmt.Println("├─────────────────────────────────────────────────────────┤")
 	fmt.Print(formatConfigLine("Auto Renew", cfg.AutoRenew))
-	fmt.Print(formatConfigLine("Max Refresh", formatTimeout(cfg.MaxRefresh)))
-	fmt.Print(formatConfigLine("Renew Interval", formatTimeout(cfg.RenewInterval)))
+	if cfg.AutoRenew {
+		fmt.Print(formatConfigLine("Max Refresh", formatTimeout(cfg.MaxRefresh)))
+	}
 
-	// Token Read Sources (compact) | Token 读取来源（紧凑显示）
+	// Login Strategy | 登录策略
+	fmt.Println("├─────────────────────────────────────────────────────────┤")
+	fmt.Print(formatConfigLine("Concurrent Login", cfg.IsConcurrent))
+	fmt.Print(formatConfigLine("Share Token", cfg.IsShare))
+	if cfg.IsConcurrent && !cfg.IsShare {
+		fmt.Print(formatConfigLine("Max Login Count", formatCount(cfg.MaxLoginCount)))
+	}
+
+	// Token Reading | Token 读取
 	fmt.Println("├─────────────────────────────────────────────────────────┤")
 	fmt.Print(formatConfigLine("Read From", tokenReadSources(cfg)))
 
-	// Security & Storage | 安全与存储
+	// Security | 安全
 	fmt.Println("├─────────────────────────────────────────────────────────┤")
 	if cfg.TokenStyle == "jwt" || cfg.TokenStyle == "JWT" {
-		fmt.Print(formatConfigLine("JWT Secret Key", configured))
+		fmt.Print(formatConfigLine("JWT Secret", configured))
 	} else {
-		fmt.Print(formatConfigLine("JWT Secret Key", "(not used)"))
+		fmt.Print(formatConfigLine("JWT Secret", "(not used)"))
 	}
+	fmt.Print(formatConfigLine("Session Check", cfg.TokenSessionCheckLogin))
 
 	fmt.Println("└─────────────────────────────────────────────────────────┘")
 	fmt.Println()
