@@ -3,8 +3,8 @@ module github.com/click33/sa-token-go/integrations/chi
 go 1.23.0
 
 require (
-	github.com/click33/sa-token-go/core v0.1.6
-	github.com/click33/sa-token-go/stputil v0.1.6
+	github.com/click33/sa-token-go/core v0.1.7
+	github.com/click33/sa-token-go/stputil v0.1.7
 )
 
 require (

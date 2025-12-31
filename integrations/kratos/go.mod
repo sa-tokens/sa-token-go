@@ -5,9 +5,9 @@ go 1.24.0
 toolchain go1.24.1
 
 require (
-	github.com/click33/sa-token-go/core v0.1.6
-	github.com/click33/sa-token-go/storage/memory v0.1.6
-	github.com/click33/sa-token-go/stputil v0.1.6
+	github.com/click33/sa-token-go/core v0.1.7
+	github.com/click33/sa-token-go/storage/memory v0.1.7
+	github.com/click33/sa-token-go/stputil v0.1.7
 	github.com/go-kratos/kratos/v2 v2.9.1
 )
 
