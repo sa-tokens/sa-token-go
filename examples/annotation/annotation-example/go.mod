@@ -3,9 +3,8 @@ module github.com/click33/sa-token-go/examples/annotation-example
 go 1.25.0
 
 require (
-	github.com/click33/sa-token-go/integrations/gin v0.1.5
+	github.com/click33/sa-token-go/integrations/gin v0.1.7
 	github.com/gin-gonic/gin v1.10.0
-	github.com/redis/go-redis/v9 v9.5.1
 )
 
 require (

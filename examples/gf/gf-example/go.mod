@@ -3,7 +3,7 @@ module github.com/click33/sa-token-go/examples/gf-example
 go 1.25.0
 
 require (
-	github.com/click33/sa-token-go/integrations/gf v0.1.5
+	github.com/click33/sa-token-go/integrations/gf v0.1.7
 	github.com/gogf/gf/v2 v2.9.4
 )
 

@@ -3,8 +3,6 @@ module github.com/click33/sa-token-go/examples/fiber-example
 go 1.25.0
 
 require (
-	github.com/click33/sa-token-go/core v0.1.6
-	github.com/click33/sa-token-go/storage/memory v0.1.6
 	github.com/gofiber/fiber/v2 v2.52.0
 )
 

@@ -45,10 +45,15 @@ github.com/census-instrumentation/opencensus-proto v0.4.1/go.mod h1:4T9NM4+4Vw91
 github.com/cespare/xxhash/v2 v2.2.0/go.mod h1:VGX0DQ3Q6kWi7AoAeZDth3/j3BFtOZR5XLFGgcrjCOs=
 github.com/cespare/xxhash/v2 v2.3.0/go.mod h1:VGX0DQ3Q6kWi7AoAeZDth3/j3BFtOZR5XLFGgcrjCOs=
 github.com/clbanning/mxj/v2 v2.7.0/go.mod h1:hNiWqW14h+kc+MdF9C6/YoRfjEJoR3ou6tn/Qo+ve2s=
+github.com/click33/sa-token-go/core v0.1.7/go.mod h1:mb3AQAJIXqx9WdULyn5qjufK1j/u+kgB0q+tafHVhgk=
 github.com/click33/sa-token-go/integrations/gf v0.1.6/go.mod h1:cwAY3VJ/KNLNcuYDNjMt1O4IERCep1JWCfvS9LyoA5w=
+github.com/click33/sa-token-go/integrations/gf v0.1.7/go.mod h1:0GDMoJ4Vv5+gPo8tnutpX34V/USd4+TLjZVObb91wFA=
 github.com/click33/sa-token-go/integrations/gin v0.1.6/go.mod h1:A8Ds3bUalQQcH2vYBaGPAqZ6fzZY9m7AamikDcXyRKE=
+github.com/click33/sa-token-go/integrations/gin v0.1.7/go.mod h1:1STqW8wTUJ/tpfw/E22HsPzQVFnc7dE/AW0w44XQ2co=
 github.com/click33/sa-token-go/storage/memory v0.1.4/go.mod h1:nqyuEh23mNjcuG3aI/BqJFz71zkpsgjdStW1BC5lkB0=
+github.com/click33/sa-token-go/storage/memory v0.1.7/go.mod h1:wnQVAHnFKWs6CzmM0DSRZSE2ADPXQQ9AIrWxdmzjz3Q=
 github.com/click33/sa-token-go/stputil v0.1.6/go.mod h1:G4vYhljpN1SeGLYHWRslYncHJvn52CksHGjBzUNITFA=
+github.com/click33/sa-token-go/stputil v0.1.7/go.mod h1:YY4NzfwVMwPUQLDBk9C5eVLQ08oI3vNSFQhBuZBPtgY=
 github.com/cloudwego/base64x v0.1.4/go.mod h1:0zlkT4Wn5C6NdauXdJRhSKRlJvmclQ1hhJgA0rcu/8w=
 github.com/cloudwego/iasm v0.2.0/go.mod h1:8rXZaNYT2n95jn+zTI1sDr+IgcD2GVs0nlbbQPiEFhY=
 github.com/cncf/udpa/go v0.0.0-20220112060539-c52dc94e7fbe h1:QQ3GSy+MqSHxm/d8nCtnAiZdYFd45cYZPs8vOOIYKfk=
