@@ -25,9 +25,9 @@ const (
 type AuthOption func(*AuthOptions)
 
 type AuthOptions struct {
-	AuthType     string
-	LogicType    LogicType
-	AuthFailFunc func(w http.ResponseWriter, r *http.Request, err error)
+	AuthType  string
+	LogicType LogicType
+	FailFunc  func(w http.ResponseWriter, r *http.Request, err error)
 }
 
 func defaultAuthOptions() *AuthOptions {
@@ -48,10 +48,10 @@ func WithLogicType(logicType LogicType) AuthOption {
 	}
 }
 
-// WithAuthFailFunc sets auth failure callback | 设置认证失败回调
-func WithAuthFailFunc(fn func(w http.ResponseWriter, r *http.Request, err error)) AuthOption {
+// WithFailFunc sets auth failure callback | 设置认证失败回调
+func WithFailFunc(fn func(w http.ResponseWriter, r *http.Request, err error)) AuthOption {
 	return func(o *AuthOptions) {
-		o.AuthFailFunc = fn
+		o.FailFunc = fn
 	}
 }
 
@@ -68,8 +68,8 @@ func AuthMiddleware(opts ...AuthOption) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			mgr, err := stputil.GetManager(options.AuthType)
 			if err != nil {
-				if options.AuthFailFunc != nil {
-					options.AuthFailFunc(w, r, err)
+				if options.FailFunc != nil {
+					options.FailFunc(w, r, err)
 				} else {
 					writeErrorResponse(w, err)
 				}
@@ -84,8 +84,8 @@ func AuthMiddleware(opts ...AuthOption) func(http.Handler) http.Handler {
 			// 检查登录 | Check login
 			err = mgr.CheckLogin(r.Context(), tokenValue)
 			if err != nil {
-				if options.AuthFailFunc != nil {
-					options.AuthFailFunc(w, r, err)
+				if options.FailFunc != nil {
+					options.FailFunc(w, r, err)
 				} else {
 					writeErrorResponse(w, err)
 				}
@@ -109,8 +109,8 @@ func AuthWithStateMiddleware(opts ...AuthOption) func(http.Handler) http.Handler
 			// 获取 Manager | Get Manager
 			mgr, err := stputil.GetManager(options.AuthType)
 			if err != nil {
-				if options.AuthFailFunc != nil {
-					options.AuthFailFunc(w, r, err)
+				if options.FailFunc != nil {
+					options.FailFunc(w, r, err)
 				} else {
 					writeErrorResponse(w, err)
 				}
@@ -127,8 +127,8 @@ func AuthWithStateMiddleware(opts ...AuthOption) func(http.Handler) http.Handler
 
 			if err != nil {
 				// 用户自定义回调优先
-				if options.AuthFailFunc != nil {
-					options.AuthFailFunc(w, r, err)
+				if options.FailFunc != nil {
+					options.FailFunc(w, r, err)
 				} else {
 					writeErrorResponse(w, err)
 				}
@@ -163,8 +163,8 @@ func PermissionMiddleware(
 			// Get Manager | 获取 Manager
 			mgr, err := stputil.GetManager(options.AuthType)
 			if err != nil {
-				if options.AuthFailFunc != nil {
-					options.AuthFailFunc(w, r, err)
+				if options.FailFunc != nil {
+					options.FailFunc(w, r, err)
 				} else {
 					writeErrorResponse(w, err)
 				}
@@ -186,8 +186,8 @@ func PermissionMiddleware(
 			}
 
 			if !ok {
-				if options.AuthFailFunc != nil {
-					options.AuthFailFunc(w, r, core.ErrPermissionDenied)
+				if options.FailFunc != nil {
+					options.FailFunc(w, r, core.ErrPermissionDenied)
 				} else {
 					writeErrorResponse(w, core.ErrPermissionDenied)
 				}
@@ -221,8 +221,8 @@ func RoleMiddleware(
 			// Get Manager | 获取 Manager
 			mgr, err := stputil.GetManager(options.AuthType)
 			if err != nil {
-				if options.AuthFailFunc != nil {
-					options.AuthFailFunc(w, r, err)
+				if options.FailFunc != nil {
+					options.FailFunc(w, r, err)
 				} else {
 					writeErrorResponse(w, err)
 				}
@@ -244,8 +244,8 @@ func RoleMiddleware(
 			}
 
 			if !ok {
-				if options.AuthFailFunc != nil {
-					options.AuthFailFunc(w, r, core.ErrRoleDenied)
+				if options.FailFunc != nil {
+					options.FailFunc(w, r, core.ErrRoleDenied)
 				} else {
 					writeErrorResponse(w, core.ErrRoleDenied)
 				}

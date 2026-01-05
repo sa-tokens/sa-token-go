@@ -77,7 +77,9 @@ func NewBuilder() *Builder {
 
 		cookieConfig:    config.DefaultCookieConfig(),
 		renewPoolConfig: ants.DefaultRenewPoolConfig(),
-		logConfig:       slog.DefaultLoggerConfig(),
+
+		// 不需要设置logConfig
+		// logConfig:       slog.DefaultLoggerConfig(),
 	}
 }
 

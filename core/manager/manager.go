@@ -172,7 +172,6 @@ func (m *Manager) Login(ctx context.Context, loginID string, device ...string) (
 
 	// Get device type | 获取设备类型
 	deviceType := getDevice(device)
-
 	// Get account key | 获取账号存储键
 	accountKey := m.getAccountKey(loginID, deviceType)
 
@@ -182,7 +181,7 @@ func (m *Manager) Login(ctx context.Context, loginID string, device ...string) (
 		existingToken, err := m.storage.Get(ctx, accountKey)
 		if err == nil && existingToken != nil {
 			if existingTokenStr, ok := assertString(existingToken); ok && m.IsLogin(ctx, existingTokenStr) {
-				// If valid token exists, return it directly | 如果已有 Token 且有效，则直接返回
+				// If valid token exists, return it directly | 如果已有 Token 且有效 则直接返回
 				return existingTokenStr, nil
 			}
 		}
@@ -192,11 +191,10 @@ func (m *Manager) Login(ctx context.Context, loginID string, device ...string) (
 	if !m.config.IsConcurrent {
 		// Concurrent login not allowed → replace previous login on the same device | 不允许并发登录 顶掉同设备下已存在的登录会话
 		_ = m.replace(ctx, loginID, deviceType)
-
 	} else if m.config.MaxLoginCount > 0 && !m.config.IsShare {
 		// Concurrent login allowed but limited by MaxLoginCount | 允许并发登录但受 MaxLoginCount 限制
-		tokens, _ := m.GetTokenValueListByLoginID(ctx, loginID)
-		if int64(len(tokens)) >= m.config.MaxLoginCount {
+		tokens, err := m.GetTokenValueListByLoginID(ctx, loginID)
+		if err == nil && int64(len(tokens)) >= m.config.MaxLoginCount {
 			return "", core.ErrLoginLimitExceeded
 		}
 	}
@@ -225,8 +223,7 @@ func (m *Manager) Login(ctx context.Context, loginID string, device ...string) (
 	}
 
 	// Save token-tokenInfo mapping | 保存 TokenKey-TokenInfo 映射
-	tokenKey := m.getTokenKey(tokenValue)
-	if err = m.storage.Set(ctx, tokenKey, tokenInfo, expiration); err != nil {
+	if err = m.storage.Set(ctx, m.getTokenKey(tokenValue), tokenInfo, expiration); err != nil {
 		return "", fmt.Errorf("%w: %v", core.ErrStorageUnavailable, err)
 	}
 
@@ -293,13 +290,13 @@ func (m *Manager) Logout(ctx context.Context, loginID string, device ...string) 
 		return fmt.Errorf("%w: %v", core.ErrStorageUnavailable, err)
 	}
 	if tokenValue == nil {
-		return nil
+		return core.ErrTokenNotFound
 	}
 
 	// Assert token value type | 类型断言为字符串
 	tokenValueStr, ok := assertString(tokenValue)
 	if !ok {
-		return nil
+		return core.ErrTokenNotFound
 	}
 
 	return m.removeTokenChain(ctx, tokenValueStr, nil, listener.EventLogout)
@@ -312,12 +309,21 @@ func (m *Manager) LogoutByToken(ctx context.Context, tokenValue string) error {
 
 // kickout Kick user offline (private) | 踢人下线（私有）
 func (m *Manager) kickout(ctx context.Context, loginID string, device string) error {
+	// Get the account key for this user and device | 获取该用户和设备对应的账户键
 	accountKey := m.getAccountKey(loginID, device)
+
+	// Retrieve the token associated with this account key from storage | 从存储中获取该账户键对应的 Token
 	tokenValue, err := m.storage.Get(ctx, accountKey)
-	if err != nil || tokenValue == nil {
-		return nil
+	if err != nil {
+		return fmt.Errorf("%w: %v", core.ErrStorageUnavailable, err)
 	}
 
+	// If no token exists for this account key | 如果该账户键不存在 Token
+	if tokenValue == nil {
+		return core.ErrTokenNotFound
+	}
+
+	// Remove the token chain and trigger kickout event | 移除 Token 链并触发踢下线事件
 	if tokenValueStr, ok := assertString(tokenValue); ok {
 		return m.removeTokenChain(ctx, tokenValueStr, nil, listener.EventKickout)
 	}
@@ -342,12 +348,20 @@ func (m *Manager) KickoutByToken(ctx context.Context, tokenValue string) error {
 
 // replace Replace user offline by login ID and device (private) | 根据账号和设备顶人下线（私有）
 func (m *Manager) replace(ctx context.Context, loginID string, device string) error {
+	// Get the account key for this user and device | 获取该用户和设备对应的账户键
 	accountKey := m.getAccountKey(loginID, device)
+
+	// Retrieve the token associated with this account key from storage | 从存储中获取该账户键对应的 Token
 	tokenValue, err := m.storage.Get(ctx, accountKey)
-	if err != nil || tokenValue == nil {
-		return nil
+	if err != nil {
+		return fmt.Errorf("%w: %v", core.ErrStorageUnavailable, err)
+	}
+	// If no token exists for this account key | 如果该账户键不存在 Token
+	if tokenValue == nil {
+		return core.ErrTokenNotFound
 	}
 
+	// Remove the token chain and trigger replace event | 移除 Token 链并触发顶下线事件
 	if tokenValueStr, ok := assertString(tokenValue); ok {
 		return m.removeTokenChain(ctx, tokenValueStr, nil, listener.EventReplace)
 	}
@@ -475,11 +489,11 @@ func (m *Manager) GetLoginID(ctx context.Context, tokenValue string) (string, er
 		return "", core.ErrNotLogin
 	}
 
-	// Retrieve the login ID without checking token validity | 获取登录ID，不检查Token有效性
+	// Retrieve the login ID without checking token validity | 获取登录ID 不检查Token有效性
 	return m.GetLoginIDNotCheck(ctx, tokenValue)
 }
 
-// GetLoginIDNotCheck Gets login ID without checking token validity | 获取登录ID（不检查Token是否有效）
+// GetLoginIDNotCheck Gets login ID without checking token validity | 获取登录ID 不续期Token
 func (m *Manager) GetLoginIDNotCheck(ctx context.Context, tokenValue string) (string, error) {
 	// Get token info | 获取Token信息
 	info, err := m.getTokenInfo(ctx, tokenValue)
@@ -497,7 +511,10 @@ func (m *Manager) GetTokenValue(ctx context.Context, loginID string, device ...s
 
 	// Retrieve the token value from storage | 从存储中获取Token值
 	tokenValue, err := m.storage.Get(ctx, accountKey)
-	if err != nil || tokenValue == nil {
+	if err != nil {
+		return "", core.ErrStorageUnavailable
+	}
+	if tokenValue == nil {
 		return "", core.ErrTokenNotFound
 	}
 
@@ -519,15 +536,6 @@ func (m *Manager) GetTokenInfoByToken(ctx context.Context, tokenValue string) (*
 
 // Disable Disables an account | 封禁账号
 func (m *Manager) Disable(ctx context.Context, loginID string, duration time.Duration, reason ...string) error {
-	// Check if the account has active sessions and force logout | 检查账号是否有活跃会话并强制下线
-	tokens, err := m.GetTokenValueListByLoginID(ctx, loginID)
-	if err == nil && len(tokens) > 0 {
-		for _, tokenValue := range tokens {
-			// Force kick out each active token | 强制踢出所有活跃的Token
-			_ = m.removeTokenChain(ctx, tokenValue, nil, listener.EventKickout, true)
-		}
-	}
-
 	// Retrieve the disable flag storage key | 获取封禁标记的存储键
 	disableKeyKey := m.getDisableKey(loginID)
 
@@ -550,6 +558,15 @@ func (m *Manager) Disable(ctx context.Context, loginID string, duration time.Dur
 	err = m.storage.Set(ctx, disableKeyKey, encodeData, duration)
 	if err != nil {
 		return fmt.Errorf("%w: %v", core.ErrStorageUnavailable, err)
+	}
+
+	// Check if the account has active sessions and force logout | 检查账号是否有活跃会话并强制下线
+	tokens, err := m.GetTokenValueListByLoginID(ctx, loginID)
+	if err == nil && len(tokens) > 0 {
+		for _, tokenValue := range tokens {
+			// Force kick out each active token | 强制踢出所有活跃的Token
+			_ = m.removeTokenChain(ctx, tokenValue, nil, listener.EventKickout, true)
+		}
 	}
 
 	return nil
@@ -589,7 +606,8 @@ func (m *Manager) CheckDisableWithInfo(ctx context.Context, loginID string) (*Di
 		return nil, fmt.Errorf("%w: %v", core.ErrStorageUnavailable, err)
 	}
 	if data == nil {
-		return nil, nil
+		// 注意 这里返回一个空的DisableInfo对象，而不是返回nil 不然取值时会panic
+		return &DisableInfo{}, nil
 	}
 
 	// 将数据转换为字节数组
@@ -1155,7 +1173,7 @@ func (m *Manager) GetTokenValueListByLoginID(ctx context.Context, loginID string
 	// Retrieve keys matching the pattern from storage | 从存储中获取匹配的键
 	keys, err := m.storage.Keys(ctx, pattern)
 	if err != nil {
-		return nil, err // Return error if key retrieval fails | 如果获取键失败，则返回错误
+		return nil, fmt.Errorf("%w: %v", core.ErrStorageUnavailable, err)
 	}
 
 	// Initialize a slice to hold the token strings | 初始化切片来存储Token字符串
@@ -1473,10 +1491,8 @@ func (m *Manager) getTokenInfo(ctx context.Context, tokenValue string, checkStat
 	if len(checkState) > 0 && checkState[0] {
 		switch string(raw) {
 		case string(TokenStateKickout):
-			// Token has been kicked out | Token已被踢下线
 			return nil, core.ErrTokenKickout
 		case string(TokenStateReplaced):
-			// Token has been replaced | Token已被顶下线
 			return nil, core.ErrTokenReplaced
 		}
 	}
@@ -1500,11 +1516,16 @@ func (m *Manager) renewToken(ctx context.Context, tokenValue string, info *Token
 		}
 	}
 
+	// Before renewing the token, check if the user is disabled | 在续期之前，先检查用户是否被禁用
+	if m.IsDisable(ctx, info.LoginID) {
+		return
+	}
+
 	// Get expiration time | 获取过期时间
 	exp := m.getExpiration()
-
 	// Update ActiveTime | 更新ActiveTime
 	info.ActiveTime = time.Now().Unix()
+
 	// Renew token TTL | 续期Token的TTL
 	if tokenInfo, err := m.serializer.Encode(info); err == nil {
 		_ = m.storage.Set(ctx, m.getTokenKey(tokenValue), tokenInfo, exp)

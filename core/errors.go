@@ -14,11 +14,14 @@ var (
 	// ErrNotLogin indicates the user is not logged in | 用户未登录错误
 	ErrNotLogin = fmt.Errorf("authentication required: user not logged in")
 
-	// ErrTokenInvalid indicates the provided token is invalid or malformed | Token无效或格式错误
+	// ErrTokenInvalid indicates the provided token is invalid or malformed | Token 无效或格式错误
 	ErrTokenInvalid = fmt.Errorf("invalid token: the token is malformed or corrupted")
 
-	// ErrTokenExpired indicates the token has expired | Token已过期
+	// ErrTokenExpired indicates the token has expired | Token 已过期
 	ErrTokenExpired = fmt.Errorf("token expired: please login again to get a new token")
+
+	// ErrTokenNotFound indicates the token does not exist | Token 不存在
+	ErrTokenNotFound = fmt.Errorf("authentication required: token not found")
 
 	// ErrTokenKickout indicates the token has been kicked out | Token 已被踢下线
 	ErrTokenKickout = fmt.Errorf("authentication required: token has been kicked out")
@@ -31,9 +34,6 @@ var (
 
 	// ErrInvalidDevice indicates the device identifier is invalid | 设备标识无效
 	ErrInvalidDevice = fmt.Errorf("invalid device: the device identifier is not valid")
-
-	// ErrTokenNotFound indicates the token does not exist | Token 不存在
-	ErrTokenNotFound = fmt.Errorf("authentication required: token not found")
 )
 
 // ============ Authorization Errors | 授权错误 ============
@@ -62,10 +62,10 @@ var (
 // ============ Session Errors | 会话错误 ============
 
 var (
-	// ErrSessionNotFound indicates the session doesn't exist | Session不存在
+	// ErrSessionNotFound indicates the session doesn't exist | Session 不存在
 	ErrSessionNotFound = fmt.Errorf("session not found: the session may have expired or been deleted")
 
-	// ErrActiveTimeout indicates the session has been inactive for too long | Session活跃超时
+	// ErrActiveTimeout indicates the session has been inactive for too long | Session 活跃超时
 	ErrActiveTimeout = fmt.Errorf("session inactive: the session has exceeded the inactivity timeout")
 )
 

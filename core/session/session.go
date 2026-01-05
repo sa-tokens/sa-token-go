@@ -53,6 +53,7 @@ func (s *Session) SetDependencies(prefix string, storage adapter.Storage, serial
 	if serializer == nil {
 		serializer = codec_json.NewJSONSerializer()
 	}
+
 	s.prefix = prefix
 	s.storage = storage
 	s.serializer = serializer

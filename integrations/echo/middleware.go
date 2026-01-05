@@ -25,9 +25,9 @@ const (
 type AuthOption func(*AuthOptions)
 
 type AuthOptions struct {
-	AuthType     string
-	LogicType    LogicType
-	AuthFailFunc func(c echo.Context, err error) error
+	AuthType  string
+	LogicType LogicType
+	FailFunc  func(c echo.Context, err error) error
 }
 
 func defaultAuthOptions() *AuthOptions {
@@ -48,10 +48,10 @@ func WithLogicType(logicType LogicType) AuthOption {
 	}
 }
 
-// WithAuthFailFunc sets auth failure callback | 设置认证失败回调
-func WithAuthFailFunc(fn func(c echo.Context, err error) error) AuthOption {
+// WithFailFunc sets auth failure callback | 设置认证失败回调
+func WithFailFunc(fn func(c echo.Context, err error) error) AuthOption {
 	return func(o *AuthOptions) {
-		o.AuthFailFunc = fn
+		o.FailFunc = fn
 	}
 }
 
@@ -68,8 +68,8 @@ func AuthMiddleware(opts ...AuthOption) echo.MiddlewareFunc {
 		return func(c echo.Context) error {
 			mgr, err := stputil.GetManager(options.AuthType)
 			if err != nil {
-				if options.AuthFailFunc != nil {
-					return options.AuthFailFunc(c, err)
+				if options.FailFunc != nil {
+					return options.FailFunc(c, err)
 				}
 				return writeErrorResponse(c, err)
 			}
@@ -81,8 +81,8 @@ func AuthMiddleware(opts ...AuthOption) echo.MiddlewareFunc {
 			// 检查登录 | Check login
 			err = mgr.CheckLogin(c.Request().Context(), tokenValue)
 			if err != nil {
-				if options.AuthFailFunc != nil {
-					return options.AuthFailFunc(c, err)
+				if options.FailFunc != nil {
+					return options.FailFunc(c, err)
 				}
 				return writeErrorResponse(c, err)
 			}
@@ -104,8 +104,8 @@ func AuthWithStateMiddleware(opts ...AuthOption) echo.MiddlewareFunc {
 			// 获取 Manager | Get Manager
 			mgr, err := stputil.GetManager(options.AuthType)
 			if err != nil {
-				if options.AuthFailFunc != nil {
-					return options.AuthFailFunc(c, err)
+				if options.FailFunc != nil {
+					return options.FailFunc(c, err)
 				}
 				return writeErrorResponse(c, err)
 			}
@@ -119,8 +119,8 @@ func AuthWithStateMiddleware(opts ...AuthOption) echo.MiddlewareFunc {
 
 			if err != nil {
 				// 用户自定义回调优先
-				if options.AuthFailFunc != nil {
-					return options.AuthFailFunc(c, err)
+				if options.FailFunc != nil {
+					return options.FailFunc(c, err)
 				}
 				return writeErrorResponse(c, err)
 			}
@@ -151,8 +151,8 @@ func PermissionMiddleware(
 			// Get Manager | 获取 Manager
 			mgr, err := stputil.GetManager(options.AuthType)
 			if err != nil {
-				if options.AuthFailFunc != nil {
-					return options.AuthFailFunc(c, err)
+				if options.FailFunc != nil {
+					return options.FailFunc(c, err)
 				}
 				return writeErrorResponse(c, err)
 			}
@@ -171,8 +171,8 @@ func PermissionMiddleware(
 			}
 
 			if !ok {
-				if options.AuthFailFunc != nil {
-					return options.AuthFailFunc(c, core.ErrPermissionDenied)
+				if options.FailFunc != nil {
+					return options.FailFunc(c, core.ErrPermissionDenied)
 				}
 				return writeErrorResponse(c, core.ErrPermissionDenied)
 			}
@@ -203,8 +203,8 @@ func RoleMiddleware(
 			// Get Manager | 获取 Manager
 			mgr, err := stputil.GetManager(options.AuthType)
 			if err != nil {
-				if options.AuthFailFunc != nil {
-					return options.AuthFailFunc(c, err)
+				if options.FailFunc != nil {
+					return options.FailFunc(c, err)
 				}
 				return writeErrorResponse(c, err)
 			}
@@ -223,8 +223,8 @@ func RoleMiddleware(
 			}
 
 			if !ok {
-				if options.AuthFailFunc != nil {
-					return options.AuthFailFunc(c, core.ErrRoleDenied)
+				if options.FailFunc != nil {
+					return options.FailFunc(c, core.ErrRoleDenied)
 				}
 				return writeErrorResponse(c, core.ErrRoleDenied)
 			}
