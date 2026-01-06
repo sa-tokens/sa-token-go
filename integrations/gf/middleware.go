@@ -80,7 +80,7 @@ func AuthMiddleware(opts ...AuthOption) ghttp.HandlerFunc {
 		tokenValue := saCtx.GetTokenValue()
 
 		// 检查登录 | Check login
-		err = mgr.CheckLogin(r.Context(), tokenValue)
+		_, err = mgr.CheckLoginWithState(r.Context(), tokenValue)
 		if err != nil {
 			if options.FailFunc != nil {
 				options.FailFunc(r, err)
