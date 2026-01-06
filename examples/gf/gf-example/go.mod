@@ -10,8 +10,8 @@ require (
 require (
 	github.com/BurntSushi/toml v1.5.0 // indirect
 	github.com/clbanning/mxj/v2 v2.7.0 // indirect
-	github.com/click33/sa-token-go/core v0.1.6 // indirect
-	github.com/click33/sa-token-go/stputil v0.1.5 // indirect
+	github.com/click33/sa-token-go/core v0.1.7 // indirect
+	github.com/click33/sa-token-go/stputil v0.1.7 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/fatih/color v1.18.0 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect

@@ -52,6 +52,7 @@ github.com/click33/sa-token-go/integrations/gin v0.1.6/go.mod h1:A8Ds3bUalQQcH2v
 github.com/click33/sa-token-go/integrations/gin v0.1.7/go.mod h1:1STqW8wTUJ/tpfw/E22HsPzQVFnc7dE/AW0w44XQ2co=
 github.com/click33/sa-token-go/storage/memory v0.1.4/go.mod h1:nqyuEh23mNjcuG3aI/BqJFz71zkpsgjdStW1BC5lkB0=
 github.com/click33/sa-token-go/storage/memory v0.1.7/go.mod h1:wnQVAHnFKWs6CzmM0DSRZSE2ADPXQQ9AIrWxdmzjz3Q=
+github.com/click33/sa-token-go/storage/redis v0.1.7/go.mod h1:pPxB/qFRNc/TUv0mMjwPwRVs1ZZB22YCknR1H/rvQ8I=
 github.com/click33/sa-token-go/stputil v0.1.6/go.mod h1:G4vYhljpN1SeGLYHWRslYncHJvn52CksHGjBzUNITFA=
 github.com/click33/sa-token-go/stputil v0.1.7/go.mod h1:YY4NzfwVMwPUQLDBk9C5eVLQ08oI3vNSFQhBuZBPtgY=
 github.com/cloudwego/base64x v0.1.4/go.mod h1:0zlkT4Wn5C6NdauXdJRhSKRlJvmclQ1hhJgA0rcu/8w=

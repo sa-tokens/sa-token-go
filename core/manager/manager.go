@@ -51,12 +51,12 @@ type Manager struct {
 	logger     adapter.Log       // Log adapter for logging operations | 日志适配器
 	pool       adapter.Pool      // Async task pool component | 异步任务协程池组件
 
-	CustomPermissionListFunc func(loginID string) ([]string, error) // Custom permission func | 自定义权限获取函数
-	CustomRoleListFunc       func(loginID string) ([]string, error) // Custom role func | 自定义角色获取函数
+	CustomPermissionListFunc func(loginID, authType string) ([]string, error) // Custom permission func | 自定义权限获取函数
+	CustomRoleListFunc       func(loginID, authType string) ([]string, error) // Custom role func | 自定义角色获取函数
 }
 
 // NewManager creates and initializes a new Manager instance | 创建并初始化一个新的 Manager 实例
-func NewManager(cfg *config.Config, generator adapter.Generator, storage adapter.Storage, serializer adapter.Codec, logger adapter.Log, pool adapter.Pool, customPermissionListFunc, CustomRoleListFunc func(loginID string) ([]string, error)) *Manager {
+func NewManager(cfg *config.Config, generator adapter.Generator, storage adapter.Storage, serializer adapter.Codec, logger adapter.Log, pool adapter.Pool, customPermissionListFunc, CustomRoleListFunc func(loginID, authType string) ([]string, error)) *Manager {
 
 	// Use default configuration if cfg is nil | 如果未传入配置，则使用默认配置
 	if cfg == nil {
@@ -804,7 +804,7 @@ func (m *Manager) RemovePermissionsByToken(ctx context.Context, tokenValue strin
 // GetPermissions Gets permission list | 获取权限列表
 func (m *Manager) GetPermissions(ctx context.Context, loginID string) ([]string, error) {
 	if m.CustomPermissionListFunc != nil {
-		perms, err := m.CustomPermissionListFunc(loginID)
+		perms, err := m.CustomPermissionListFunc(loginID, m.config.AuthType)
 		if err != nil {
 			return nil, err
 		}
@@ -1033,7 +1033,7 @@ func (m *Manager) RemoveRolesByToken(ctx context.Context, tokenValue string, rol
 // GetRoles gets role list for the specified loginID | 获取指定账号的角色列表
 func (m *Manager) GetRoles(ctx context.Context, loginID string) ([]string, error) {
 	if m.CustomRoleListFunc != nil {
-		perms, err := m.CustomRoleListFunc(loginID)
+		perms, err := m.CustomRoleListFunc(loginID, m.config.AuthType)
 		if err != nil {
 			return nil, err
 		}

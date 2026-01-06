@@ -16,8 +16,7 @@ func init() {
 		builder.NewBuilder().
 			SetStorage(memory.NewStorage()).
 			TokenName("Authorization").
-			Timeout(86400).    // 24小时
-			MaxRefresh(43200). // 12小时
+			Timeout(86400).
 			TokenStyle(adapter.TokenStyleUUID).
 			Build(),
 	)

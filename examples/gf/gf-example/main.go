@@ -10,10 +10,13 @@ import (
 )
 
 func main() {
+	// redis存储实现
 	storage, err := sagf.NewRedisStorage("redis://:root@192.168.19.104:6379/0?dial_timeout=3&read_timeout=10s&max_retries=2")
 	if err != nil {
 		panic(err)
 	}
+	// 内存存储实现
+	//storage := sagf.NewMemoryStorage()
 
 	// 使用 Builder 模式构建 Manager | Build Manager using Builder pattern
 	manager := sagf.NewDefaultBuild().

@@ -28,6 +28,7 @@ use (
 
 	// examples - quick-start
 	./examples/quick-start/simple-example
+	./examples/quick-start/complex-example
 
 	// generator
 	./generator/sgenerator
