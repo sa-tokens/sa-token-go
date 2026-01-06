@@ -141,7 +141,7 @@ var (
 	ErrSessionInvalidDataKey = fmt.Errorf("invalid session data key: key cannot be empty")
 
 	// ErrSessionIDEmpty indicates that a session ID is empty or missing | Session ID 为空或缺失
-	ErrSessionIDEmpty = errors.New("session id cannot be empty")
+	ErrSessionIDEmpty = fmt.Errorf("session id cannot be empty")
 )
 
 // ============ System Errors | 系统错误 ============

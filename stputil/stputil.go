@@ -2,7 +2,7 @@ package stputil
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"github.com/click33/sa-token-go/core/adapter"
 	"github.com/click33/sa-token-go/core/config"
 	"github.com/click33/sa-token-go/core/listener"
@@ -1502,12 +1502,12 @@ func loadManager(autoType string) (*manager.Manager, error) {
 	// Load the manager-example from the global map using the valid autoType | 使用有效的 autoType 从全局 map 中加载管理器
 	value, ok := globalManagerMap.Load(autoType)
 	if !ok {
-		return nil, errors.New("manager-example not found for autoType: " + autoType)
+		return nil, fmt.Errorf("manager-example not found for autoType: " + autoType)
 	}
 	// Assert the loaded value to the correct type | 将加载的值断言为正确的类型
 	mgr, ok := value.(*manager.Manager)
 	if !ok {
-		return nil, errors.New("invalid manager-example type for autoType: " + autoType)
+		return nil, fmt.Errorf("invalid manager-example type for autoType: " + autoType)
 	}
 	return mgr, nil
 }
@@ -1527,7 +1527,7 @@ func toString(v interface{}) (string, error) {
 	case uint64:
 		return uint64ToString(val), nil // If it's uint64, convert to string | 如果是uint64，转换为string
 	default:
-		return "", errors.New("Invalid type") // For other types, return error | 对于其他类型，返回错误
+		return "", fmt.Errorf("Invalid type") // For other types, return error | 对于其他类型，返回错误
 	}
 }
 
