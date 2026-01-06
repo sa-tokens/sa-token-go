@@ -2,6 +2,7 @@ package gf
 
 import (
 	"context"
+	"github.com/gogf/gf/v2/os/glog"
 	"time"
 
 	"github.com/click33/sa-token-go/codec/json"
@@ -16,6 +17,7 @@ import (
 	"github.com/click33/sa-token-go/core/security"
 	"github.com/click33/sa-token-go/core/session"
 	"github.com/click33/sa-token-go/generator/sgenerator"
+	"github.com/click33/sa-token-go/log/gf"
 	"github.com/click33/sa-token-go/log/nop"
 	"github.com/click33/sa-token-go/log/slog"
 	"github.com/click33/sa-token-go/pool/ants"
@@ -310,6 +312,11 @@ func NewSlogLogger(cfg *slog.LoggerConfig) (*slog.Logger, error) {
 // NewNopLogger creates a new no-op logger | 创建空日志器
 func NewNopLogger() *nop.NopLogger {
 	return nop.NewNopLogger()
+}
+
+// NewGfLogger creates a GF logger adapter | 创建GoFrame日志适配器
+func NewGfLogger(ctx context.Context, log *glog.Logger) *gf.GFLogger {
+	return gf.NewGFLogger(ctx, log)
 }
 
 // ============ Generator Constructors | 生成器构造函数 ============

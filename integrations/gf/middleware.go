@@ -190,6 +190,64 @@ func PermissionMiddleware(
 	}
 }
 
+// PermissionPathMiddleware permission check middleware | 基于路径的权限校验中间件
+func PermissionPathMiddleware(
+	permissions []string,
+	opts ...AuthOption,
+) ghttp.HandlerFunc {
+
+	options := defaultAuthOptions()
+	for _, opt := range opts {
+		opt(options)
+	}
+
+	return func(r *ghttp.Request) {
+		// Create a per-request copy of permissions and append current path | 每次请求创建权限副本并追加当前路径
+		reqPermissions := append([]string{}, permissions...)
+		reqPermissions = append(reqPermissions, r.URL.Path)
+
+		if len(reqPermissions) == 0 {
+			r.Middleware.Next()
+			return
+		}
+
+		// Get Manager | 获取 Manager
+		mgr, err := stputil.GetManager(options.AuthType)
+		if err != nil {
+			if options.FailFunc != nil {
+				options.FailFunc(r, err)
+			} else {
+				writeErrorResponse(r, err)
+			}
+			return
+		}
+
+		// 构建 Sa-Token 上下文 | Build Sa-Token context
+		saCtx := getSaContext(r, mgr)
+		tokenValue := saCtx.GetTokenValue()
+		ctx := r.Context()
+
+		// Permission check | 权限校验
+		var ok bool
+		if options.LogicType == LogicAnd {
+			ok = mgr.HasPermissionsAndByToken(ctx, tokenValue, reqPermissions)
+		} else {
+			ok = mgr.HasPermissionsOrByToken(ctx, tokenValue, reqPermissions)
+		}
+
+		if !ok {
+			if options.FailFunc != nil {
+				options.FailFunc(r, core.ErrPermissionDenied)
+			} else {
+				writeErrorResponse(r, core.ErrPermissionDenied)
+			}
+			return
+		}
+
+		r.Middleware.Next()
+	}
+}
+
 // RoleMiddleware role check middleware | 角色校验中间件
 func RoleMiddleware(
 	roles []string,
