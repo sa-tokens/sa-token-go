@@ -15,11 +15,11 @@ const (
 
 // Default configuration constants | 默认配置常量
 const (
-	DefaultTokenName     = "satoken"          // Default token name | 默认Token名称
-	DefaultKeyPrefix     = "satoken:"         // Default Redis key prefix | 默认Redis键前缀
-	DefaultAuthType      = "defaultAuthType:" // Default AuthType | 默认认证体系键前缀
-	DefaultTimeout       = 2592000            // 30 days (seconds) | 30天（秒）
-	DefaultMaxLoginCount = 12                 // Maximum concurrent logins | 最大并发登录数
-	DefaultCookiePath    = "/"                // Default cookie path | 默认Cookie路径
-	NoLimit              = -1                 // No limit flag | 不限制标志
+	DefaultTokenName     = "satoken"  // Default token name | 默认Token名称
+	DefaultKeyPrefix     = "satoken:" // Default Redis key prefix | 默认Redis键前缀
+	DefaultAuthType      = "auth:"    // Default AuthType | 默认认证体系键前缀
+	DefaultTimeout       = 2592000    // 30 days (seconds) | 30天（秒）
+	DefaultMaxLoginCount = 12         // Maximum concurrent logins | 最大并发登录数
+	DefaultCookiePath    = "/"        // Default cookie path | 默认Cookie路径
+	NoLimit              = -1         // No limit flag | 不限制标志
 )
