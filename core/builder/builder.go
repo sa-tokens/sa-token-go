@@ -556,6 +556,7 @@ func (b *Builder) Clone() *Builder {
 
 // Build builds Manager and prints startup banner | 构建Manager并打印启动Banner
 func (b *Builder) Build() *manager.Manager {
+	// 如果为cookieConfig为nil 则初始化默认cookieConfig
 	if b.cookieConfig == nil {
 		b.cookieConfig = config.DefaultCookieConfig()
 	}
@@ -584,7 +585,7 @@ func (b *Builder) Build() *manager.Manager {
 		AuthType:               b.authType,
 	}
 
-	// Validate configuration | 验证配置
+	// 验证基础配置
 	err := cfg.Validate()
 	if err != nil {
 		panic("Invalid config: " + err.Error())
@@ -604,30 +605,34 @@ func (b *Builder) Build() *manager.Manager {
 	}
 
 	// 日志
-	if b.isLog && b.log == nil {
-		if b.logConfig == nil {
-			b.logConfig = slog.DefaultLoggerConfig()
-		}
-		b.log, err = slog.NewLoggerWithConfig(b.logConfig)
-		if err != nil {
-			panic("Invalid LoggerConfig: " + err.Error())
+	if b.isLog {
+		if b.log == nil {
+			if b.logConfig == nil {
+				b.logConfig = slog.DefaultLoggerConfig()
+			}
+			b.log, err = slog.NewLoggerWithConfig(b.logConfig)
+			if err != nil {
+				panic("Invalid LoggerConfig: " + err.Error())
+			}
 		}
 	} else {
 		b.log = nop.NewNopLogger()
 	}
 
 	// 续期池
-	if b.autoRenew && b.pool == nil {
-		if b.renewPoolConfig == nil {
-			b.renewPoolConfig = ants.DefaultRenewPoolConfig()
-		}
-		err = b.renewPoolConfig.Validate()
-		if err != nil {
-			panic("Invalid RenewPoolConfig: " + err.Error())
-		}
-		b.pool, err = ants.NewRenewPoolManagerWithConfig(b.renewPoolConfig)
-		if err != nil {
-			panic(err)
+	if b.autoRenew {
+		if b.pool == nil {
+			if b.renewPoolConfig == nil {
+				b.renewPoolConfig = ants.DefaultRenewPoolConfig()
+			}
+			err = b.renewPoolConfig.Validate()
+			if err != nil {
+				panic("Invalid RenewPoolConfig: " + err.Error())
+			}
+			b.pool, err = ants.NewRenewPoolManagerWithConfig(b.renewPoolConfig)
+			if err != nil {
+				panic(err)
+			}
 		}
 	}
 
