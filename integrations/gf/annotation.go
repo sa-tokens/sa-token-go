@@ -51,7 +51,7 @@ func GetHandler(handler ghttp.HandlerFunc, annotations ...*Annotation) ghttp.Han
 			return
 		}
 
-		ctx := r.Context()
+		ctx := context.Background()
 
 		// Get manager-example | 获取 Manager
 		mgr, err := stputil.GetManager(ann.AuthType)
@@ -70,7 +70,8 @@ func GetHandler(handler ghttp.HandlerFunc, annotations ...*Annotation) ghttp.Han
 		}
 
 		// Check login | 检查登录
-		if err := mgr.CheckLogin(ctx, token); err != nil {
+		_, err = mgr.CheckLoginWithState(ctx, token)
+		if err != nil {
 			writeErrorResponse(r, err)
 			return
 		}

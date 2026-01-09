@@ -1528,23 +1528,35 @@ func (m *Manager) renewToken(ctx context.Context, tokenValue string, info *Token
 
 	// Renew token TTL | 续期Token的TTL
 	if tokenInfo, err := m.serializer.Encode(info); err == nil {
-		_ = m.storage.Set(ctx, m.getTokenKey(tokenValue), tokenInfo, exp)
+		err = m.storage.Set(ctx, m.getTokenKey(tokenValue), tokenInfo, exp)
+		if err != nil {
+			m.logger.Error(err)
+		}
 	}
 
 	// Renew accountKey TTL | 续期账号映射的TTL
-	_ = m.storage.Expire(ctx, m.getAccountKey(info.LoginID, info.Device), exp)
+	err := m.storage.Expire(ctx, m.getAccountKey(info.LoginID, info.Device), exp)
+	if err != nil {
+		m.logger.Error(err)
+	}
 
 	// Renew session TTL | 续期Session的TTL
-	_ = m.RenewSession(ctx, info.LoginID, exp)
+	err = m.RenewSession(ctx, info.LoginID, exp)
+	if err != nil {
+		m.logger.Error(err)
+	}
 
 	// Set minimal renewal interval marker | 设置最小续期间隔标记
 	if m.config.RenewInterval > 0 {
-		_ = m.storage.Set(
+		err = m.storage.Set(
 			ctx,
 			m.getRenewKey(tokenValue),
 			time.Now().Unix(),
 			time.Duration(m.config.RenewInterval)*time.Second,
 		)
+		if err != nil {
+			m.logger.Error(err)
+		}
 	}
 }
 
@@ -1559,14 +1571,26 @@ func (m *Manager) removeTokenChain(ctx context.Context, tokenValue string, info 
 	}
 
 	// Delete token-info mapping | 删除Token信息映射
-	_ = m.storage.Delete(ctx, m.getTokenKey(tokenValue))
+	err := m.storage.Delete(ctx, m.getTokenKey(tokenValue))
+	if err != nil {
+		m.logger.Error(err)
+	}
 	// Delete account-token mapping | 删除账号映射
-	_ = m.storage.Delete(ctx, m.getAccountKey(info.LoginID, info.Device))
+	err = m.storage.Delete(ctx, m.getAccountKey(info.LoginID, info.Device))
+	if err != nil {
+		m.logger.Error(err)
+	}
 	// Delete renew key | 删除续期标记
-	_ = m.storage.Delete(ctx, m.getRenewKey(tokenValue))
+	err = m.storage.Delete(ctx, m.getRenewKey(tokenValue))
+	if err != nil {
+		m.logger.Error(err)
+	}
 	// Optionally destroy session | 可选销毁Session
 	if len(destroySession) > 0 && destroySession[0] {
-		_ = m.DeleteSession(ctx, info.LoginID)
+		err = m.DeleteSession(ctx, info.LoginID)
+		if err != nil {
+			m.logger.Error(err)
+		}
 	}
 
 	// Trigger event notification | 触发事件通知

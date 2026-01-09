@@ -1,6 +1,7 @@
 package gf
 
 import (
+	"context"
 	"errors"
 	"net/http"
 
@@ -75,12 +76,12 @@ func AuthMiddleware(opts ...AuthOption) ghttp.HandlerFunc {
 			return
 		}
 
-		// 获取 token | Get token
+		ctx := context.Background()
 		saCtx := getSaContext(r, mgr)
 		tokenValue := saCtx.GetTokenValue()
 
 		// 检查登录 | Check login
-		_, err = mgr.CheckLoginWithState(r.Context(), tokenValue)
+		_, err = mgr.CheckLoginWithState(ctx, tokenValue)
 		if err != nil {
 			if options.FailFunc != nil {
 				options.FailFunc(r, err)
@@ -113,12 +114,11 @@ func AuthWithStateMiddleware(opts ...AuthOption) ghttp.HandlerFunc {
 			return
 		}
 
-		// 构建 Sa-Token 上下文 | Build Sa-Token context
+		ctx := context.Background()
 		saCtx := getSaContext(r, mgr)
 		tokenValue := saCtx.GetTokenValue()
 
-		// 检查登录并返回状态 | Check login with state
-		_, err = mgr.CheckLoginWithState(r.Context(), tokenValue)
+		_, err = mgr.CheckLoginWithState(ctx, tokenValue)
 
 		if err != nil {
 			// 用户自定义回调优先
@@ -164,10 +164,9 @@ func PermissionMiddleware(
 			return
 		}
 
-		// 构建 Sa-Token 上下文 | Build Sa-Token context
+		ctx := context.Background()
 		saCtx := getSaContext(r, mgr)
 		tokenValue := saCtx.GetTokenValue()
-		ctx := r.Context()
 
 		// Permission check | 权限校验
 		var ok bool
@@ -222,10 +221,9 @@ func PermissionPathMiddleware(
 			return
 		}
 
-		// 构建 Sa-Token 上下文 | Build Sa-Token context
+		ctx := context.Background()
 		saCtx := getSaContext(r, mgr)
 		tokenValue := saCtx.GetTokenValue()
-		ctx := r.Context()
 
 		// Permission check | 权限校验
 		var ok bool
@@ -277,10 +275,9 @@ func RoleMiddleware(
 			return
 		}
 
-		// 构建 Sa-Token 上下文 | Build Sa-Token context
+		ctx := context.Background()
 		saCtx := getSaContext(r, mgr)
 		tokenValue := saCtx.GetTokenValue()
-		ctx := r.Context()
 
 		// Role check | 角色校验
 		var ok bool
