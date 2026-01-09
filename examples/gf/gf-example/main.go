@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/gogf/gf/v2/os/gctx"
 	"net/http"
 
 	sagf "github.com/click33/sa-token-go/integrations/gf"
@@ -28,6 +29,7 @@ func main() {
 	// 注册 Manager | Register Manager
 	sagf.SetManager(manager)
 
+	ctx := gctx.New()
 	s := g.Server()
 
 	// 首页路由 | Home route
@@ -96,6 +98,7 @@ func main() {
 
 	s.Group("/", func(group *ghttp.RouterGroup) {
 		group.Middleware(sagf.AuthMiddleware(
+			ctx,
 			sagf.WithFailFunc(func(r *ghttp.Request, err error) {
 				r.Response.WriteStatusExit(http.StatusOK, g.Map{
 					"code":    sagf.CodeNotLogin,
@@ -134,6 +137,7 @@ func main() {
 	// 受保护的路由组 | Protected route group
 	protected := s.Group("/").Middleware(
 		sagf.AuthMiddleware(
+			ctx,
 			sagf.WithFailFunc(func(r *ghttp.Request, err error) {
 				r.Response.WriteStatusExit(http.StatusOK, g.Map{
 					"code":    sagf.CodeNotLogin,
@@ -190,6 +194,7 @@ func main() {
 	// 需要特定权限的路由 | Routes requiring specific permissions
 	permGroup := s.Group("/").Middleware(
 		sagf.AuthMiddleware(
+			ctx,
 			sagf.WithFailFunc(func(r *ghttp.Request, err error) {
 				r.Response.WriteStatusExit(http.StatusOK, g.Map{
 					"code":    sagf.CodeNotLogin,
@@ -198,6 +203,7 @@ func main() {
 			}),
 		),
 		sagf.PermissionMiddleware(
+			ctx,
 			[]string{"admin:read", "admin:delete"},
 			sagf.WithLogicType(sagf.LogicAnd),
 			sagf.WithFailFunc(func(r *ghttp.Request, err error) {
@@ -220,6 +226,7 @@ func main() {
 	// 需要特定角色的路由 | Routes requiring specific roles
 	roleGroup := s.Group("/").Middleware(
 		sagf.AuthMiddleware(
+			ctx,
 			sagf.WithFailFunc(func(r *ghttp.Request, err error) {
 				r.Response.WriteStatusExit(http.StatusOK, g.Map{
 					"code":    sagf.CodeNotLogin,
@@ -228,6 +235,7 @@ func main() {
 			}),
 		),
 		sagf.RoleMiddleware(
+			ctx,
 			[]string{"super-admin"},
 			sagf.WithLogicType(sagf.LogicAnd),
 			sagf.WithFailFunc(func(r *ghttp.Request, err error) {

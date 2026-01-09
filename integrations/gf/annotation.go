@@ -22,7 +22,7 @@ type Annotation struct {
 }
 
 // GetHandler gets handler with annotations | 获取带注解的处理器
-func GetHandler(handler ghttp.HandlerFunc, annotations ...*Annotation) ghttp.HandlerFunc {
+func GetHandler(ctx context.Context, handler ghttp.HandlerFunc, failFunc func(r *ghttp.Request, err error), annotations ...*Annotation) ghttp.HandlerFunc {
 	return func(r *ghttp.Request) {
 		// Ignore authentication | 忽略认证直接放行
 		if len(annotations) > 0 && annotations[0].Ignore {
@@ -51,12 +51,14 @@ func GetHandler(handler ghttp.HandlerFunc, annotations ...*Annotation) ghttp.Han
 			return
 		}
 
-		ctx := context.Background()
-
 		// Get manager-example | 获取 Manager
 		mgr, err := stputil.GetManager(ann.AuthType)
 		if err != nil {
-			writeErrorResponse(r, err)
+			if failFunc != nil {
+				failFunc(r, err)
+			} else {
+				writeErrorResponse(r, err)
+			}
 			return
 		}
 
@@ -64,15 +66,14 @@ func GetHandler(handler ghttp.HandlerFunc, annotations ...*Annotation) ghttp.Han
 		saCtx := getSaContext(r, mgr)
 		token := saCtx.GetTokenValue()
 
-		if token == "" {
-			writeErrorResponse(r, core.NewNotLoginError())
-			return
-		}
-
 		// Check login | 检查登录
 		_, err = mgr.CheckLoginWithState(ctx, token)
 		if err != nil {
-			writeErrorResponse(r, err)
+			if failFunc != nil {
+				failFunc(r, err)
+			} else {
+				writeErrorResponse(r, err)
+			}
 			return
 		}
 
@@ -81,7 +82,11 @@ func GetHandler(handler ghttp.HandlerFunc, annotations ...*Annotation) ghttp.Han
 		if ann.CheckDisable || len(ann.CheckPermission) > 0 || len(ann.CheckRole) > 0 {
 			loginID, err = mgr.GetLoginIDNotCheck(ctx, token)
 			if err != nil {
-				writeErrorResponse(r, err)
+				if failFunc != nil {
+					failFunc(r, err)
+				} else {
+					writeErrorResponse(r, err)
+				}
 				return
 			}
 		}
@@ -89,7 +94,11 @@ func GetHandler(handler ghttp.HandlerFunc, annotations ...*Annotation) ghttp.Han
 		// Check if account is disabled | 检查是否被封禁
 		if ann.CheckDisable {
 			if mgr.IsDisable(ctx, loginID) {
-				writeErrorResponse(r, core.NewAccountDisabledError(loginID))
+				if failFunc != nil {
+					failFunc(r, core.NewAccountDisabledError(loginID))
+				} else {
+					writeErrorResponse(r, core.NewAccountDisabledError(loginID))
+				}
 				return
 			}
 		}
@@ -103,7 +112,11 @@ func GetHandler(handler ghttp.HandlerFunc, annotations ...*Annotation) ghttp.Han
 				ok = mgr.HasPermissionsOr(ctx, loginID, ann.CheckPermission)
 			}
 			if !ok {
-				writeErrorResponse(r, core.NewPermissionDeniedError(strings.Join(ann.CheckPermission, ",")))
+				if failFunc != nil {
+					failFunc(r, core.NewPermissionDeniedError(strings.Join(ann.CheckPermission, ",")))
+				} else {
+					writeErrorResponse(r, core.NewPermissionDeniedError(strings.Join(ann.CheckPermission, ",")))
+				}
 				return
 			}
 		}
@@ -117,7 +130,11 @@ func GetHandler(handler ghttp.HandlerFunc, annotations ...*Annotation) ghttp.Han
 				ok = mgr.HasRolesOr(ctx, loginID, ann.CheckRole)
 			}
 			if !ok {
-				writeErrorResponse(r, core.NewRoleDeniedError(strings.Join(ann.CheckRole, ",")))
+				if failFunc != nil {
+					failFunc(r, core.NewRoleDeniedError(strings.Join(ann.CheckRole, ",")))
+				} else {
+					writeErrorResponse(r, core.NewRoleDeniedError(strings.Join(ann.CheckRole, ",")))
+				}
 				return
 			}
 		}
@@ -132,149 +149,171 @@ func GetHandler(handler ghttp.HandlerFunc, annotations ...*Annotation) ghttp.Han
 }
 
 // CheckLoginMiddleware decorator for login checking | 检查登录装饰器
-func CheckLoginMiddleware(authType ...string) ghttp.HandlerFunc {
+func CheckLoginMiddleware(
+	ctx context.Context,
+	handler ghttp.HandlerFunc,
+	failFunc func(r *ghttp.Request, err error),
+	authType ...string,
+) ghttp.HandlerFunc {
 	ann := &Annotation{CheckLogin: true}
 	if len(authType) > 0 {
 		ann.AuthType = authType[0]
 	}
-	return GetHandler(nil, ann)
+	return GetHandler(ctx, handler, failFunc, ann)
 }
 
 // CheckRoleMiddleware decorator for role checking | 检查角色装饰器
-func CheckRoleMiddleware(roles ...string) ghttp.HandlerFunc {
-	return GetHandler(nil, &Annotation{CheckRole: roles})
-}
-
-// CheckRoleMiddlewareWithAuthType decorator for role checking with auth type | 检查角色装饰器（带认证类型）
-func CheckRoleMiddlewareWithAuthType(authType string, roles ...string) ghttp.HandlerFunc {
-	return GetHandler(nil, &Annotation{CheckRole: roles, AuthType: authType})
+func CheckRoleMiddleware(
+	ctx context.Context,
+	roles []string,
+	handler ghttp.HandlerFunc,
+	failFunc func(r *ghttp.Request, err error),
+	authType ...string,
+) ghttp.HandlerFunc {
+	ann := &Annotation{CheckRole: roles}
+	if len(authType) > 0 {
+		ann.AuthType = authType[0]
+	}
+	return GetHandler(ctx, handler, failFunc, ann)
 }
 
 // CheckPermissionMiddleware decorator for permission checking | 检查权限装饰器
-func CheckPermissionMiddleware(perms ...string) ghttp.HandlerFunc {
-	return GetHandler(nil, &Annotation{CheckPermission: perms})
-}
-
-// CheckPermissionMiddlewareWithAuthType decorator for permission checking with auth type | 检查权限装饰器（带认证类型）
-func CheckPermissionMiddlewareWithAuthType(authType string, perms ...string) ghttp.HandlerFunc {
-	return GetHandler(nil, &Annotation{CheckPermission: perms, AuthType: authType})
+func CheckPermissionMiddleware(
+	ctx context.Context,
+	perms []string,
+	handler ghttp.HandlerFunc,
+	failFunc func(r *ghttp.Request, err error),
+	authType ...string,
+) ghttp.HandlerFunc {
+	ann := &Annotation{CheckPermission: perms}
+	if len(authType) > 0 {
+		ann.AuthType = authType[0]
+	}
+	return GetHandler(ctx, handler, failFunc, ann)
 }
 
 // CheckDisableMiddleware decorator for checking if account is disabled | 检查是否被封禁装饰器
-func CheckDisableMiddleware(authType ...string) ghttp.HandlerFunc {
+func CheckDisableMiddleware(
+	ctx context.Context,
+	handler ghttp.HandlerFunc,
+	failFunc func(r *ghttp.Request, err error),
+	authType ...string,
+) ghttp.HandlerFunc {
 	ann := &Annotation{CheckDisable: true}
 	if len(authType) > 0 {
 		ann.AuthType = authType[0]
 	}
-	return GetHandler(nil, ann)
+	return GetHandler(ctx, handler, failFunc, ann)
 }
 
 // IgnoreMiddleware decorator to ignore authentication | 忽略认证装饰器
-func IgnoreMiddleware() ghttp.HandlerFunc {
-	return GetHandler(nil, &Annotation{Ignore: true})
+func IgnoreMiddleware(
+	ctx context.Context,
+	handler ghttp.HandlerFunc,
+	failFunc func(r *ghttp.Request, err error),
+) ghttp.HandlerFunc {
+	ann := &Annotation{Ignore: true}
+	return GetHandler(ctx, handler, failFunc, ann)
 }
 
 // ============ Combined Middleware | 组合中间件 ============
 
 // CheckLoginAndRoleMiddleware checks login and role | 检查登录和角色
-func CheckLoginAndRoleMiddleware(roles ...string) ghttp.HandlerFunc {
-	return GetHandler(nil, &Annotation{CheckLogin: true, CheckRole: roles})
+func CheckLoginAndRoleMiddleware(
+	ctx context.Context,
+	roles []string,
+	handler ghttp.HandlerFunc,
+	failFunc func(r *ghttp.Request, err error),
+	authType ...string,
+) ghttp.HandlerFunc {
+	ann := &Annotation{CheckLogin: true, CheckRole: roles}
+	if len(authType) > 0 {
+		ann.AuthType = authType[0]
+	}
+	return GetHandler(ctx, handler, failFunc, ann)
 }
 
 // CheckLoginAndPermissionMiddleware checks login and permission | 检查登录和权限
-func CheckLoginAndPermissionMiddleware(perms ...string) ghttp.HandlerFunc {
-	return GetHandler(nil, &Annotation{CheckLogin: true, CheckPermission: perms})
+func CheckLoginAndPermissionMiddleware(
+	ctx context.Context,
+	perms []string,
+	handler ghttp.HandlerFunc,
+	failFunc func(r *ghttp.Request, err error),
+	authType ...string,
+) ghttp.HandlerFunc {
+	ann := &Annotation{CheckLogin: true, CheckPermission: perms}
+	if len(authType) > 0 {
+		ann.AuthType = authType[0]
+	}
+	return GetHandler(ctx, handler, failFunc, ann)
 }
 
 // CheckAllMiddleware checks login, role, permission and disable status | 全面检查
-func CheckAllMiddleware(roles []string, perms []string) ghttp.HandlerFunc {
-	return GetHandler(nil, &Annotation{
-		CheckLogin:      true,
-		CheckRole:       roles,
-		CheckPermission: perms,
-		CheckDisable:    true,
-	})
+func CheckAllMiddleware(
+	ctx context.Context,
+	roles []string,
+	perms []string,
+	handler ghttp.HandlerFunc,
+	failFunc func(r *ghttp.Request, err error),
+	authType ...string,
+) ghttp.HandlerFunc {
+	ann := &Annotation{CheckLogin: true, CheckRole: roles, CheckPermission: perms}
+	if len(authType) > 0 {
+		ann.AuthType = authType[0]
+	}
+	return GetHandler(ctx, handler, failFunc, ann)
 }
 
 // ============ Route Group Helper | 路由组辅助函数 ============
 
 // AuthGroup creates a route group with authentication | 创建带认证的路由组
-func AuthGroup(group *ghttp.RouterGroup, authType ...string) *ghttp.RouterGroup {
-	group.Middleware(CheckLoginMiddleware(authType...))
+func AuthGroup(
+	ctx context.Context,
+	group *ghttp.RouterGroup,
+	handler ghttp.HandlerFunc,
+	failFunc func(r *ghttp.Request, err error),
+	authType ...string,
+) *ghttp.RouterGroup {
+	group.Middleware(CheckLoginMiddleware(ctx, handler, failFunc, authType...))
 	return group
 }
 
 // RoleGroup creates a route group with role checking | 创建带角色检查的路由组
-func RoleGroup(group *ghttp.RouterGroup, roles ...string) *ghttp.RouterGroup {
-	group.Middleware(CheckLoginAndRoleMiddleware(roles...))
+func RoleGroup(
+	ctx context.Context,
+	group *ghttp.RouterGroup,
+	roles []string,
+	handler ghttp.HandlerFunc,
+	failFunc func(r *ghttp.Request, err error),
+	authType ...string,
+) *ghttp.RouterGroup {
+	group.Middleware(CheckLoginAndRoleMiddleware(ctx, roles, handler, failFunc, authType...))
 	return group
 }
 
 // PermissionGroup creates a route group with permission checking | 创建带权限检查的路由组
-func PermissionGroup(group *ghttp.RouterGroup, perms ...string) *ghttp.RouterGroup {
-	group.Middleware(CheckLoginAndPermissionMiddleware(perms...))
+func PermissionGroup(
+	ctx context.Context,
+	group *ghttp.RouterGroup,
+	perms []string,
+	handler ghttp.HandlerFunc,
+	failFunc func(r *ghttp.Request, err error),
+	authType ...string,
+) *ghttp.RouterGroup {
+	group.Middleware(CheckLoginAndPermissionMiddleware(ctx, perms, handler, failFunc, authType...))
 	return group
 }
 
-// ============ Context Helper | 上下文辅助函数 ============
-
-// GetLoginIDFromRequest gets login ID from request context | 从请求上下文获取登录 ID
-func GetLoginIDFromRequest(r *ghttp.Request, authType ...string) (string, error) {
-	var at string
-	if len(authType) > 0 {
-		at = authType[0]
-	}
-
-	mgr, err := stputil.GetManager(at)
-	if err != nil {
-		return "", err
-	}
-
-	saCtx := getSaContext(r, mgr)
-	token := saCtx.GetTokenValue()
-	if token == "" {
-		return "", core.ErrNotLogin
-	}
-	return mgr.GetLoginID(r.Context(), token)
-}
-
-// IsLoginFromRequest checks if user is logged in from request | 从请求检查用户是否已登录
-func IsLoginFromRequest(r *ghttp.Request, authType ...string) bool {
-	var at string
-	if len(authType) > 0 {
-		at = authType[0]
-	}
-
-	mgr, err := stputil.GetManager(at)
-	if err != nil {
-		return false
-	}
-
-	saCtx := getSaContext(r, mgr)
-	token := saCtx.GetTokenValue()
-	if token == "" {
-		return false
-	}
-	return mgr.IsLogin(r.Context(), token)
-}
-
-// GetTokenFromRequest gets token from request (exported) | 从请求获取 Token（导出）
-func GetTokenFromRequest(r *ghttp.Request, authType ...string) string {
-	var at string
-	if len(authType) > 0 {
-		at = authType[0]
-	}
-
-	mgr, err := stputil.GetManager(at)
-	if err != nil {
-		return ""
-	}
-
-	saCtx := getSaContext(r, mgr)
-	return saCtx.GetTokenValue()
-}
-
-// WithContext creates a new context with sa-token context | 创建带 sa-token 上下文的新上下文
-func WithContext(r *ghttp.Request, authType ...string) context.Context {
-	return r.Context()
+// RoleAndPermissionGroup creates a route group with role and permission checking | 创建带角色和权限检查的路由组
+func RoleAndPermissionGroup(
+	ctx context.Context,
+	group *ghttp.RouterGroup,
+	roles []string,
+	perms []string,
+	handler ghttp.HandlerFunc,
+	failFunc func(r *ghttp.Request, err error),
+	authType ...string,
+) *ghttp.RouterGroup {
+	group.Middleware(CheckAllMiddleware(ctx, roles, perms, handler, failFunc, authType...))
+	return group
 }

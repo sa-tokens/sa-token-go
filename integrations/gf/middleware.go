@@ -58,8 +58,8 @@ func WithFailFunc(fn func(r *ghttp.Request, err error)) AuthOption {
 
 // ========== Middlewares ==========
 
-// AuthMiddleware authentication middleware | 认证中间件
-func AuthMiddleware(opts ...AuthOption) ghttp.HandlerFunc {
+// RegisterSaTokenContextMiddleware initializes Sa-Token context for each request | 初始化每次请求的 Sa-Token 上下文的中间件
+func RegisterSaTokenContextMiddleware(ctx context.Context, opts ...AuthOption) ghttp.HandlerFunc {
 	options := defaultAuthOptions()
 	for _, opt := range opts {
 		opt(options)
@@ -76,7 +76,28 @@ func AuthMiddleware(opts ...AuthOption) ghttp.HandlerFunc {
 			return
 		}
 
-		ctx := context.Background()
+		_ = getSaContext(r, mgr)
+	}
+}
+
+// AuthMiddleware authentication middleware | 认证中间件
+func AuthMiddleware(ctx context.Context, opts ...AuthOption) ghttp.HandlerFunc {
+	options := defaultAuthOptions()
+	for _, opt := range opts {
+		opt(options)
+	}
+
+	return func(r *ghttp.Request) {
+		mgr, err := stputil.GetManager(options.AuthType)
+		if err != nil {
+			if options.FailFunc != nil {
+				options.FailFunc(r, err)
+			} else {
+				writeErrorResponse(r, err)
+			}
+			return
+		}
+
 		saCtx := getSaContext(r, mgr)
 		tokenValue := saCtx.GetTokenValue()
 
@@ -96,7 +117,7 @@ func AuthMiddleware(opts ...AuthOption) ghttp.HandlerFunc {
 }
 
 // AuthWithStateMiddleware with state authentication middleware | 带状态返回的认证中间件
-func AuthWithStateMiddleware(opts ...AuthOption) ghttp.HandlerFunc {
+func AuthWithStateMiddleware(ctx context.Context, opts ...AuthOption) ghttp.HandlerFunc {
 	options := defaultAuthOptions()
 	for _, opt := range opts {
 		opt(options)
@@ -114,10 +135,8 @@ func AuthWithStateMiddleware(opts ...AuthOption) ghttp.HandlerFunc {
 			return
 		}
 
-		ctx := context.Background()
 		saCtx := getSaContext(r, mgr)
 		tokenValue := saCtx.GetTokenValue()
-
 		_, err = mgr.CheckLoginWithState(ctx, tokenValue)
 
 		if err != nil {
@@ -137,6 +156,7 @@ func AuthWithStateMiddleware(opts ...AuthOption) ghttp.HandlerFunc {
 
 // PermissionMiddleware permission check middleware | 权限校验中间件
 func PermissionMiddleware(
+	ctx context.Context,
 	permissions []string,
 	opts ...AuthOption,
 ) ghttp.HandlerFunc {
@@ -164,7 +184,6 @@ func PermissionMiddleware(
 			return
 		}
 
-		ctx := context.Background()
 		saCtx := getSaContext(r, mgr)
 		tokenValue := saCtx.GetTokenValue()
 
@@ -191,6 +210,7 @@ func PermissionMiddleware(
 
 // PermissionPathMiddleware permission check middleware | 基于路径的权限校验中间件
 func PermissionPathMiddleware(
+	ctx context.Context,
 	permissions []string,
 	opts ...AuthOption,
 ) ghttp.HandlerFunc {
@@ -221,7 +241,6 @@ func PermissionPathMiddleware(
 			return
 		}
 
-		ctx := context.Background()
 		saCtx := getSaContext(r, mgr)
 		tokenValue := saCtx.GetTokenValue()
 
@@ -248,6 +267,7 @@ func PermissionPathMiddleware(
 
 // RoleMiddleware role check middleware | 角色校验中间件
 func RoleMiddleware(
+	ctx context.Context,
 	roles []string,
 	opts ...AuthOption,
 ) ghttp.HandlerFunc {
@@ -275,7 +295,6 @@ func RoleMiddleware(
 			return
 		}
 
-		ctx := context.Background()
 		saCtx := getSaContext(r, mgr)
 		tokenValue := saCtx.GetTokenValue()
 
@@ -311,6 +330,19 @@ func GetSaTokenContext(r *ghttp.Request) (*saContext.SaTokenContext, bool) {
 	return ctx, ok
 }
 
+// GetSaTokenContextFromCtx gets Sa-Token context from GoFrame context | 获取 Sa-Token 上下文
+func GetSaTokenContextFromCtx(ctx context.Context) (*saContext.SaTokenContext, bool) {
+	request := g.RequestFromCtx(ctx)
+	ctxVar := request.GetCtxVar(SaTokenCtxKey)
+	if ctxVar == nil {
+		return nil, false
+	}
+
+	tokenContext, ok := ctxVar.Val().(*saContext.SaTokenContext)
+	return tokenContext, ok
+}
+
+// getSaContext returns or creates the Sa-Token context for the request | 获取或创建当前请求的 Sa-Token 上下文
 func getSaContext(r *ghttp.Request, mgr *manager.Manager) *saContext.SaTokenContext {
 	// Try get from context | 尝试从 ctx 取值
 	if v := r.GetCtxVar(SaTokenCtxKey); v != nil {
