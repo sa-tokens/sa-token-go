@@ -40,6 +40,7 @@ use (
 	./integrations/gf
 	./integrations/gin
 	./integrations/kratos
+	./integrations/zero
 
 	// log
 	./log/gf

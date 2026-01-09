@@ -158,6 +158,12 @@ var (
 
 	// ErrTypeConvert indicates a type conversion failed | 类型转换失败
 	ErrTypeConvert = fmt.Errorf("type conversion failed: unable to convert value to target type")
+
+	// ErrManagerNotFound indicates that the manager-example was not found for the given autoType | manager-example 未找到
+	ErrManagerNotFound = fmt.Errorf("manager-example not found")
+
+	// ErrManagerInvalidType indicates that the loaded manager-example has invalid type | manager-example 类型无效
+	ErrManagerInvalidType = fmt.Errorf("invalid manager-example type")
 )
 
 // ============ Custom Error Type | 自定义错误类型 ============
