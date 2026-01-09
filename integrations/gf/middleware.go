@@ -116,44 +116,6 @@ func AuthMiddleware(ctx context.Context, opts ...AuthOption) ghttp.HandlerFunc {
 	}
 }
 
-// AuthWithStateMiddleware with state authentication middleware | 带状态返回的认证中间件
-func AuthWithStateMiddleware(ctx context.Context, opts ...AuthOption) ghttp.HandlerFunc {
-	options := defaultAuthOptions()
-	for _, opt := range opts {
-		opt(options)
-	}
-
-	return func(r *ghttp.Request) {
-		// 获取 Manager | Get Manager
-		mgr, err := stputil.GetManager(options.AuthType)
-		if err != nil {
-			if options.FailFunc != nil {
-				options.FailFunc(r, err)
-			} else {
-				writeErrorResponse(r, err)
-			}
-			return
-		}
-
-		saCtx := getSaContext(r, mgr)
-		tokenValue := saCtx.GetTokenValue()
-		_, err = mgr.CheckLoginWithState(ctx, tokenValue)
-
-		if err != nil {
-			// 用户自定义回调优先
-			if options.FailFunc != nil {
-				options.FailFunc(r, err)
-			} else {
-				writeErrorResponse(r, err)
-			}
-
-			return
-		}
-
-		r.Middleware.Next()
-	}
-}
-
 // PermissionMiddleware permission check middleware | 权限校验中间件
 func PermissionMiddleware(
 	ctx context.Context,
