@@ -56,10 +56,32 @@ func WithFailFunc(fn func(c *gin.Context, err error)) AuthOption {
 	}
 }
 
-// ========== Middlewares ==========
+// ============ Middlewares | 中间件 ============
+
+// RegisterSaTokenContextMiddleware initializes Sa-Token context for each request | 初始化每次请求的 Sa-Token 上下文的中间件
+func RegisterSaTokenContextMiddleware(ctx context.Context, opts ...AuthOption) gin.HandlerFunc {
+	options := defaultAuthOptions()
+	for _, opt := range opts {
+		opt(options)
+	}
+
+	return func(c *gin.Context) {
+		mgr, err := stputil.GetManager(options.AuthType)
+		if err != nil {
+			if options.FailFunc != nil {
+				options.FailFunc(c, err)
+			} else {
+				writeErrorResponse(c, err)
+			}
+			return
+		}
+
+		_ = getSaContext(c, mgr)
+	}
+}
 
 // AuthMiddleware authentication middleware | 认证中间件
-func AuthMiddleware(opts ...AuthOption) gin.HandlerFunc {
+func AuthMiddleware(ctx context.Context, opts ...AuthOption) gin.HandlerFunc {
 	options := defaultAuthOptions()
 	for _, opt := range opts {
 		opt(options)
@@ -77,12 +99,11 @@ func AuthMiddleware(opts ...AuthOption) gin.HandlerFunc {
 			return
 		}
 
-		ctx := context.Background()
 		saCtx := getSaContext(c, mgr)
 		tokenValue := saCtx.GetTokenValue()
 
 		// 检查登录 | Check login
-		err = mgr.CheckLogin(ctx, tokenValue)
+		isLogin, err := mgr.IsLogin(ctx, tokenValue)
 		if err != nil {
 			if options.FailFunc != nil {
 				options.FailFunc(c, err)
@@ -92,46 +113,12 @@ func AuthMiddleware(opts ...AuthOption) gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-
-		c.Next()
-	}
-}
-
-// AuthWithStateMiddleware with state authentication middleware | 带状态返回的认证中间件
-func AuthWithStateMiddleware(opts ...AuthOption) gin.HandlerFunc {
-	options := defaultAuthOptions()
-	for _, opt := range opts {
-		opt(options)
-	}
-
-	return func(c *gin.Context) {
-		// 获取 Manager | Get Manager
-		mgr, err := stputil.GetManager(options.AuthType)
-		if err != nil {
+		if !isLogin {
 			if options.FailFunc != nil {
-				options.FailFunc(c, err)
+				options.FailFunc(c, core.ErrTokenExpired)
 			} else {
-				writeErrorResponse(c, err)
+				writeErrorResponse(c, core.ErrTokenExpired)
 			}
-			c.Abort()
-			return
-		}
-
-		ctx := context.Background()
-		saCtx := getSaContext(c, mgr)
-		tokenValue := saCtx.GetTokenValue()
-
-		// 检查登录并返回状态 | Check login with state
-		_, err = mgr.CheckLoginWithState(ctx, tokenValue)
-
-		if err != nil {
-			// 用户自定义回调优先
-			if options.FailFunc != nil {
-				options.FailFunc(c, err)
-			} else {
-				writeErrorResponse(c, err)
-			}
-
 			c.Abort()
 			return
 		}
@@ -142,6 +129,7 @@ func AuthWithStateMiddleware(opts ...AuthOption) gin.HandlerFunc {
 
 // PermissionMiddleware permission check middleware | 权限校验中间件
 func PermissionMiddleware(
+	ctx context.Context,
 	permissions []string,
 	opts ...AuthOption,
 ) gin.HandlerFunc {
@@ -170,7 +158,6 @@ func PermissionMiddleware(
 			return
 		}
 
-		ctx := c.Request.Context()
 		saCtx := getSaContext(c, mgr)
 		tokenValue := saCtx.GetTokenValue()
 
@@ -198,6 +185,7 @@ func PermissionMiddleware(
 
 // RoleMiddleware role check middleware | 角色校验中间件
 func RoleMiddleware(
+	ctx context.Context,
 	roles []string,
 	opts ...AuthOption,
 ) gin.HandlerFunc {
@@ -226,7 +214,6 @@ func RoleMiddleware(
 			return
 		}
 
-		ctx := c.Request.Context()
 		saCtx := getSaContext(c, mgr)
 		tokenValue := saCtx.GetTokenValue()
 

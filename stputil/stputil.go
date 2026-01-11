@@ -124,10 +124,10 @@ func ReplaceByToken(ctx context.Context, tokenValue string, authType ...string) 
 // ============ Token Validation | Token验证 ============
 
 // IsLogin checks if the user is logged in | 检查用户是否已登录
-func IsLogin(ctx context.Context, tokenValue string, authType ...string) bool {
+func IsLogin(ctx context.Context, tokenValue string, authType ...string) (bool, error) {
 	mgr, err := GetManager(authType...)
 	if err != nil {
-		return false
+		return false, core.ErrManagerNotFound
 	}
 
 	return mgr.IsLogin(ctx, tokenValue)
@@ -141,16 +141,6 @@ func CheckLogin(ctx context.Context, tokenValue string, authType ...string) erro
 	}
 
 	return mgr.CheckLogin(ctx, tokenValue)
-}
-
-// CheckLoginWithState checks the login status (returns error to determine the reason if not logged in) | 检查登录状态（未登录时根据错误确定原因）
-func CheckLoginWithState(ctx context.Context, tokenValue string, authType ...string) (bool, error) {
-	mgr, err := GetManager(authType...)
-	if err != nil {
-		return false, err
-	}
-
-	return mgr.CheckLoginWithState(ctx, tokenValue)
 }
 
 // ============ Token Information | Token信息与解析 ============
@@ -317,8 +307,8 @@ func GetDisableTimeByToken(ctx context.Context, tokenValue string, authType ...s
 	return mgr.GetDisableTTL(ctx, loginID)
 }
 
-// CheckDisableWithInfo gets disable info | 获取封禁信息
-func CheckDisableWithInfo(ctx context.Context, loginID interface{}, authType ...string) (*manager.DisableInfo, error) {
+// GetDisableInfo gets disable info | 获取封禁信息
+func GetDisableInfo(ctx context.Context, loginID interface{}, authType ...string) (*manager.DisableInfo, error) {
 	mgr, err := GetManager(authType...)
 	if err != nil {
 		return nil, err
@@ -327,12 +317,12 @@ func CheckDisableWithInfo(ctx context.Context, loginID interface{}, authType ...
 	if id, err := toString(loginID); err != nil {
 		return nil, err
 	} else {
-		return mgr.CheckDisableWithInfo(ctx, id)
+		return mgr.GetDisableInfo(ctx, id)
 	}
 }
 
-// CheckDisableWithInfoByToken gets disable info by token | 根据Token获取封禁信息
-func CheckDisableWithInfoByToken(ctx context.Context, tokenValue string, authType ...string) (*manager.DisableInfo, error) {
+// GetDisableInfoByToken gets disable info by token | 根据Token获取封禁信息
+func GetDisableInfoByToken(ctx context.Context, tokenValue string, authType ...string) (*manager.DisableInfo, error) {
 	mgr, err := GetManager(authType...)
 	if err != nil {
 		return nil, err
@@ -343,10 +333,10 @@ func CheckDisableWithInfoByToken(ctx context.Context, tokenValue string, authTyp
 		return nil, err
 	}
 
-	return mgr.CheckDisableWithInfo(ctx, loginID)
+	return mgr.GetDisableInfo(ctx, loginID)
 }
 
-// ============ Session Management | Session 管理 ============
+// ============ Session Management | Session管理 ============
 
 // GetSession gets session by login ID | 根据登录ID获取Session
 func GetSession(ctx context.Context, loginID interface{}, authType ...string) (*session.Session, error) {
@@ -977,7 +967,7 @@ func IsValid(ctx context.Context, refreshToken string, authType ...string) bool 
 	return mgr.SecurityIsRefreshTokenValid(ctx, refreshToken)
 }
 
-// ============ OAuth2 Features | OAuth2 功能 ============
+// ============ OAuth2 Features | Oauth2特性 ============
 
 // RegisterClient Registers an OAuth2 client | 注册OAuth2客户端
 func RegisterClient(ctx context.Context, client *oauth2.Client, authType ...string) error {

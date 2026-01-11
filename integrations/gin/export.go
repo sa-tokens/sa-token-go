@@ -417,18 +417,13 @@ func ReplaceByToken(ctx context.Context, tokenValue string, authType ...string) 
 // ============ Token Validation | Token验证 ============
 
 // IsLogin checks if the user is logged in | 检查用户是否已登录
-func IsLogin(ctx context.Context, tokenValue string, authType ...string) bool {
+func IsLogin(ctx context.Context, tokenValue string, authType ...string) (bool, error) {
 	return stputil.IsLogin(ctx, tokenValue, authType...)
 }
 
 // CheckLogin checks login status (throws error if not logged in) | 检查登录状态（未登录抛出错误）
 func CheckLogin(ctx context.Context, tokenValue string, authType ...string) error {
 	return stputil.CheckLogin(ctx, tokenValue, authType...)
-}
-
-// CheckLoginWithState checks the login status (returns error to determine the reason if not logged in) | 检查登录状态（未登录时根据错误确定原因）
-func CheckLoginWithState(ctx context.Context, tokenValue string, authType ...string) (bool, error) {
-	return stputil.CheckLoginWithState(ctx, tokenValue, authType...)
 }
 
 // GetLoginID gets the login ID from token | 从Token获取登录ID
@@ -493,14 +488,14 @@ func GetDisableTimeByToken(ctx context.Context, tokenValue string, authType ...s
 	return stputil.GetDisableTimeByToken(ctx, tokenValue, authType...)
 }
 
-// CheckDisableWithInfo gets disable info | 获取封禁信息
-func CheckDisableWithInfo(ctx context.Context, loginID interface{}, authType ...string) (*manager.DisableInfo, error) {
-	return stputil.CheckDisableWithInfo(ctx, loginID, authType...)
+// GetDisableInfo gets disable info | 获取封禁信息
+func GetDisableInfo(ctx context.Context, loginID interface{}, authType ...string) (*manager.DisableInfo, error) {
+	return stputil.GetDisableInfo(ctx, loginID, authType...)
 }
 
-// CheckDisableWithInfoByToken gets disable info by token | 根据Token获取封禁信息
-func CheckDisableWithInfoByToken(ctx context.Context, tokenValue string, authType ...string) (*manager.DisableInfo, error) {
-	return stputil.CheckDisableWithInfoByToken(ctx, tokenValue, authType...)
+// GetDisableInfoByToken gets disable info by token | 根据Token获取封禁信息
+func GetDisableInfoByToken(ctx context.Context, tokenValue string, authType ...string) (*manager.DisableInfo, error) {
+	return stputil.GetDisableInfoByToken(ctx, tokenValue, authType...)
 }
 
 // ============ Session Management | Session管理 ============

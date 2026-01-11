@@ -16,21 +16,27 @@ type Config struct {
 	Timeout int64
 
 	// MaxRefresh Threshold (in seconds) to trigger async token renewal; when remaining lifetime is below this, renewal is triggered; -1 means no limit | Token自动续期触发阈值（单位：秒，当剩余有效期低于该值时触发异步续期，-1代表不限制）
+	// 注意此配置与 RenewInterval 配置关系
 	MaxRefresh int64
 
 	// RenewInterval Minimum interval (in seconds) between two renewals for the same token; -1 means no limit | 同一Token两次续期的最小间隔时间（单位：秒，-1代表不限制）
+	// 注意此配置与 MaxRefresh 配置关系
 	RenewInterval int64
 
 	// ActiveTimeout Maximum inactivity duration (in seconds); if the Token is not accessed within this time, it will be frozen. -1 means no limit | Token最大不活跃时长（单位：秒），超过此时间未访问则被踢出，-1代表不限制
+	// 注意此配置与 MaxRefresh、RenewInterval 的配置关系 此配置目前只判断续期时更新的TokenInfo里面的ActiveTime
 	ActiveTimeout int64
 
 	// IsConcurrent Allow concurrent login for the same account (true=allow, false=new login kicks old) | 是否允许同一账号并发登录（true=允许并发，false=新登录挤掉旧登录）
+	// 注意此配置与 IsShare 的配置关系
 	IsConcurrent bool
 
 	// IsShare Share the same Token for concurrent logins (true=share one, false=create new for each login) | 并发登录是否共用同一个Token（true=共用一个，false=每次登录新建一个）
+	// 注意此配置与 IsConcurrent 的配置关系
 	IsShare bool
 
 	// MaxLoginCount Maximum concurrent login count for the same account; -1 means unlimited (only effective when IsConcurrent=true and IsShare=false) | 同一账号最大登录数量，-1代表不限（仅当IsConcurrent=true且IsShare=false时生效）
+	// 	// 注意此配置与 IsConcurrent、IsShare 的配置关系 （仅当IsConcurrent=true且IsShare=false时生效）
 	MaxLoginCount int64
 
 	// IsReadBody Try to read Token from the request body (log: false) | 是否尝试从请求体读取Token（默认：false）
@@ -46,6 +52,7 @@ type Config struct {
 	TokenStyle adapter.TokenStyle
 
 	// TokenSessionCheckLogin Whether to check if Token-Session is kicked out when logging in (true=check, false=skip) | 登录时是否检查Token-Session是否被踢下线（true=检查，false=不检查）
+	// 注意此配置在manager相关逻辑中暂时未使用
 	TokenSessionCheckLogin bool
 
 	// AutoRenew Automatically renew Token expiration time on each validation | 是否在每次验证Token时自动续期（延长Token有效期）

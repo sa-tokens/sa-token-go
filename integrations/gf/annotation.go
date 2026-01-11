@@ -67,12 +67,20 @@ func GetHandler(ctx context.Context, handler ghttp.HandlerFunc, failFunc func(r 
 		token := saCtx.GetTokenValue()
 
 		// Check login | 检查登录
-		_, err = mgr.CheckLoginWithState(ctx, token)
+		isLogin, err := mgr.IsLogin(ctx, token)
 		if err != nil {
 			if failFunc != nil {
 				failFunc(r, err)
 			} else {
 				writeErrorResponse(r, err)
+			}
+			return
+		}
+		if !isLogin {
+			if failFunc != nil {
+				failFunc(r, core.NewNotLoginError())
+			} else {
+				writeErrorResponse(r, core.NewNotLoginError())
 			}
 			return
 		}

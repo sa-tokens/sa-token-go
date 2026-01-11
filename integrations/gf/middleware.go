@@ -56,7 +56,7 @@ func WithFailFunc(fn func(r *ghttp.Request, err error)) AuthOption {
 	}
 }
 
-// ========== Middlewares ==========
+// ============ Middlewares | 中间件 ============
 
 // RegisterSaTokenContextMiddleware initializes Sa-Token context for each request | 初始化每次请求的 Sa-Token 上下文的中间件
 func RegisterSaTokenContextMiddleware(ctx context.Context, opts ...AuthOption) ghttp.HandlerFunc {
@@ -102,12 +102,20 @@ func AuthMiddleware(ctx context.Context, opts ...AuthOption) ghttp.HandlerFunc {
 		tokenValue := saCtx.GetTokenValue()
 
 		// 检查登录 | Check login
-		_, err = mgr.CheckLoginWithState(ctx, tokenValue)
+		isLogin, err := mgr.IsLogin(ctx, tokenValue)
 		if err != nil {
 			if options.FailFunc != nil {
 				options.FailFunc(r, err)
 			} else {
 				writeErrorResponse(r, err)
+			}
+			return
+		}
+		if !isLogin {
+			if options.FailFunc != nil {
+				options.FailFunc(r, core.ErrTokenExpired)
+			} else {
+				writeErrorResponse(r, core.ErrTokenExpired)
 			}
 			return
 		}
@@ -292,8 +300,8 @@ func GetSaTokenContext(r *ghttp.Request) (*saContext.SaTokenContext, bool) {
 	return ctx, ok
 }
 
-// GetSaTokenContextFromCtx gets Sa-Token context from GoFrame context | 获取 Sa-Token 上下文
-func GetSaTokenContextFromCtx(ctx context.Context) (*saContext.SaTokenContext, bool) {
+// GetSaTokenContextByCtx gets Sa-Token context from GoFrame context | 获取 Sa-Token 上下文
+func GetSaTokenContextByCtx(ctx context.Context) (*saContext.SaTokenContext, bool) {
 	request := g.RequestFromCtx(ctx)
 	ctxVar := request.GetCtxVar(SaTokenCtxKey)
 	if ctxVar == nil {
@@ -302,6 +310,26 @@ func GetSaTokenContextFromCtx(ctx context.Context) (*saContext.SaTokenContext, b
 
 	tokenContext, ok := ctxVar.Val().(*saContext.SaTokenContext)
 	return tokenContext, ok
+}
+
+// GetLoginIDByCtx gets the login ID from the context | 从上下文获取登录ID
+func GetLoginIDByCtx(ctx context.Context, authType ...string) (string, error) {
+	mgr, err := stputil.GetManager(authType...)
+	if err != nil {
+		return "", err
+	}
+
+	return mgr.GetLoginIDNotCheck(ctx, getSaContext(g.RequestFromCtx(ctx), mgr).GetTokenValue())
+}
+
+// GetTokenInfoByCtx gets the token information from the context | 从上下文获取Token信息
+func GetTokenInfoByCtx(ctx context.Context, authType ...string) (*manager.TokenInfo, error) {
+	mgr, err := stputil.GetManager(authType...)
+	if err != nil {
+		return nil, err
+	}
+
+	return mgr.GetTokenInfoByToken(ctx, getSaContext(g.RequestFromCtx(ctx), mgr).GetTokenValue())
 }
 
 // getSaContext returns or creates the Sa-Token context for the request | 获取或创建当前请求的 Sa-Token 上下文

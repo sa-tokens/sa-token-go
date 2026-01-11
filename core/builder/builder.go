@@ -634,6 +634,24 @@ func (b *Builder) Build() *manager.Manager {
 				panic(err)
 			}
 		}
+
+		// 续期池状态的打印
+		if b.renewPoolConfig.PrintStatusInterval > 0 {
+			ticker := time.NewTicker(b.renewPoolConfig.PrintStatusInterval)
+			go func() {
+				defer ticker.Stop()
+				for {
+					select {
+					case <-ticker.C:
+						running, capacity, usage := b.pool.Stats()
+						b.log.Infof(
+							"RenewPool Status: Capacity=%d, Running=%d, Usage=%.2f%%",
+							capacity, running, usage*100,
+						)
+					}
+				}
+			}()
+		}
 	}
 
 	// Print startup banner with full configuration | 打印启动Banner和完整配置

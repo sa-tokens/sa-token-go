@@ -161,7 +161,7 @@ func (m *Manager) CloseManager() {
 	}
 }
 
-// ============ Login Authentication | 登录认证 ============
+// ============ Authentication | 登录认证 ============
 
 // Login Performs user login and returns token | 登录 返回Token
 func (m *Manager) Login(ctx context.Context, loginID string, device ...string) (string, error) {
@@ -180,10 +180,16 @@ func (m *Manager) Login(ctx context.Context, loginID string, device ...string) (
 		// Look for existing token of this account + device | 查找账号 + 设备下是否已有登录 Token
 		existingToken, err := m.storage.Get(ctx, accountKey)
 		if err == nil && existingToken != nil {
-			if existingTokenStr, ok := assertString(existingToken); ok && m.IsLogin(ctx, existingTokenStr) {
-				// If valid token exists, return it directly | 如果已有 Token 且有效 则直接返回
-				return existingTokenStr, nil
+			if existingTokenStr, ok := assertString(existingToken); ok {
+				if isLoggedIn, _ := m.IsLogin(ctx, existingTokenStr); isLoggedIn {
+					return existingTokenStr, nil
+				}
 			}
+
+			//if existingTokenStr, ok := assertString(existingToken); ok && m.IsLogin(ctx, existingTokenStr) {
+			//	// If valid token exists, return it directly | 如果已有 Token 且有效 则直接返回
+			//	return existingTokenStr, nil
+			//}
 		}
 	}
 
@@ -307,6 +313,8 @@ func (m *Manager) LogoutByToken(ctx context.Context, tokenValue string) error {
 	return m.removeTokenChain(ctx, tokenValue, nil, listener.EventLogout)
 }
 
+// ============ Online Status Management | 在线状态管理 ============
+
 // kickout Kick user offline (private) | 踢人下线（私有）
 func (m *Manager) kickout(ctx context.Context, loginID string, device string) error {
 	// Get the account key for this user and device | 获取该用户和设备对应的账户键
@@ -387,65 +395,13 @@ func (m *Manager) ReplaceByToken(ctx context.Context, tokenValue string) error {
 // ============ Token Validation | Token验证 ============
 
 // IsLogin Checks if the user is logged in | 检查用户是否登录
-func (m *Manager) IsLogin(ctx context.Context, tokenValue string) bool {
-	info, err := m.getTokenInfo(ctx, tokenValue)
-	if err != nil {
-		return false
-	}
-
-	// Check if the token has exceeded the active timeout | 检查Token是否超过活跃超时时间
-	if m.config.ActiveTimeout > 0 {
-		now := time.Now().Unix()
-		if now-info.ActiveTime > m.config.ActiveTimeout {
-			// Force logout and clean up token data | 强制登出并清理Token相关数据
-			_ = m.removeTokenChain(ctx, tokenValue, info, listener.EventKickout)
-			return false
-		}
-	}
-
-	// Async auto-renew for better performance | 异步自动续期（提高性能）
-	if m.config.AutoRenew && m.config.Timeout > 0 {
-		// Construct the token storage key | 构造Token存储键
-		tokenKey := m.getTokenKey(tokenValue)
-
-		// Check if token renewal is needed | 检查是否需要进行续期
-		if ttl, err := m.storage.TTL(ctx, tokenKey); err == nil {
-			ttlSeconds := int64(ttl.Seconds())
-
-			// Perform renewal if TTL is below MaxRefresh threshold and RenewInterval allows | 如果TTL小于MaxRefresh阈值且RenewInterval允许，则进行续期
-			if ttlSeconds > 0 && (m.config.MaxRefresh <= 0 || ttlSeconds <= m.config.MaxRefresh) && (m.config.RenewInterval <= 0 || !m.storage.Exists(ctx, m.getRenewKey(tokenValue))) {
-				renewFunc := func() { m.renewToken(ctx, tokenValue, info) }
-
-				// Submit renewal task to the pool if configured, otherwise use a goroutine | 如果配置了续期池，则提交续期任务到池中，否则使用协程
-				if m.pool != nil {
-					_ = m.pool.Submit(renewFunc) // Submit token renewal task to the pool | 提交Token续期任务到续期池
-				} else {
-					go renewFunc() // Fallback to goroutine if pool is not configured | 如果没有配置续期池，使用普通协程
-				}
-			}
-		}
-	}
-
-	return true
-}
-
-// CheckLogin Checks login status (throws serror if not logged in) | 检查登录（未登录抛出错误）
-func (m *Manager) CheckLogin(ctx context.Context, tokenValue string) error {
-	if !m.IsLogin(ctx, tokenValue) {
-		return core.ErrNotLogin
-	}
-
-	return nil
-}
-
-// CheckLoginWithState Checks if user is logged in | 检查是否登录（返回详细状态err）
-func (m *Manager) CheckLoginWithState(ctx context.Context, tokenValue string) (bool, error) {
-	// Try to get token info with state check | 尝试获取Token信息（包含状态检查）
+func (m *Manager) IsLogin(ctx context.Context, tokenValue string) (bool, error) {
 	info, err := m.getTokenInfo(ctx, tokenValue, true)
 	if err != nil {
 		return false, err
 	}
 
+	// Check if the token has exceeded the active timeout | 检查Token是否超过活跃超时时间
 	if m.config.ActiveTimeout > 0 {
 		now := time.Now().Unix()
 		if now-info.ActiveTime > m.config.ActiveTimeout {
@@ -481,12 +437,30 @@ func (m *Manager) CheckLoginWithState(ctx context.Context, tokenValue string) (b
 	return true, nil
 }
 
+// CheckLogin Checks login status | 检查登录
+func (m *Manager) CheckLogin(ctx context.Context, tokenValue string) error {
+	isLogin, err := m.IsLogin(ctx, tokenValue)
+	if err != nil {
+		return err
+	}
+	if !isLogin {
+		return core.ErrTokenExpired
+	}
+
+	return nil
+}
+
+// ============ Token Information | Token信息与解析 ============
+
 // GetLoginID Gets login ID from token | 根据Token获取登录ID
 func (m *Manager) GetLoginID(ctx context.Context, tokenValue string) (string, error) {
 	// Check if the user is logged in | 检查用户是否已登录
-	isLogin := m.IsLogin(ctx, tokenValue)
+	isLogin, err := m.IsLogin(ctx, tokenValue)
+	if err != nil {
+		return "", err
+	}
 	if !isLogin {
-		return "", core.ErrNotLogin
+		return "", core.ErrTokenExpired
 	}
 
 	// Retrieve the login ID without checking token validity | 获取登录ID 不检查Token有效性
@@ -595,8 +569,8 @@ func (m *Manager) IsDisable(ctx context.Context, loginID string) bool {
 	return m.storage.Exists(ctx, disableKeyKey)
 }
 
-// CheckDisableWithInfo get disable info | 获取封禁信息
-func (m *Manager) CheckDisableWithInfo(ctx context.Context, loginID string) (*DisableInfo, error) {
+// GetDisableInfo get disable info | 获取封禁信息
+func (m *Manager) GetDisableInfo(ctx context.Context, loginID string) (*DisableInfo, error) {
 	// Retrieve the disable flag storage key | 获取封禁标记的存储键
 	disableKeyKey := m.getDisableKey(loginID)
 
@@ -1163,7 +1137,7 @@ func (m *Manager) GetTokenTag(ctx context.Context) (string, error) {
 	return "", fmt.Errorf("token tag feature not supported (use Session for custom metadata)")
 }
 
-// ============ Session Query | 会话查询 ============
+// ============ Token & Session Info | Token 与会话信息查询 ============
 
 // GetTokenValueListByLoginID Gets all tokens for specified account | 获取指定账号的所有Token
 func (m *Manager) GetTokenValueListByLoginID(ctx context.Context, loginID string) ([]string, error) {
