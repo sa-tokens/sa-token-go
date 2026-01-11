@@ -2,6 +2,7 @@ package memory
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 )
@@ -591,5 +592,77 @@ func TestMemoryStorage_ConcurrentAccess(t *testing.T) {
 	// 等待所有删除完成
 	for i := 0; i < 10; i++ {
 		<-done
+	}
+}
+func TestMemoryStorage_ConcurrentDeviceAndTokenCountEnhanced(t *testing.T) {
+	storage := NewStorage()
+	defer storage.Close()
+
+	ctx := context.Background()
+	loginId := "user1"
+
+	// 清理历史数据
+	if err := storage.Clear(ctx); err != nil {
+		t.Fatalf("failed to clear storage: %v", err)
+	}
+
+	// 模拟同账号不同设备的登录
+	keys := []string{
+		// pc 设备下多个 token
+		"satoken:auth:" + loginId + ":pc:tokenA",
+		"satoken:auth:" + loginId + ":pc:tokenB",
+		"satoken:auth:" + loginId + ":pc:tokenC",
+		"satoken:auth:" + loginId + ":pc:tokenD",
+		"satoken:auth:" + loginId + ":pc:tokenE",
+
+		// 其他设备
+		"satoken:auth:" + loginId + ":mobile:token123",
+		"satoken:auth:" + loginId + ":ipad:token456",
+		"satoken:auth:" + loginId + ":tv:token789",
+	}
+
+	for _, key := range keys {
+		if err := storage.Set(ctx, key, "dummy", 0); err != nil {
+			t.Fatalf("failed to set key %s: %v", key, err)
+		}
+	}
+
+	// ---------- 1. 测试同账号不同设备数 ----------
+	devicePattern := "satoken:auth:" + loginId + ":*:*"
+	allKeys, err := storage.Keys(ctx, devicePattern)
+	if err != nil {
+		t.Fatalf("failed to scan keys: %v", err)
+	}
+
+	deviceSet := map[string]struct{}{}
+	for _, key := range allKeys {
+		parts := strings.Split(key, ":")
+		if len(parts) >= 4 {
+			deviceSet[parts[3]] = struct{}{}
+		}
+	}
+
+	expectedDeviceCount := 4 // pc, mobile, ipad, tv
+	if len(deviceSet) != expectedDeviceCount {
+		t.Errorf("Expected %d devices, got %d", expectedDeviceCount, len(deviceSet))
+	} else {
+		t.Logf("Device count correct: %d", len(deviceSet))
+	}
+
+	// ---------- 2. 测试同账号同设备下 token 数 ----------
+	device := "pc"
+	tokenPattern := "satoken:auth:" + loginId + ":" + device + ":*"
+	deviceKeys, err := storage.Keys(ctx, tokenPattern)
+	if err != nil {
+		t.Fatalf("failed to scan keys for device %s: %v", device, err)
+	}
+
+	t.Logf("Token keys for device %s: %v", device, deviceKeys)
+
+	expectedTokenCount := 5 // tokenA ~ tokenE
+	if len(deviceKeys) != expectedTokenCount {
+		t.Errorf("Expected %d tokens for device %s, got %d", expectedTokenCount, device, len(deviceKeys))
+	} else {
+		t.Logf("Token count for device %s correct: %d", device, len(deviceKeys))
 	}
 }

@@ -185,11 +185,6 @@ func (m *Manager) Login(ctx context.Context, loginID string, device ...string) (
 					return existingTokenStr, nil
 				}
 			}
-
-			//if existingTokenStr, ok := assertString(existingToken); ok && m.IsLogin(ctx, existingTokenStr) {
-			//	// If valid token exists, return it directly | 如果已有 Token 且有效 则直接返回
-			//	return existingTokenStr, nil
-			//}
 		}
 	}
 
@@ -280,7 +275,7 @@ func (m *Manager) LoginByToken(ctx context.Context, tokenValue string) error {
 	}
 
 	// Renews token expiration asynchronously | 异步续期Token
-	m.renewToken(ctx, tokenValue, info)
+	m.renewToken(context.Background(), tokenValue, info)
 
 	return nil
 }
@@ -422,7 +417,7 @@ func (m *Manager) IsLogin(ctx context.Context, tokenValue string) (bool, error) 
 
 			// Perform renewal if TTL is below MaxRefresh threshold and RenewInterval allows | 如果TTL小于MaxRefresh阈值且RenewInterval允许，则进行续期
 			if ttlSeconds > 0 && (m.config.MaxRefresh <= 0 || ttlSeconds <= m.config.MaxRefresh) && (m.config.RenewInterval <= 0 || !m.storage.Exists(ctx, m.getRenewKey(tokenValue))) {
-				renewFunc := func() { m.renewToken(ctx, tokenValue, info) }
+				renewFunc := func() { m.renewToken(context.Background(), tokenValue, info) }
 
 				// Submit renewal task to the pool if configured, otherwise use a goroutine | 如果配置了续期池，则提交续期任务到池中，否则使用协程
 				if m.pool != nil {
@@ -1482,17 +1477,17 @@ func (m *Manager) getTokenInfo(ctx context.Context, tokenValue string, checkStat
 
 // renewToken Renews token expiration asynchronously | 异步续期Token
 func (m *Manager) renewToken(ctx context.Context, tokenValue string, info *TokenInfo) {
+	// Before renewing the token, check if the user is disabled | 在续期之前，先检查用户是否被禁用
+	if m.IsDisable(ctx, info.LoginID) {
+		return
+	}
+
 	// If info is nil, retrieve token information | 如果info为空，获取Token信息
 	if info == nil {
 		var err error
 		if info, err = m.getTokenInfo(ctx, tokenValue); err != nil || info == nil {
 			return
 		}
-	}
-
-	// Before renewing the token, check if the user is disabled | 在续期之前，先检查用户是否被禁用
-	if m.IsDisable(ctx, info.LoginID) {
-		return
 	}
 
 	// Get expiration time | 获取过期时间

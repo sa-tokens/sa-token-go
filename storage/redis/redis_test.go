@@ -2,7 +2,9 @@ package redis
 
 import (
 	"context"
+	"fmt"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -729,5 +731,81 @@ func TestRedisStorage_ConcurrentAccess(t *testing.T) {
 	// 等待所有删除完成
 	for i := 0; i < 10; i++ {
 		<-done
+	}
+}
+
+func TestConcurrentDeviceAndTokenCountEnhanced(t *testing.T) {
+	client := getTestRedisClient(t)
+	storage := NewStorageFromClient(client)
+	defer storage.Close()
+	defer cleanupTestData(t, storage)
+
+	ctx := context.Background()
+	loginId := "1"
+
+	// 清理历史数据
+	if err := storage.Clear(ctx); err != nil {
+		t.Fatalf("failed to clear storage: %v", err)
+	}
+
+	// 模拟同账号不同设备的登录
+	keys := []string{
+		// pc 设备下多个 token
+		fmt.Sprintf("satoken:auth:%s:pc:tokenA", loginId),
+		fmt.Sprintf("satoken:auth:%s:pc:tokenB", loginId),
+		fmt.Sprintf("satoken:auth:%s:pc:tokenC", loginId),
+		fmt.Sprintf("satoken:auth:%s:pc:tokenD", loginId),
+		fmt.Sprintf("satoken:auth:%s:pc:tokenE", loginId),
+
+		// 其他设备
+		fmt.Sprintf("satoken:auth:%s:mobile:token123", loginId),
+		fmt.Sprintf("satoken:auth:%s:ipad:token456", loginId),
+		fmt.Sprintf("satoken:auth:%s:tv:token789", loginId),
+	}
+
+	for _, key := range keys {
+		if err := storage.Set(ctx, key, "dummy", 0); err != nil {
+			t.Fatalf("failed to set key %s: %v", key, err)
+		}
+	}
+
+	// ---------- 1. 测试同账号不同设备数 ----------
+	devicePattern := fmt.Sprintf("satoken:auth:%s:*:*", loginId)
+	allKeys, err := storage.Keys(ctx, devicePattern)
+	if err != nil {
+		t.Fatalf("failed to scan keys: %v", err)
+	}
+
+	deviceSet := map[string]struct{}{}
+	for _, key := range allKeys {
+		parts := strings.Split(key, ":")
+		if len(parts) >= 4 {
+			deviceSet[parts[3]] = struct{}{}
+		}
+	}
+
+	expectedDeviceCount := 4 // pc, mobile, ipad, tv
+	if len(deviceSet) != expectedDeviceCount {
+		t.Errorf("Expected %d devices, got %d", expectedDeviceCount, len(deviceSet))
+	} else {
+		t.Logf("Device count correct: %d", len(deviceSet))
+	}
+
+	// ---------- 2. 测试同账号同设备下 token 数 ----------
+	device := "pc"
+	tokenPattern := fmt.Sprintf("satoken:auth:%s:%s:*", loginId, device)
+	deviceKeys, err := storage.Keys(ctx, tokenPattern)
+	if err != nil {
+		t.Fatalf("failed to scan keys for device %s: %v", device, err)
+	}
+
+	fmt.Println(len(deviceKeys))
+	fmt.Println(deviceKeys)
+
+	expectedTokenCount := 5 // tokenA ~ tokenE
+	if len(deviceKeys) != expectedTokenCount {
+		t.Errorf("Expected %d tokens for device %s, got %d", expectedTokenCount, device, len(deviceKeys))
+	} else {
+		t.Logf("Token count for device %s correct: %d", device, len(deviceKeys))
 	}
 }
