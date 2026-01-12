@@ -809,3 +809,26 @@ func TestConcurrentDeviceAndTokenCountEnhanced(t *testing.T) {
 		t.Logf("Token count for device %s correct: %d", device, len(deviceKeys))
 	}
 }
+
+func TestDaixk(t *testing.T) {
+	client := getTestRedisClient(t)
+	storage := NewStorageFromClient(client)
+	defer storage.Close()
+
+	ctx := context.Background()
+	//marshal, _ := json.Marshal(manager.TokenInfo{
+	//	AuthType:   "dsfdsf",
+	//	LoginID:    "dsfsdf",
+	//	Device:     "dsfsdf",
+	//	CreateTime: 11,
+	//	ActiveTime: 3423423,
+	//	Tag:        "",
+	//})
+	_ = storage.Set(ctx, "11111111", "KICK_OUT", 10000)
+
+	tokenInfo, _ := storage.Get(ctx, "11111111")
+	s, ok := tokenInfo.(string)
+	if ok {
+		fmt.Println(s)
+	}
+}
