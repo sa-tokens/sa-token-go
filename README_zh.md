@@ -25,6 +25,12 @@
 - 🔄 **Refresh Token** - 刷新令牌机制、无感刷新
 - 🔐 **OAuth2** - 完整的OAuth2授权码模式实现
 
+
+## 💬 微信交流群
+
+<img src="https://sa-token.cc/big-file/contact/sa-token-go--wx-group-qr.png" alt="sa-token-go 微信交流群" width="200px" height="300px" />
+
+
 ## 🚀 快速开始
 
 ### 📥 安装
