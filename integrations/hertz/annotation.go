@@ -91,45 +91,45 @@ func (a *Annotation) Validate() bool {
 
 // GetHandler gets handler with annotations | 获取带注解的处理器
 func GetHandler(handler interface{}, annotations ...*Annotation) app.HandlerFunc {
-	return func(c context.Context, ctx *app.RequestContext) {
+	return func(ctx context.Context, c *app.RequestContext) {
 		if len(annotations) > 0 && annotations[0].Ignore {
-			if callHandler(handler, c, ctx) {
+			if callHandler(handler, ctx, c) {
 				return
 			}
-			ctx.Next(c)
+			c.Next(ctx)
 			return
 		}
 
-		hCtx := NewHertzContext(ctx)
+		hCtx := NewHertzContext(c)
 		saCtx := core.NewContext(hCtx, stputil.GetManager())
 		token := saCtx.GetTokenValue()
 
-		fmt.Printf("Debug Handler: token='%s', isLogin=%v, headers=%v\n", token, stputil.IsLogin(token), ctx.Request.Header.String())
+		fmt.Printf("Debug Handler: token='%s', isLogin=%v, headers=%v\n", token, stputil.IsLogin(token), c.Request.Header.String())
 
 		if token == "" {
-			writeErrorResponse(ctx, core.NewNotLoginError())
-			ctx.Abort()
+			writeErrorResponse(c, core.NewNotLoginError())
+			c.Abort()
 			return
 		}
 
 		if !stputil.IsLogin(token) {
-			writeErrorResponse(ctx, core.NewNotLoginError())
-			ctx.Abort()
+			writeErrorResponse(c, core.NewNotLoginError())
+			c.Abort()
 			return
 		}
 
 		loginID, err := stputil.GetLoginID(token)
 		if err != nil {
-			writeErrorResponse(ctx, err)
-			ctx.Abort()
+			writeErrorResponse(c, err)
+			c.Abort()
 			return
 		}
 
 		// Check if account is disabled | 检查是否被封禁
 		if len(annotations) > 0 && annotations[0].CheckDisable {
 			if stputil.IsDisable(loginID) {
-				writeErrorResponse(ctx, core.NewAccountDisabledError(loginID))
-				ctx.Abort()
+				writeErrorResponse(c, core.NewAccountDisabledError(loginID))
+				c.Abort()
 				return
 			}
 		}
@@ -144,8 +144,8 @@ func GetHandler(handler interface{}, annotations ...*Annotation) app.HandlerFunc
 				}
 			}
 			if !hasPermission {
-				writeErrorResponse(ctx, core.NewPermissionDeniedError(strings.Join(annotations[0].CheckPermission, ",")))
-				ctx.Abort()
+				writeErrorResponse(c, core.NewPermissionDeniedError(strings.Join(annotations[0].CheckPermission, ",")))
+				c.Abort()
 				return
 			}
 		}
@@ -160,21 +160,21 @@ func GetHandler(handler interface{}, annotations ...*Annotation) app.HandlerFunc
 				}
 			}
 			if !hasRole {
-				writeErrorResponse(ctx, core.NewRoleDeniedError(strings.Join(annotations[0].CheckRole, ",")))
-				ctx.Abort()
+				writeErrorResponse(c, core.NewRoleDeniedError(strings.Join(annotations[0].CheckRole, ",")))
+				c.Abort()
 				return
 			}
 		}
 
 		// All checks passed, execute original handler or continue | 所有检查通过，执行原函数或继续
-		if callHandler(handler, c, ctx) {
+		if callHandler(handler, ctx, c) {
 			return
 		}
-		ctx.Next(c)
+		c.Next(ctx)
 	}
 }
 
-func callHandler(handler interface{}, c context.Context, ctx *app.RequestContext) bool {
+func callHandler(handler interface{}, ctx context.Context, c *app.RequestContext) bool {
 	if handler == nil {
 		return false
 	}
@@ -184,13 +184,13 @@ func callHandler(handler interface{}, c context.Context, ctx *app.RequestContext
 		if h == nil {
 			return false
 		}
-		h(ctx)
+		h(c)
 		return true
 	case app.HandlerFunc:
 		if h == nil {
 			return false
 		}
-		h(c, ctx)
+		h(ctx, c)
 		return true
 	}
 
@@ -289,40 +289,40 @@ func (h *HandlerWithAnnotations) ToGinHandler() app.HandlerFunc {
 
 // Middleware 创建中间件版本
 func Middleware(annotations ...*Annotation) app.HandlerFunc {
-	return func(c context.Context, ctx *app.RequestContext) {
+	return func(ctx context.Context, c *app.RequestContext) {
 		if len(annotations) > 0 && annotations[0].Ignore {
-			ctx.Next(c)
+			c.Next(ctx)
 			return
 		}
 
-		hCtx := NewHertzContext(ctx)
+		hCtx := NewHertzContext(c)
 		saCtx := core.NewContext(hCtx, stputil.GetManager())
 		token := saCtx.GetTokenValue()
 
 		if token == "" {
-			writeErrorResponse(ctx, core.NewNotLoginError())
-			ctx.Abort()
+			writeErrorResponse(c, core.NewNotLoginError())
+			c.Abort()
 			return
 		}
 
 		if !stputil.IsLogin(token) {
-			writeErrorResponse(ctx, core.NewNotLoginError())
-			ctx.Abort()
+			writeErrorResponse(c, core.NewNotLoginError())
+			c.Abort()
 			return
 		}
 
 		loginID, err := stputil.GetLoginID(token)
 		if err != nil {
-			writeErrorResponse(ctx, err)
-			ctx.Abort()
+			writeErrorResponse(c, err)
+			c.Abort()
 			return
 		}
 
 		// 检查是否被封禁
 		if len(annotations) > 0 && annotations[0].CheckDisable {
 			if stputil.IsDisable(loginID) {
-				writeErrorResponse(ctx, core.NewAccountDisabledError(loginID))
-				ctx.Abort()
+				writeErrorResponse(c, core.NewAccountDisabledError(loginID))
+				c.Abort()
 				return
 			}
 		}
@@ -337,8 +337,8 @@ func Middleware(annotations ...*Annotation) app.HandlerFunc {
 				}
 			}
 			if !hasPermission {
-				writeErrorResponse(ctx, core.NewPermissionDeniedError(strings.Join(annotations[0].CheckPermission, ",")))
-				ctx.Abort()
+				writeErrorResponse(c, core.NewPermissionDeniedError(strings.Join(annotations[0].CheckPermission, ",")))
+				c.Abort()
 				return
 			}
 		}
@@ -353,13 +353,13 @@ func Middleware(annotations ...*Annotation) app.HandlerFunc {
 				}
 			}
 			if !hasRole {
-				writeErrorResponse(ctx, core.NewRoleDeniedError(strings.Join(annotations[0].CheckRole, ",")))
-				ctx.Abort()
+				writeErrorResponse(c, core.NewRoleDeniedError(strings.Join(annotations[0].CheckRole, ",")))
+				c.Abort()
 				return
 			}
 		}
 
 		// 所有检查通过，继续下一个处理器
-		ctx.Next(c)
+		c.Next(ctx)
 	}
 }

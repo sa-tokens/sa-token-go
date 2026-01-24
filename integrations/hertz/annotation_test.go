@@ -65,8 +65,8 @@ func TestCheckRole_WithValidRole(t *testing.T) {
 	router := setupTestRouter()
 
 	// 设置路由 - 使用 CheckRole 作为中间件
-	router.GET("/admin", CheckRole("Admin"), func(c context.Context, ctx *app.RequestContext) {
-		ctx.JSON(http.StatusOK, utils.H{"message": "success"})
+	router.GET("/admin", CheckRole("Admin"), func(ctx context.Context, c *app.RequestContext) {
+		c.JSON(http.StatusOK, utils.H{"message": "success"})
 	})
 
 	// 创建一个具有 Admin 角色的用户
@@ -89,8 +89,8 @@ func TestCheckRole_WithInvalidRole(t *testing.T) {
 	router := setupTestRouter()
 
 	// 设置路由
-	router.GET("/admin", CheckRole("Admin"), func(c context.Context, ctx *app.RequestContext) {
-		ctx.JSON(http.StatusOK, utils.H{"message": "success"})
+	router.GET("/admin", CheckRole("Admin"), func(ctx context.Context, c *app.RequestContext) {
+		c.JSON(http.StatusOK, utils.H{"message": "success"})
 	})
 
 	// 创建一个只有 User 角色的用户
@@ -110,8 +110,8 @@ func TestCheckRole_MultipleRoles(t *testing.T) {
 	router := setupTestRouter()
 
 	// 设置路由 - 需要 Admin 或 SuperAdmin 角色
-	router.GET("/manage", CheckRole("Admin", "SuperAdmin"), func(c context.Context, ctx *app.RequestContext) {
-		ctx.JSON(http.StatusOK, utils.H{"message": "success"})
+	router.GET("/manage", CheckRole("Admin", "SuperAdmin"), func(ctx context.Context, c *app.RequestContext) {
+		c.JSON(http.StatusOK, utils.H{"message": "success"})
 	})
 
 	// 测试具有 SuperAdmin 角色的用户
@@ -128,8 +128,8 @@ func TestCheckRole_MultipleRoles(t *testing.T) {
 func TestCheckRole_NoToken(t *testing.T) {
 	router := setupTestRouter()
 
-	router.GET("/admin", CheckRole("Admin"), func(c context.Context, ctx *app.RequestContext) {
-		ctx.JSON(http.StatusOK, utils.H{"message": "success"})
+	router.GET("/admin", CheckRole("Admin"), func(ctx context.Context, c *app.RequestContext) {
+		c.JSON(http.StatusOK, utils.H{"message": "success"})
 	})
 
 	w := ut.PerformRequest(router.Engine, "GET", "/admin", nil)
@@ -142,8 +142,8 @@ func TestCheckRole_NoToken(t *testing.T) {
 func TestCheckRole_InvalidToken(t *testing.T) {
 	router := setupTestRouter()
 
-	router.GET("/admin", CheckRole("Admin"), func(c context.Context, ctx *app.RequestContext) {
-		ctx.JSON(http.StatusOK, utils.H{"message": "success"})
+	router.GET("/admin", CheckRole("Admin"), func(ctx context.Context, c *app.RequestContext) {
+		c.JSON(http.StatusOK, utils.H{"message": "success"})
 	})
 
 	w := ut.PerformRequest(router.Engine, "GET", "/admin", nil,
@@ -157,8 +157,8 @@ func TestCheckRole_InvalidToken(t *testing.T) {
 func TestCheckPermission_WithValidPermission(t *testing.T) {
 	router := setupTestRouter()
 
-	router.GET("/users", CheckPermission("user.read"), func(c context.Context, ctx *app.RequestContext) {
-		ctx.JSON(http.StatusOK, utils.H{"message": "success"})
+	router.GET("/users", CheckPermission("user.read"), func(ctx context.Context, c *app.RequestContext) {
+		c.JSON(http.StatusOK, utils.H{"message": "success"})
 	})
 
 	token := mockLoginWithPermission("user789", []string{"user.read"})
@@ -174,8 +174,8 @@ func TestCheckPermission_WithValidPermission(t *testing.T) {
 func TestCheckPermission_WithInvalidPermission(t *testing.T) {
 	router := setupTestRouter()
 
-	router.GET("/users", CheckPermission("user.delete"), func(c context.Context, ctx *app.RequestContext) {
-		ctx.JSON(http.StatusOK, utils.H{"message": "success"})
+	router.GET("/users", CheckPermission("user.delete"), func(ctx context.Context, c *app.RequestContext) {
+		c.JSON(http.StatusOK, utils.H{"message": "success"})
 	})
 
 	token := mockLoginWithPermission("user789", []string{"user.read"})
@@ -191,8 +191,8 @@ func TestCheckPermission_WithInvalidPermission(t *testing.T) {
 func TestCheckLogin_Success(t *testing.T) {
 	router := setupTestRouter()
 
-	router.GET("/profile", CheckLogin(), func(c context.Context, ctx *app.RequestContext) {
-		ctx.JSON(http.StatusOK, utils.H{"message": "profile data"})
+	router.GET("/profile", CheckLogin(), func(ctx context.Context, c *app.RequestContext) {
+		c.JSON(http.StatusOK, utils.H{"message": "profile data"})
 	})
 
 	token := mockLogin("user999")
@@ -208,8 +208,8 @@ func TestCheckLogin_Success(t *testing.T) {
 func TestCheckLogin_Failed(t *testing.T) {
 	router := setupTestRouter()
 
-	router.GET("/profile", CheckLogin(), func(c context.Context, ctx *app.RequestContext) {
-		ctx.JSON(http.StatusOK, utils.H{"message": "profile data"})
+	router.GET("/profile", CheckLogin(), func(ctx context.Context, c *app.RequestContext) {
+		c.JSON(http.StatusOK, utils.H{"message": "profile data"})
 	})
 
 	w := ut.PerformRequest(router.Engine, "GET", "/profile", nil)
@@ -222,8 +222,8 @@ func TestCheckLogin_Failed(t *testing.T) {
 func TestCheckDisable_NotDisabled(t *testing.T) {
 	router := setupTestRouter()
 
-	router.GET("/resource", CheckDisable(), func(c context.Context, ctx *app.RequestContext) {
-		ctx.JSON(http.StatusOK, utils.H{"message": "resource data"})
+	router.GET("/resource", CheckDisable(), func(ctx context.Context, c *app.RequestContext) {
+		c.JSON(http.StatusOK, utils.H{"message": "resource data"})
 	})
 
 	token := mockLogin("user101")
@@ -239,8 +239,8 @@ func TestCheckDisable_NotDisabled(t *testing.T) {
 func TestCheckDisable_IsDisabled(t *testing.T) {
 	router := setupTestRouter()
 
-	router.GET("/resource", CheckDisable(), func(c context.Context, ctx *app.RequestContext) {
-		ctx.JSON(http.StatusOK, utils.H{"message": "resource data"})
+	router.GET("/resource", CheckDisable(), func(ctx context.Context, c *app.RequestContext) {
+		c.JSON(http.StatusOK, utils.H{"message": "resource data"})
 	})
 
 	loginID := "user102"
@@ -260,8 +260,8 @@ func TestCheckDisable_IsDisabled(t *testing.T) {
 func TestIgnore_SkipsAuthentication(t *testing.T) {
 	router := setupTestRouter()
 
-	router.GET("/public", Ignore(), func(c context.Context, ctx *app.RequestContext) {
-		ctx.JSON(http.StatusOK, utils.H{"message": "public data"})
+	router.GET("/public", Ignore(), func(ctx context.Context, c *app.RequestContext) {
+		c.JSON(http.StatusOK, utils.H{"message": "public data"})
 	})
 
 	w := ut.PerformRequest(router.Engine, "GET", "/public", nil)
@@ -277,8 +277,8 @@ func TestChainedMiddleware_CheckRoleAndHandler(t *testing.T) {
 	// 模拟用户示例代码的使用方式
 	safeGroup := router.Group("/safe")
 	{
-		safeGroup.GET("", CheckRole("SuperAdmin"), func(c context.Context, ctx *app.RequestContext) {
-			ctx.JSON(http.StatusOK, utils.H{"message": "safe settings"})
+		safeGroup.GET("", CheckRole("SuperAdmin"), func(ctx context.Context, c *app.RequestContext) {
+			c.JSON(http.StatusOK, utils.H{"message": "safe settings"})
 		})
 	}
 
@@ -298,8 +298,8 @@ func TestChainedMiddleware_CheckRoleAndHandler_NoRole(t *testing.T) {
 
 	safeGroup := router.Group("/safe")
 	{
-		safeGroup.GET("", CheckRole("SuperAdmin"), func(c context.Context, ctx *app.RequestContext) {
-			ctx.JSON(http.StatusOK, utils.H{"message": "safe settings"})
+		safeGroup.GET("", CheckRole("SuperAdmin"), func(ctx context.Context, c *app.RequestContext) {
+			c.JSON(http.StatusOK, utils.H{"message": "safe settings"})
 		})
 	}
 
@@ -320,8 +320,8 @@ func TestGetHandler_WithNilHandler(t *testing.T) {
 	// 直接使用 GetHandler 创建中间件
 	middleware := GetHandler(nil, &Annotation{CheckRole: []string{"Admin"}})
 
-	router.GET("/test", middleware, func(c context.Context, ctx *app.RequestContext) {
-		ctx.JSON(http.StatusOK, utils.H{"message": "test passed"})
+	router.GET("/test", middleware, func(ctx context.Context, c *app.RequestContext) {
+		c.JSON(http.StatusOK, utils.H{"message": "test passed"})
 	})
 
 	token := mockLoginWithRole("testuser", []string{"Admin"})
@@ -339,8 +339,8 @@ func TestMiddleware_CheckRole(t *testing.T) {
 	router := setupTestRouter()
 
 	// 使用 Middleware 函数
-	router.GET("/api/data", Middleware(&Annotation{CheckRole: []string{"Admin"}}), func(c context.Context, ctx *app.RequestContext) {
-		ctx.JSON(http.StatusOK, utils.H{"data": "sensitive data"})
+	router.GET("/api/data", Middleware(&Annotation{CheckRole: []string{"Admin"}}), func(ctx context.Context, c *app.RequestContext) {
+		c.JSON(http.StatusOK, utils.H{"data": "sensitive data"})
 	})
 
 	token := mockLoginWithRole("admin999", []string{"Admin"})

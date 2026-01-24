@@ -45,79 +45,79 @@ func (p *Plugin) AuthMiddleware() app.HandlerFunc {
 
 // PathAuthMiddleware path-based authentication middleware | 基于路径的鉴权中间件
 func (p *Plugin) PathAuthMiddleware(config *core.PathAuthConfig) app.HandlerFunc {
-	return func(c context.Context, ctx *app.RequestContext) {
-		path := string(ctx.Path())
-		token := string(ctx.GetHeader(p.manager.GetConfig().TokenName))
+	return func(ctx context.Context, c *app.RequestContext) {
+		path := string(c.Path())
+		token := string(c.GetHeader(p.manager.GetConfig().TokenName))
 		if token == "" {
-			token = string(ctx.Cookie(p.manager.GetConfig().TokenName))
+			token = string(c.Cookie(p.manager.GetConfig().TokenName))
 		}
 
 		result := core.ProcessAuth(path, token, config, p.manager)
 
 		if result.ShouldReject() {
-			writeErrorResponse(ctx, core.NewPathAuthRequiredError(path))
-			ctx.Abort()
+			writeErrorResponse(c, core.NewPathAuthRequiredError(path))
+			c.Abort()
 			return
 		}
 
 		if result.IsValid && result.TokenInfo != nil {
-			hCtx := NewHertzContext(ctx)
+			hCtx := NewHertzContext(c)
 			saCtx := core.NewContext(hCtx, p.manager)
-			ctx.Set("satoken", saCtx)
-			ctx.Set("loginID", result.LoginID())
+			c.Set("satoken", saCtx)
+			c.Set("loginID", result.LoginID())
 		}
 
-		ctx.Next(c)
+		c.Next(ctx)
 	}
 }
 
 // PermissionRequired permission validation middleware | 权限验证中间件
 func (p *Plugin) PermissionRequired(permission string) app.HandlerFunc {
-	return func(c context.Context, ctx *app.RequestContext) {
-		hCtx := NewHertzContext(ctx)
+	return func(ctx context.Context, c *app.RequestContext) {
+		hCtx := NewHertzContext(c)
 		saCtx := core.NewContext(hCtx, p.manager)
 
 		// Check login | 检查登录
 		if err := saCtx.CheckLogin(); err != nil {
-			writeErrorResponse(ctx, err)
-			ctx.Abort()
+			writeErrorResponse(c, err)
+			c.Abort()
 			return
 		}
 
 		// Check permission | 检查权限
 		if !saCtx.HasPermission(permission) {
-			writeErrorResponse(ctx, core.NewPermissionDeniedError(permission))
-			ctx.Abort()
+			writeErrorResponse(c, core.NewPermissionDeniedError(permission))
+			c.Abort()
 			return
 		}
 
-		ctx.Set("satoken", saCtx)
-		ctx.Next(c)
+		c.Set("satoken", saCtx)
+		c.Next(ctx)
 	}
 }
 
 // RoleRequired role validation middleware | 角色验证中间件
 func (p *Plugin) RoleRequired(role string) app.HandlerFunc {
-	return func(c context.Context, ctx *app.RequestContext) {
-		hCtx := NewHertzContext(ctx)
+	return func(ctx context.Context, c *app.RequestContext) {
+		hCtx := NewHertzContext(c)
 		saCtx := core.NewContext(hCtx, p.manager)
 
 		// Check login | 检查登录
 		if err := saCtx.CheckLogin(); err != nil {
-			writeErrorResponse(ctx, err)
-			ctx.Abort()
+			writeErrorResponse(c, err)
+			c.Abort()
 			return
 		}
 
 		// Check role | 检查角色
 		if !saCtx.HasRole(role) {
-			writeErrorResponse(ctx, core.NewRoleDeniedError(role))
-			ctx.Abort()
+			writeErrorResponse(c, core.NewRoleDeniedError(role))
+			c.Abort()
 			return
 		}
 
-		ctx.Set("satoken", saCtx)
-		ctx.Next(c)
+		c.Set("satoken", saCtx)
+		c.Next(ctx)
 	}
 }
 

@@ -72,19 +72,17 @@ func (h *HertzContext) Get(key string) (interface{}, bool) {
 
 // GetHeaders implements adapter.RequestContext.
 func (h *HertzContext) GetHeaders() map[string][]string {
-	header := h.c.Request.Header.Header()
 	headers := make(map[string][]string)
-	for _, key := range header {
-		headers[string(key)] = []string{string(key)}
-	}
+	h.c.Request.Header.VisitAll(func(key, value []byte) {
+		headers[string(key)] = []string{string(value)}
+	})
 	return headers
 }
 
 // GetQueryAll implements adapter.RequestContext.
 func (h *HertzContext) GetQueryAll() map[string][]string {
-	args := h.c.QueryArgs()
 	params := make(map[string][]string)
-	args.VisitAll(func(key, value []byte) {
+	h.c.QueryArgs().VisitAll(func(key, value []byte) {
 		params[string(key)] = []string{string(value)}
 	})
 	return params
