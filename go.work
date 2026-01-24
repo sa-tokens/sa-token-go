@@ -9,6 +9,7 @@ use (
 	./integrations/fiber
 	./integrations/gf
 	./integrations/gin
+	./integrations/hertz
 	./integrations/kratos
 	./storage/memory
 	./storage/redis
