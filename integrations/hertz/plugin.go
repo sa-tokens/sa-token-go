@@ -9,7 +9,6 @@ import (
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/common/utils"
 	"github.com/cloudwego/hertz/pkg/protocol"
-	"github.com/gin-gonic/gin"
 )
 
 // Plugin Hertz plugin for Sa-Token | Hertz插件
@@ -134,9 +133,6 @@ func (p *Plugin) LoginHandler(c *app.RequestContext) {
 		return
 	}
 
-	// TODO: Validate username and password (should call your user service) | 验证用户名密码（这里应该调用你的用户服务）
-	// if !validateUser(req.Username, req.Password) { ... }
-
 	// Login | 登录
 	device := req.Device
 	if device == "" {
@@ -198,7 +194,7 @@ func (p *Plugin) LogoutHandler(c *app.RequestContext) {
 		return
 	}
 
-	writeSuccessResponse(c, gin.H{
+	writeSuccessResponse(c, utils.H{
 		"message": "logout successful",
 	})
 }
@@ -225,7 +221,7 @@ func (p *Plugin) UserInfoHandler(c *app.RequestContext) {
 	})
 }
 
-// GetSaToken gets Sa-Token context from Gin context | 从Gin上下文获取Sa-Token上下文
+// GetSaToken gets Sa-Token context from Hertz context | 从Hertz上下文获取Sa-Token上下文
 func GetSaToken(c *app.RequestContext) (*core.SaTokenContext, bool) {
 	satoken, exists := c.Get("satoken")
 	if !exists {
