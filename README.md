@@ -46,6 +46,9 @@ go get github.com/click33/sa-token-go/integrations/chi@latest   # Chi framework
 go get github.com/click33/sa-token-go/integrations/gf@latest    # GoFrame framework
 # or
 go get github.com/click33/sa-token-go/integrations/kratos@latest    # Kratos framework
+# or
+go get github.com/click33/sa-token-go/integrations/hertz@latest # Hertz framework
+```
 
 # Storage module (choose one)
 go get github.com/click33/sa-token-go/storage/memory@latest # Memory storage (dev)
@@ -70,6 +73,7 @@ go get github.com/click33/sa-token-go/integrations/fiber@latest # Fiber framewor
 go get github.com/click33/sa-token-go/integrations/chi@latest   # Chi framework
 go get github.com/click33/sa-token-go/integrations/gf@latest    # GoFrame framework
 go get github.com/click33/sa-token-go/integrations/kratos@latest# Kratos framework
+go get github.com/click33/sa-token-go/integrations/hertz@latest # Hertz framework
 ```
 
 ### ⚡ Minimal Usage (One-line Initialization)
@@ -378,6 +382,10 @@ r.Get("/user", sachi.CheckLogin(), handler)
 // Kratos
 import sakratos "github.com/click33/sa-token-go/integrations/kratos"
 // Use Plugin.Server() as middleware
+
+// Hertz
+import sahertz "github.com/click33/sa-token-go/integrations/hertz"
+h.GET("/user", sahertz.CheckLogin(), handler)
 ```
 
 ## 🎨 Advanced Features

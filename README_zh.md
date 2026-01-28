@@ -46,6 +46,8 @@ go get github.com/click33/sa-token-go/integrations/chi@latest   # Chi框架
 go get github.com/click33/sa-token-go/integrations/gf@latest    # GoFrame框架
 # 或
 go get github.com/click33/sa-token-go/integrations/kratos@latest# Kratos框架
+# 或
+go get github.com/click33/sa-token-go/integrations/hertz@latest # Hertz框架
 
 # 存储模块（选一个）
 go get github.com/click33/sa-token-go/storage/memory@latest # 内存存储（开发）
@@ -70,6 +72,7 @@ go get github.com/click33/sa-token-go/integrations/fiber@latest # Fiber框架
 go get github.com/click33/sa-token-go/integrations/chi@latest   # Chi框架
 go get github.com/click33/sa-token-go/integrations/gf@latest    # GoFrame框架
 go get github.com/click33/sa-token-go/integrations/kratos@latest# Kratos框架
+go get github.com/click33/sa-token-go/integrations/hertz@latest # Hertz框架
 ```
 
 ### ⚡ 超简洁使用（一行初始化）
@@ -378,6 +381,10 @@ r.Get("/user", sachi.CheckLogin(), handler)
 // Kratos
 import sakratos "github.com/click33/sa-token-go/integrations/kratos"
 // 使用 Plugin.Server() 作为中间件
+
+// Hertz
+import sahertz "github.com/click33/sa-token-go/integrations/hertz"
+h.GET("/user", sahertz.CheckLogin(), handler)
 ```
 
 ## 🎨 高级特性
