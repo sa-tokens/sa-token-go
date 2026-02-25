@@ -1,7 +1,8 @@
-go 1.25.3
+go 1.25.4
 
 use (
 	./core
+	./examples/hertz/herz-example
 	./examples/kratos/kratos-example
 	./examples/multi-certification
 	./integrations/chi
@@ -9,6 +10,7 @@ use (
 	./integrations/fiber
 	./integrations/gf
 	./integrations/gin
+	./integrations/hertz
 	./integrations/kratos
 	./storage/memory
 	./storage/redis
