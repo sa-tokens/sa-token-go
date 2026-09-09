@@ -28,7 +28,7 @@
 
 ## 💬 微信交流群
 
-<img src="https://res.dev33.cn/contact/sa-token-go--wx-group-qr.png?date=2026-08-30" alt="sa-token-go 微信交流群" width="200px" height="300px" />
+<img src="https://res.dev33.cn/contact/sa-token-go--wx-group-qr.png?date=2026-09-09" alt="sa-token-go 微信交流群" width="200px" height="300px" />
 
 
 ## 🚀 快速开始
