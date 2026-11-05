@@ -39,9 +39,16 @@ func (p *Plugin) AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx := NewGinContext(c)
 		saCtx := core.NewContext(ctx, p.manager)
-
+		
 		// Check login | 检查登录
-		if err := saCtx.CheckLogin(); err != nil {
+		// Try to get token from context first | 优先使用拦截器已解析的 token
+		var err error
+		if token := GetTokenFromCtx(c); token != "" {
+			err = p.manager.CheckLogin(token)
+		} else {
+			err = saCtx.CheckLogin()
+		}
+		if err != nil {
 			writeErrorResponse(c, err)
 			c.Abort()
 			return

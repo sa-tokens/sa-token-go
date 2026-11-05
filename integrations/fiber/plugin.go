@@ -36,7 +36,15 @@ func (p *Plugin) AuthMiddleware() fiber.Handler {
 		ctx := NewFiberContext(c)
 		saCtx := core.NewContext(ctx, p.manager)
 
-		if err := saCtx.CheckLogin(); err != nil {
+		// Check login | 检查登录
+		// Try to get token from context first | 优先使用拦截器已解析的 token
+		var err error
+		if token := GetTokenFromCtx(c); token != "" {
+			err = p.manager.CheckLogin(token)
+		} else {
+			err = saCtx.CheckLogin()
+		}
+		if err != nil {
 			return writeErrorResponse(c, err)
 		}
 

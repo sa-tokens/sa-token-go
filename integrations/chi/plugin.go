@@ -42,7 +42,15 @@ func (p *Plugin) AuthMiddleware() func(http.Handler) http.Handler {
 			ctx := NewChiContext(w, r)
 			saCtx := core.NewContext(ctx, p.manager)
 
-			if err := saCtx.CheckLogin(); err != nil {
+			// Check login | 检查登录
+			// Try to get token from context first | 优先使用拦截器已解析的 token
+			var err error
+			if token := GetTokenFromCtx(r); token != "" {
+				err = p.manager.CheckLogin(token)
+			} else {
+				err = saCtx.CheckLogin()
+			}
+			if err != nil {
 				writeErrorResponse(w, err)
 				return
 			}

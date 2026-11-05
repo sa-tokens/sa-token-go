@@ -50,7 +50,15 @@ func (p *Plugin) TokenInterceptor() irisfw.Handler {
 func (p *Plugin) AuthMiddleware() irisfw.Handler {
 	return func(c irisfw.Context) {
 		saCtx := core.NewContext(NewIrisContext(c), p.manager)
-		if err := saCtx.CheckLogin(); err != nil {
+		// Check login | 检查登录
+		// Try to get token from context first | 优先使用拦截器已解析的 token
+		var err error
+		if token := GetTokenFromCtx(c); token != "" {
+			err = p.manager.CheckLogin(token)
+		} else {
+			err = saCtx.CheckLogin()
+		}
+		if err != nil {
 			writeErrorResponse(c, err)
 			c.StopExecution()
 			return

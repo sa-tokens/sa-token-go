@@ -47,7 +47,14 @@ func (p *Plugin) AuthMiddleware() ghttp.HandlerFunc {
 		ctx := NewGFContext(r)
 		saCtx := core.NewContext(ctx, p.manager)
 		// Check login | 检查登录
-		if err := saCtx.CheckLogin(); err != nil {
+		// Try to get token from context first | 优先使用拦截器已解析的 token
+		var err error
+		if token := GetTokenFromCtx(r); token != "" {
+			err = p.manager.CheckLogin(token)
+		} else {
+			err = saCtx.CheckLogin()
+		}
+		if err != nil {
 			writeErrorResponse(r, err)
 			return
 		}
